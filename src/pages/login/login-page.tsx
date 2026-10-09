@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { ArrowRight, Container, Eye, EyeOff, KeyRound, Loader2, ShieldCheck } from 'lucide-react'
+import { Container, Eye, EyeOff } from 'lucide-react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 
 import { Button } from '@/components/ui/button'
@@ -7,15 +7,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { signIn, useSession } from '@/data/auth'
 import { useSettings } from '@/data/settings'
-import { RouteMap } from './route-map'
-
-const STATS = [
-  { value: '1 295', label: 'quotations a year' },
-  { value: '98.4%', label: 'on-time delivery' },
-  { value: '14', label: 'countries served' },
-]
+import { cn } from '@/lib/utils'
 
 const CURRENT_YEAR = new Date().getFullYear()
+// Сколько «идёт запрос» при входе, мс. Столько же едет полоса сверху карточки
+const SIGN_IN_DELAY = 900
 
 export function LoginPage() {
   const session = useSession()
@@ -39,69 +35,36 @@ export function LoginPage() {
     setTimeout(() => {
       signIn(email)
       navigate(from, { replace: true })
-    }, 700)
+    }, SIGN_IN_DELAY)
   }
 
   return (
-    <div className="grid min-h-svh bg-background lg:grid-cols-[1.15fr_1fr]">
-      {/* Левая половина: бренд и живая карта маршрутов */}
-      <aside className="relative hidden flex-col justify-between overflow-hidden bg-sidebar p-10 text-sidebar-foreground lg:flex">
-        {/* Точечная сетка на фоне */}
+    <div className="flex min-h-svh flex-col items-center justify-center bg-muted/60 px-4 py-10">
+      <main className="relative w-full max-w-[400px] overflow-hidden rounded-xl border bg-card shadow-sm">
+        {/* Полоса прогресса по верхнему краю: единственная анимация на странице, отвечает на нажатие Sign in */}
         <div
-          className="pointer-events-none absolute inset-0 opacity-[0.07]"
-          style={{
-            backgroundImage: 'radial-gradient(currentColor 1px, transparent 1px)',
-            backgroundSize: '22px 22px',
-          }}
+          aria-hidden
+          className={cn(
+            'absolute inset-x-0 top-0 h-0.5 origin-left bg-primary transition-transform ease-out motion-reduce:transition-none',
+            loading ? 'scale-x-100' : 'scale-x-0',
+          )}
+          style={{ transitionDuration: `${SIGN_IN_DELAY}ms` }}
         />
-        <div className="relative flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-            <Container className="size-5" />
-          </div>
-          <div className="leading-tight">
-            <div className="font-semibold text-sidebar-accent-foreground">{settings.companyName}</div>
-            <div className="text-sm text-sidebar-foreground/60">{settings.companyTagline}</div>
-          </div>
-        </div>
 
-        <div className="relative">
-          <h1 className="max-w-md text-4xl leading-tight font-semibold tracking-tight text-sidebar-accent-foreground">
-            Every shipment, from quote to delivery.
-          </h1>
-          <p className="mt-4 max-w-md text-sidebar-foreground/70">
-            Quotations, margins, tracking and invoices in one place. Air, sea, road and rail.
-          </p>
-          <div className="mt-8 -mx-4">
-            <RouteMap />
-          </div>
-        </div>
-
-        <div className="relative grid grid-cols-3 gap-6 border-t border-sidebar-border pt-6">
-          {STATS.map((stat) => (
-            <div key={stat.label}>
-              <div className="text-2xl font-semibold text-sidebar-accent-foreground tabular-nums">{stat.value}</div>
-              <div className="text-sm text-sidebar-foreground/60">{stat.label}</div>
+        <div className="px-8 pt-8 pb-7">
+          <div className="flex items-center gap-2.5">
+            <div className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <Container className="size-4" />
             </div>
-          ))}
-        </div>
-      </aside>
-
-      {/* Правая половина: форма */}
-      <main className="flex items-center justify-center p-6 sm:p-10">
-        <div className="w-full max-w-sm">
-          <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Container className="size-5" />
-            </div>
-            <div className="font-semibold">{settings.companyName}</div>
+            <span className="text-sm font-semibold">{settings.companyName}</span>
           </div>
 
-          <h2 className="text-2xl font-semibold tracking-tight">Sign in</h2>
-          <p className="mt-1.5 text-sm text-muted-foreground">Welcome back. Enter your work account to continue.</p>
+          <h1 className="mt-8 text-xl font-semibold tracking-tight">Sign in</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Use your work email to open the workspace.</p>
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="email">Work email</Label>
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -113,10 +76,10 @@ export function LoginPage() {
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
-                <button type="button" className="text-xs font-medium text-primary hover:underline">
+                <button type="button" className="text-xs text-muted-foreground hover:text-foreground">
                   Forgot password?
                 </button>
               </div>
@@ -141,38 +104,25 @@ export function LoginPage() {
               </div>
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <label className="flex items-center gap-2 pt-1 text-sm text-muted-foreground">
               <input type="checkbox" defaultChecked className="size-4 rounded border-input accent-primary" />
               Keep me signed in
             </label>
 
-            <Button type="submit" className="h-10 w-full" disabled={loading}>
-              {loading ? <Loader2 className="animate-spin" /> : <ArrowRight />}
+            <Button type="submit" className="mt-2 h-10 w-full" disabled={loading}>
               {loading ? 'Signing in…' : 'Sign in'}
             </Button>
           </form>
+        </div>
 
-          <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
-            <div className="h-px flex-1 bg-border" />
-            or
-            <div className="h-px flex-1 bg-border" />
-          </div>
-
-          <Button type="button" variant="outline" className="h-10 w-full" onClick={handleSubmit} disabled={loading}>
-            <KeyRound />
-            Continue with SSO
-          </Button>
-
-          <div className="mt-8 flex items-start gap-2.5 rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
-            <ShieldCheck className="mt-px size-4 shrink-0 text-success" />
-            <span>Demo mode: any email and password will sign you in. Data is sample data.</span>
-          </div>
-
-          <p className="mt-10 text-center text-xs text-muted-foreground">
-            © {CURRENT_YEAR} {settings.companyName}. All rights reserved.
-          </p>
+        <div className="border-t bg-muted/40 px-8 py-3 text-xs text-muted-foreground">
+          Demo access: any email and password will work.
         </div>
       </main>
+
+      <p className="mt-6 text-xs text-muted-foreground">
+        © {CURRENT_YEAR} {settings.companyName}
+      </p>
     </div>
   )
 }
