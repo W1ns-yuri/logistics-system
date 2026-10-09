@@ -1,8 +1,10 @@
 import { createBrowserRouter } from 'react-router'
 
 import { AppLayout } from '@/components/layout/app-layout'
+import { RequireAuth } from '@/components/require-auth'
 import { CustomersPage } from '@/pages/customers/customers-page'
 import { HomePage } from '@/pages/home'
+import { LoginPage } from '@/pages/login/login-page'
 import { NotFoundPage } from '@/pages/not-found'
 import { PaymentsPage } from '@/pages/payments/payments-page'
 import { QuotationDetailPage } from '@/pages/quotations/quotation-detail-page'
@@ -15,9 +17,14 @@ import { VendorsPage } from '@/pages/vendors/vendors-page'
 
 // Все страницы — дети AppLayout, поэтому меню и шапка остаются на месте при переходах
 export const router = createBrowserRouter([
+  { path: '/login', element: <LoginPage /> },
   {
     path: '/',
-    element: <AppLayout />,
+    element: (
+      <RequireAuth>
+        <AppLayout />
+      </RequireAuth>
+    ),
     children: [
       { index: true, element: <HomePage /> },
       { path: 'quotations', element: <QuotationsPage /> },
