@@ -1,9 +1,14 @@
 import { useSyncExternalStore } from 'react'
 
+import type { Customer, Vendor } from '@/types/directory'
+import type { Invoice } from '@/types/invoice'
 import type { Quotation } from '@/types/quotation'
 import type { Shipment, ShipmentStatus } from '@/types/shipment'
+import { mockCustomers } from './customers'
+import { mockInvoices } from './invoices'
 import { mockQuotations } from './quotations'
 import { mockShipments } from './shipments'
+import { mockVendors } from './vendors'
 
 /*
  * Временная «база данных» в памяти браузера.
@@ -15,9 +20,18 @@ import { mockShipments } from './shipments'
 type State = {
   quotations: Quotation[]
   shipments: Shipment[]
+  customers: Customer[]
+  vendors: Vendor[]
+  invoices: Invoice[]
 }
 
-let state: State = { quotations: mockQuotations, shipments: mockShipments }
+let state: State = {
+  quotations: mockQuotations,
+  shipments: mockShipments,
+  customers: mockCustomers,
+  vendors: mockVendors,
+  invoices: mockInvoices,
+}
 const listeners = new Set<() => void>()
 
 function setState(update: (prev: State) => State) {
@@ -93,6 +107,7 @@ export function createShipmentFromQuotation(id: string) {
     history: [{ status: 'loaded', at: now, note: `Created from quotation ${q.reference}` }],
   }
   setState((s) => ({
+    ...s,
     quotations: s.quotations.map((item) => (item.id === id ? { ...item, status: 'shipment_created' } : item)),
     shipments: [shipment, ...s.shipments],
   }))
@@ -136,3 +151,9 @@ export function setShipmentStatus(id: string, status: ShipmentStatus, note?: str
     ),
   }))
 }
+
+/* ---------- Directory & finance ---------- */
+
+export const useCustomers = () => useStore((s) => s.customers)
+export const useVendors = () => useStore((s) => s.vendors)
+export const useInvoices = () => useStore((s) => s.invoices)
