@@ -27,3 +27,9 @@ export function quotationTotals(quotation: Quotation) {
 function marginPercent(income: number, profit: number) {
   return income === 0 ? 0 : (profit / income) * 100
 }
+
+// Сумма инвойса и остаток к оплате (Balance Due)
+export function invoiceTotals(invoice: { lines: { quantity: number; rate: number }[]; paid: number }) {
+  const total = invoice.lines.reduce((sum, line) => sum + line.quantity * line.rate, 0)
+  return { total, balanceDue: total - invoice.paid }
+}

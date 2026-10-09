@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/badge'
 import type { DocumentStatus } from '@/data/dashboard'
+import type { InvoiceStatus } from '@/types/invoice'
 import type { QuotationStatus } from '@/types/quotation'
 import type { ShipmentStatus } from '@/types/shipment'
 
@@ -34,6 +35,19 @@ export const shipmentStatuses: StatusConfig<ShipmentStatus> = {
   delivered: { label: 'Delivered', variant: 'success' },
   completed: { label: 'Completed', variant: 'secondary' },
   cancelled: { label: 'Cancelled', variant: 'destructive' },
+}
+
+export const invoiceStatuses: StatusConfig<InvoiceStatus> = {
+  draft: { label: 'Draft', variant: 'secondary' },
+  sent: { label: 'Sent', variant: 'info' },
+  partially_paid: { label: 'Partially paid', variant: 'warning' },
+  paid: { label: 'Paid', variant: 'success' },
+  overdue: { label: 'Overdue', variant: 'destructive' },
+}
+
+export function InvoiceStatusBadge({ status }: { status: InvoiceStatus }) {
+  const { label, variant } = invoiceStatuses[status]
+  return <Badge variant={variant}>{label}</Badge>
 }
 
 export function StatusBadge({ status }: { status: DocumentStatus }) {
