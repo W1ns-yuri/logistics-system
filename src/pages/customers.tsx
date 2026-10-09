@@ -10,9 +10,13 @@ export function CustomersPage() {
       <PageHeader
         title="Customers"
         description="Companies you quote and ship for, with their contacts."
-        actions={<DocumentToolbar />}
+        actions={<DocumentToolbar hasSelection={false} />}
       />
-      <ComingSoon icon={Users} title="Customers are on the way" description="Customer directory with contacts and quotation conversion rate." />
+      <ComingSoon
+        icon={Users}
+        title="Customers are on the way"
+        description="Customer directory with contacts and quotation conversion rate."
+      />
     </div>
   )
 }
