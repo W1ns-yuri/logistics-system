@@ -1,13 +1,4 @@
-import {
-  CreditCard,
-  FileText,
-  LayoutDashboard,
-  LifeBuoy,
-  Truck,
-  Users,
-  Warehouse,
-  type LucideIcon,
-} from 'lucide-react'
+import { CreditCard, FileText, LayoutDashboard, LifeBuoy, Truck, Users, Warehouse, type LucideIcon } from 'lucide-react'
 
 export type NavItem = {
   title: string

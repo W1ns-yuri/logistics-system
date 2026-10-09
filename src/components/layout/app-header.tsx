@@ -82,7 +82,10 @@ export function AppHeader() {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button type="button" className="rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
+            <button
+              type="button"
+              className="rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
               <Avatar>
                 <AvatarFallback className="bg-primary/10 text-primary">YW</AvatarFallback>
               </Avatar>

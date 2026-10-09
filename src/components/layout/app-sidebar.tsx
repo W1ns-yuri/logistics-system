@@ -96,4 +96,3 @@ function SidebarLink({ item, collapsed }: { item: NavItem; collapsed: boolean })
     </Tooltip>
   )
 }
-

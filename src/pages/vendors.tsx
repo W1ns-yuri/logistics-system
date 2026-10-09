@@ -10,9 +10,13 @@ export function VendorsPage() {
       <PageHeader
         title="Vendors"
         description="Carriers, airlines, shipping lines and agents you buy services from."
-        actions={<DocumentToolbar />}
+        actions={<DocumentToolbar hasSelection={false} />}
       />
-      <ComingSoon icon={Warehouse} title="Vendors are on the way" description="Vendor directory: airlines, shipping lines, trucking and rail operators." />
+      <ComingSoon
+        icon={Warehouse}
+        title="Vendors are on the way"
+        description="Vendor directory: airlines, shipping lines, trucking and rail operators."
+      />
     </div>
   )
 }
