@@ -1,5 +1,5 @@
 import { ChevronRight, FileText, LogOut, Moon, Plus, Search, Settings, Sun, Truck, User } from 'lucide-react'
-import { Link, useLocation } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { findNavItem } from '@/config/navigation'
+import { signOut } from '@/data/auth'
 import { initials, useSettings } from '@/data/settings'
 import { useTheme } from '@/hooks/use-theme'
 import { NotificationsMenu } from './notifications-menu'
@@ -22,6 +23,7 @@ export function AppHeader() {
   const current = findNavItem(pathname)
   const { theme, toggleTheme } = useTheme()
   const settings = useSettings()
+  const navigate = useNavigate()
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-4 border-b bg-background px-6">
@@ -103,7 +105,12 @@ export function AppHeader() {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => {
+                signOut()
+                navigate('/login')
+              }}
+            >
               <LogOut />
               Log out
             </DropdownMenuItem>
