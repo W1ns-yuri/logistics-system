@@ -2,7 +2,8 @@ import { ChevronsLeft, Container } from 'lucide-react'
 import { NavLink } from 'react-router'
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { navigation, supportItem, type NavItem } from '@/config/navigation'
+import { navigation, settingsItem, supportItem, type NavItem } from '@/config/navigation'
+import { useSettings } from '@/data/settings'
 import { cn } from '@/lib/utils'
 
 type AppSidebarProps = {
@@ -11,6 +12,8 @@ type AppSidebarProps = {
 }
 
 export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
+  const { companyName, companyTagline } = useSettings()
+
   return (
     <aside
       className={cn(
@@ -25,8 +28,8 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         </div>
         {!collapsed && (
           <div className="min-w-0 leading-tight">
-            <div className="truncate text-sm font-semibold text-sidebar-accent-foreground">Logistics</div>
-            <div className="truncate text-xs text-sidebar-foreground/60">Forwarding suite</div>
+            <div className="truncate text-sm font-semibold text-sidebar-accent-foreground">{companyName}</div>
+            <div className="truncate text-xs text-sidebar-foreground/60">{companyTagline}</div>
           </div>
         )}
       </div>
@@ -51,6 +54,7 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
       </nav>
 
       <div className="space-y-0.5 border-t border-sidebar-border px-3 py-3">
+        <SidebarLink item={settingsItem} collapsed={collapsed} />
         <SidebarLink item={supportItem} collapsed={collapsed} />
         <button
           type="button"

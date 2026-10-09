@@ -7,6 +7,7 @@ import { NotFoundPage } from '@/pages/not-found'
 import { PaymentsPage } from '@/pages/payments'
 import { QuotationDetailPage } from '@/pages/quotations/quotation-detail-page'
 import { QuotationsPage } from '@/pages/quotations/quotations-page'
+import { SettingsPage } from '@/pages/settings'
 import { ShipmentDetailPage } from '@/pages/shipments/shipment-detail-page'
 import { ShipmentsPage } from '@/pages/shipments/shipments-page'
 import { SupportPage } from '@/pages/support'
@@ -26,6 +27,7 @@ export const router = createBrowserRouter([
       { path: 'customers', element: <CustomersPage /> },
       { path: 'vendors', element: <VendorsPage /> },
       { path: 'payments', element: <PaymentsPage /> },
+      { path: 'settings', element: <SettingsPage /> },
       { path: 'support', element: <SupportPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
