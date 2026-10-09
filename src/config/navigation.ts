@@ -1,4 +1,14 @@
-import { CreditCard, FileText, LayoutDashboard, LifeBuoy, Truck, Users, Warehouse, type LucideIcon } from 'lucide-react'
+import {
+  CreditCard,
+  FileText,
+  LayoutDashboard,
+  LifeBuoy,
+  Settings,
+  Truck,
+  Users,
+  Warehouse,
+  type LucideIcon,
+} from 'lucide-react'
 
 export type NavItem = {
   title: string
@@ -37,9 +47,10 @@ export const navigation: NavGroup[] = [
   },
 ]
 
+export const settingsItem: NavItem = { title: 'Settings', path: '/settings', icon: Settings }
 export const supportItem: NavItem = { title: 'Support', path: '/support', icon: LifeBuoy }
 
-const allItems = [...navigation.flatMap((group) => group.items), supportItem]
+const allItems = [...navigation.flatMap((group) => group.items), settingsItem, supportItem]
 
 export function findNavItem(pathname: string): NavItem | undefined {
   if (pathname === '/') return allItems[0]

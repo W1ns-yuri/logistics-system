@@ -1,4 +1,4 @@
-import { Bell, ChevronRight, FileText, LogOut, Moon, Plus, Search, Settings, Sun, Truck, User } from 'lucide-react'
+import { ChevronRight, FileText, LogOut, Moon, Plus, Search, Settings, Sun, Truck, User } from 'lucide-react'
 import { Link, useLocation } from 'react-router'
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -9,17 +9,19 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { findNavItem } from '@/config/navigation'
+import { initials, useSettings } from '@/data/settings'
 import { useTheme } from '@/hooks/use-theme'
+import { NotificationsMenu } from './notifications-menu'
 
 export function AppHeader() {
   const { pathname } = useLocation()
   const current = findNavItem(pathname)
   const { theme, toggleTheme } = useTheme()
+  const settings = useSettings()
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-4 border-b bg-background px-6">
@@ -75,10 +77,7 @@ export function AppHeader() {
           {theme === 'dark' ? <Sun /> : <Moon />}
         </Button>
 
-        <Button variant="ghost" size="icon-sm" aria-label="Notifications" className="relative">
-          <Bell />
-          <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-destructive" />
-        </Button>
+        <NotificationsMenu />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -87,24 +86,21 @@ export function AppHeader() {
               className="rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
               <Avatar>
-                <AvatarFallback className="bg-primary/10 text-primary">YW</AvatarFallback>
+                <AvatarFallback className="bg-primary/10 text-primary">{initials(settings.userName)}</AvatarFallback>
               </Avatar>
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
-              <div className="font-medium">Yuri W.</div>
-              <div className="text-xs font-normal text-muted-foreground">Operations manager</div>
+              <div className="font-medium">{settings.userName}</div>
+              <div className="text-xs font-normal text-muted-foreground">{settings.userRole}</div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <User />
-              Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Settings />
-              Settings
-              <DropdownMenuShortcut>⌘,</DropdownMenuShortcut>
+            <DropdownMenuItem asChild>
+              <Link to="/settings">
+                <Settings />
+                Settings
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem>

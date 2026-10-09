@@ -1,33 +1,26 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 
-type Theme = 'light' | 'dark'
+import { updateSettings, useSettings } from '@/data/settings'
 
-const STORAGE_KEY = 'theme'
+const media = window.matchMedia('(prefers-color-scheme: dark)')
 
-function getInitialTheme(): Theme {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved === 'light' || saved === 'dark') return saved
-  } catch {
-    // localStorage может быть недоступен (приватный режим) — просто берём системную тему
-  }
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+function subscribeToSystem(callback: () => void) {
+  media.addEventListener('change', callback)
+  return () => media.removeEventListener('change', callback)
 }
 
-// Светлая/тёмная тема: класс .dark на <html> переключает CSS-переменные из index.css
+// Тема берётся из настроек: light / dark / system (как в системе пользователя).
+// Класс .dark на <html> переключает CSS-переменные из index.css.
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme)
+  const { theme } = useSettings()
+  const systemDark = useSyncExternalStore(subscribeToSystem, () => media.matches)
+  const resolved = theme === 'system' ? (systemDark ? 'dark' : 'light') : theme
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark')
-    try {
-      localStorage.setItem(STORAGE_KEY, theme)
-    } catch {
-      // игнорируем: тема просто не запомнится
-    }
-  }, [theme])
+    document.documentElement.classList.toggle('dark', resolved === 'dark')
+  }, [resolved])
 
-  const toggleTheme = () => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
+  const toggleTheme = () => updateSettings({ theme: resolved === 'dark' ? 'light' : 'dark' })
 
-  return { theme, toggleTheme }
+  return { theme: resolved, toggleTheme }
 }
