@@ -8,6 +8,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { t } from '@/i18n'
 
 const PAGE_SIZES = [10, 20, 50]
 
@@ -19,12 +20,10 @@ export function DataTablePagination<TData>({ table }: { table: Table<TData> }) {
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2.5 text-sm text-muted-foreground">
-      <div className="tabular-nums">
-        {from}–{to} of {total}
-      </div>
+      <div className="tabular-nums">{t('{from}–{to} of {total}', { from, to, total })}</div>
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <span>Rows per page</span>
+          <span>{t('Rows per page')}</span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="w-16 tabular-nums">
@@ -45,7 +44,10 @@ export function DataTablePagination<TData>({ table }: { table: Table<TData> }) {
           </DropdownMenu>
         </div>
         <span className="tabular-nums">
-          Page {table.getPageCount() === 0 ? 0 : pageIndex + 1} of {table.getPageCount()}
+          {t('Page {page} of {pages}', {
+            page: table.getPageCount() === 0 ? 0 : pageIndex + 1,
+            pages: table.getPageCount(),
+          })}
         </span>
         <div className="flex items-center gap-1">
           <Button

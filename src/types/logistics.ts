@@ -25,7 +25,9 @@ export const EQUIPMENT_TYPES = [
 ] as const
 export type EquipmentType = (typeof EQUIPMENT_TYPES)[number]
 
-export type Currency = 'USD' | 'EUR' | 'AED' | 'TMT'
+// Валюты по словам заказчика: доллары, туркменские манаты и евро
+export const CURRENCIES = ['USD', 'TMT', 'EUR'] as const
+export type Currency = (typeof CURRENCIES)[number]
 
 export const transportModeLabels: Record<TransportMode, string> = {
   air: 'Air',

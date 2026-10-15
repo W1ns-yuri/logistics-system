@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 
+import type { Language } from '@/i18n'
 import type { Currency } from '@/types/logistics'
 
 /*
@@ -15,8 +16,9 @@ export type Settings = {
   companyAddress: string
   companyEmail: string
   companyPhone: string
-  userName: string
-  userRole: string
+  // Первые буквы номера документов: компания Win Fin → WF000001
+  documentPrefix: string
+  language: Language
   defaultCurrency: Currency
   quotationValidityDays: number
   theme: Theme
@@ -31,8 +33,8 @@ export const defaultSettings: Settings = {
   companyAddress: 'Ashgabat, Turkmenistan',
   companyEmail: 'info@company.com',
   companyPhone: '+993 00 000000',
-  userName: 'Yuri W.',
-  userRole: 'Operations manager',
+  documentPrefix: 'AT',
+  language: 'en',
   defaultCurrency: 'USD',
   quotationValidityDays: 14,
   theme: 'system',
@@ -60,6 +62,11 @@ const listeners = new Set<() => void>()
 function subscribe(listener: () => void) {
   listeners.add(listener)
   return () => listeners.delete(listener)
+}
+
+// Для кода вне компонентов (перевод, нумерация)
+export function getSettings() {
+  return settings
 }
 
 export function useSettings() {
@@ -90,4 +97,11 @@ export function initials(name: string) {
       .map((part) => part[0]?.toUpperCase())
       .join('') || '?'
   )
+}
+
+// Префикс номера из названия компании: "Win Fin" → "WF", "Logistics" → "LO"
+export function prefixFromName(name: string) {
+  const [first = 'XX', second] = name.match(/[A-Za-zА-Яа-яЁё]+/g) ?? []
+  const letters = second ? first.charAt(0) + second.charAt(0) : first.slice(0, 2)
+  return letters.toUpperCase()
 }

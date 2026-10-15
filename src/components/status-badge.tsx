@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/badge'
-import type { DocumentStatus } from '@/data/dashboard'
+import { t } from '@/i18n'
 import type { InvoiceStatus } from '@/types/invoice'
 import type { QuotationStatus } from '@/types/quotation'
 import type { ShipmentStatus } from '@/types/shipment'
@@ -8,14 +8,6 @@ type Variant = 'info' | 'success' | 'warning' | 'destructive' | 'secondary'
 type StatusConfig<T extends string> = Record<T, { label: string; variant: Variant }>
 
 // Словари «статус → цвет и подпись», чтобы во всех таблицах статусы выглядели одинаково
-
-const documentStatuses: StatusConfig<DocumentStatus> = {
-  in_progress: { label: 'In progress', variant: 'info' },
-  completed: { label: 'Completed', variant: 'success' },
-  shipment_created: { label: 'Shipment created', variant: 'secondary' },
-  in_transit: { label: 'In transit', variant: 'warning' },
-  cancelled: { label: 'Cancelled', variant: 'destructive' },
-}
 
 export const quotationStatuses: StatusConfig<QuotationStatus> = {
   in_progress: { label: 'In progress', variant: 'info' },
@@ -27,11 +19,8 @@ export const quotationStatuses: StatusConfig<QuotationStatus> = {
 
 export const shipmentStatuses: StatusConfig<ShipmentStatus> = {
   loaded: { label: 'Loaded', variant: 'info' },
-  on_the_way_to_port: { label: 'On the way to port', variant: 'info' },
-  loaded_at_port: { label: 'Loaded at port', variant: 'info' },
-  queue_at_border: { label: 'Queue at border', variant: 'warning' },
-  transit: { label: 'Transit', variant: 'warning' },
-  on_turkmenistan_border: { label: 'On Turkmenistan border', variant: 'warning' },
+  in_transit: { label: 'In transit', variant: 'info' },
+  at_border: { label: 'At the border', variant: 'warning' },
   delivered: { label: 'Delivered', variant: 'success' },
   completed: { label: 'Completed', variant: 'secondary' },
   cancelled: { label: 'Cancelled', variant: 'destructive' },
@@ -47,20 +36,15 @@ export const invoiceStatuses: StatusConfig<InvoiceStatus> = {
 
 export function InvoiceStatusBadge({ status }: { status: InvoiceStatus }) {
   const { label, variant } = invoiceStatuses[status]
-  return <Badge variant={variant}>{label}</Badge>
-}
-
-export function StatusBadge({ status }: { status: DocumentStatus }) {
-  const { label, variant } = documentStatuses[status]
-  return <Badge variant={variant}>{label}</Badge>
+  return <Badge variant={variant}>{t(label)}</Badge>
 }
 
 export function QuotationStatusBadge({ status }: { status: QuotationStatus }) {
   const { label, variant } = quotationStatuses[status]
-  return <Badge variant={variant}>{label}</Badge>
+  return <Badge variant={variant}>{t(label)}</Badge>
 }
 
 export function ShipmentStatusBadge({ status }: { status: ShipmentStatus }) {
   const { label, variant } = shipmentStatuses[status]
-  return <Badge variant={variant}>{label}</Badge>
+  return <Badge variant={variant}>{t(label)}</Badge>
 }

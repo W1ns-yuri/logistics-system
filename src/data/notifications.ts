@@ -18,7 +18,7 @@ const mockNotifications: AppNotification[] = [
   {
     id: 'n1',
     kind: 'border',
-    title: 'SH000006 on Turkmenistan border',
+    title: 'AT000014 at the border',
     description: 'Customs clearance at Serhetabat',
     at: '2026-10-08T15:30',
     link: '/shipments/s6',
@@ -26,7 +26,7 @@ const mockNotifications: AppNotification[] = [
   {
     id: 'n2',
     kind: 'border',
-    title: 'SH000004 queue at border',
+    title: 'AT000012 at the border',
     description: 'Queue at Sarakhs, about 2 days',
     at: '2026-10-06T12:00',
     link: '/shipments/s4',
@@ -34,7 +34,7 @@ const mockNotifications: AppNotification[] = [
   {
     id: 'n3',
     kind: 'status',
-    title: 'SH000007 delivered',
+    title: 'AT000009 delivered',
     description: 'Express Air Cargo · Dubai → Tunis',
     at: '2026-10-08T19:40',
     link: '/shipments/s7',
@@ -50,7 +50,7 @@ const mockNotifications: AppNotification[] = [
   {
     id: 'n5',
     kind: 'status',
-    title: 'SH000003 loaded at port',
+    title: 'AT000011 in transit',
     description: 'DHL · Ashgabat → Abu Dhabi',
     at: '2026-10-04T14:20',
     link: '/shipments/s3',

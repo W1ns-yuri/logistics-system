@@ -68,7 +68,7 @@ export const mockInvoices: Invoice[] = [
     invoiceDate: '2026-09-10',
     terms: '100% before departure',
     dueDate: '2026-09-07',
-    projectName: 'SH000008 · Singapore → Ashgabat',
+    projectName: 'AT000015 · Singapore → Ashgabat',
     shipmentId: 's8',
     currency: 'USD',
     lines: [
@@ -99,7 +99,7 @@ export const mockInvoices: Invoice[] = [
     invoiceDate: '2026-09-20',
     terms: '50% prepayment / 50% after delivery',
     dueDate: '2026-09-30',
-    projectName: 'SH000004 · Samarkand → Manisa',
+    projectName: 'AT000012 · Samarkand → Manisa',
     shipmentId: 's4',
     currency: 'USD',
     lines: [{ item: 'Rail freight 20 GP', quantity: 10, rate: 3100 }],
@@ -113,7 +113,7 @@ export const mockInvoices: Invoice[] = [
     invoiceDate: '2026-10-09',
     terms: '30% prepayment / 70% after delivery',
     dueDate: '2026-10-30',
-    projectName: 'SH000006 · Bandar Abbas → Ashgabat',
+    projectName: 'AT000014 · Bandar Abbas → Ashgabat',
     shipmentId: 's6',
     currency: 'USD',
     lines: [

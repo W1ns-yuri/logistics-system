@@ -1,6 +1,7 @@
 import { Plane, Ship, TrainFront, Truck, type LucideIcon } from 'lucide-react'
 
 import { transportModeLabels, type TransportMode } from '@/types/logistics'
+import { t } from '@/i18n'
 import { cn } from '@/lib/utils'
 
 // Иконка вида транспорта (колонка «Sign» на слайде 5)
@@ -13,14 +14,14 @@ const icons: Record<TransportMode, LucideIcon> = {
 
 export function TransportModeIcon({ mode, className }: { mode: TransportMode; className?: string }) {
   const Icon = icons[mode]
-  return <Icon className={cn('size-4 text-muted-foreground', className)} aria-label={transportModeLabels[mode]} />
+  return <Icon className={cn('size-4 text-muted-foreground', className)} aria-label={t(transportModeLabels[mode])} />
 }
 
 export function TransportModeLabel({ mode }: { mode: TransportMode }) {
   return (
     <span className="inline-flex items-center gap-2">
       <TransportModeIcon mode={mode} />
-      {transportModeLabels[mode]}
+      {t(transportModeLabels[mode])}
     </span>
   )
 }

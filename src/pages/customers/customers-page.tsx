@@ -3,14 +3,19 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { Mail, MapPin, Phone, User } from 'lucide-react'
 import { Link } from 'react-router'
 
+import { ConfirmDelete } from '@/components/confirm-delete'
 import { DataTable } from '@/components/data-table/data-table'
+import { DirectoryActions } from '@/components/directory-actions'
 import { PageHeader } from '@/components/page-header'
 import { SectionCard } from '@/components/section-card'
 import { QuotationStatusBadge } from '@/components/status-badge'
-import { useCustomers, useQuotations } from '@/data/store'
+import { deleteCustomer, useCustomers, useQuotations, useShipments } from '@/data/store'
+import { useFormMode } from '@/hooks/use-form-mode'
+import { t } from '@/i18n'
 import { formatDate } from '@/lib/format'
 import type { Customer } from '@/types/directory'
 import type { Quotation } from '@/types/quotation'
+import { CustomerFormDialog } from './customer-form-dialog'
 
 // Клиент + статистика по его котировкам (как «Number of quotations / Conversion rate» в Scope)
 type CustomerRow = Customer & {
@@ -58,7 +63,9 @@ const columns: ColumnDef<CustomerRow, unknown>[] = [
     meta: { label: 'Conversion' },
     cell: ({ row }) => (
       <span className="tabular-nums">
-        {row.original.quotations.length ? `${row.original.accepted} of ${row.original.quotations.length}` : '—'}
+        {row.original.quotations.length
+          ? t('{a} of {b}', { a: row.original.accepted, b: row.original.quotations.length })
+          : '—'}
         {row.original.quotations.length > 0 && (
           <span className="ml-1.5 text-muted-foreground">({Math.round(row.original.conversion)}%)</span>
         )}
@@ -78,7 +85,10 @@ const columns: ColumnDef<CustomerRow, unknown>[] = [
 export function CustomersPage() {
   const customers = useCustomers()
   const quotations = useQuotations()
+  const shipments = useShipments()
   const [selectedId, setSelectedId] = useState<string>()
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const { mode, setMode, close } = useFormMode()
 
   // Пересчитываем статистику, только когда меняются клиенты или котировки
   const rows = useMemo<CustomerRow[]>(
@@ -105,7 +115,18 @@ export function CustomersPage() {
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-4 p-6">
-      <PageHeader title="Customers" description="Companies you quote and ship for, with contacts and conversion." />
+      <PageHeader
+        title="Customers"
+        description="Companies you quote and ship for, with contacts and conversion."
+        actions={
+          <DirectoryActions
+            hasSelection={!!selected}
+            onNew={() => setMode('new')}
+            onEdit={() => setMode('edit')}
+            onDelete={() => setConfirmOpen(true)}
+          />
+        }
+      />
 
       <DataTable
         columns={columns}
@@ -142,7 +163,7 @@ export function CustomersPage() {
           </SectionCard>
           <SectionCard title="Quotations" className="lg:col-span-2 [&>div:last-child]:p-0">
             {selected.quotations.length === 0 ? (
-              <p className="p-5 text-sm text-muted-foreground">No quotations for this customer yet.</p>
+              <p className="p-5 text-sm text-muted-foreground">{t('No quotations for this customer yet.')}</p>
             ) : (
               <ul className="divide-y">
                 {selected.quotations.map((q) => (
@@ -162,8 +183,29 @@ export function CustomersPage() {
           </SectionCard>
         </div>
       ) : (
-        <p className="px-1 text-xs text-muted-foreground">Click a customer to see contacts and quotations.</p>
+        <p className="px-1 text-xs text-muted-foreground">{t('Click a customer to see contacts and quotations.')}</p>
       )}
+
+      <CustomerFormDialog
+        open={!!mode}
+        onOpenChange={(value) => !value && close()}
+        customer={mode === 'edit' ? selected : undefined}
+        onSaved={(c) => setSelectedId(c.id)}
+      />
+      <ConfirmDelete
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={t('Delete customer {name}?', { name: selected?.name ?? '' })}
+        description={
+          selected && shipments.some((sh) => sh.customer === selected.name)
+            ? t('This customer has shipments. They stay, but the customer card will be removed.')
+            : t('The customer card will be removed. This cannot be undone.')
+        }
+        onConfirm={() => {
+          if (selected) deleteCustomer(selected.id)
+          setSelectedId(undefined)
+        }}
+      />
     </div>
   )
 }

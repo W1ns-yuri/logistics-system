@@ -1,18 +1,22 @@
-import type { ReactNode } from 'react'
-import { Monitor, Moon, RotateCcw, Sun } from 'lucide-react'
+import { useState } from 'react'
+import { Database, Monitor, Moon, RotateCcw, Sun, Trash2, UserPlus, Wand2 } from 'lucide-react'
 
+import { ConfirmDelete } from '@/components/confirm-delete'
+import { FormField } from '@/components/form-field'
 import { PageHeader } from '@/components/page-header'
 import { SectionCard } from '@/components/section-card'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Switch } from '@/components/ui/switch'
-import { resetSettings, updateSettings, useSettings, type Settings, type Theme } from '@/data/settings'
+import { usePermissions, useSession } from '@/data/auth'
+import { prefixFromName, resetSettings, updateSettings, useSettings, type Settings, type Theme } from '@/data/settings'
+import { addTeamMember, removeTeamMember, resetDemoData, updateTeamMember, useTeam } from '@/data/store'
+import { LANGUAGES, t, type Language } from '@/i18n'
 import { cn } from '@/lib/utils'
-import type { Currency } from '@/types/logistics'
-
-const CURRENCIES: Currency[] = ['USD', 'EUR', 'AED', 'TMT']
+import { CURRENCIES, type Currency } from '@/types/logistics'
+import { ROLES, roleDescriptions, roleLabels, type Role } from '@/types/team'
 
 const THEMES: { value: Theme; label: string; icon: typeof Sun }[] = [
   { value: 'light', label: 'Light', icon: Sun },
@@ -23,6 +27,8 @@ const THEMES: { value: Theme; label: string; icon: typeof Sun }[] = [
 // Настройки сохраняются сразу при вводе — кнопки «Save» нет, изменения видно мгновенно
 export function SettingsPage() {
   const settings = useSettings()
+  const { canManageTeam } = usePermissions()
+  const [resetOpen, setResetOpen] = useState(false)
 
   // Помощник для текстовых полей: <Input {...text('companyName')} />
   const text = (key: keyof Settings) => ({
@@ -39,48 +45,86 @@ export function SettingsPage() {
         actions={
           <Button size="sm" variant="outline" onClick={resetSettings}>
             <RotateCcw />
-            Reset to defaults
+            {t('Reset to defaults')}
           </Button>
         }
       />
 
-      <SectionCard title="Company">
-        <p className="mb-4 text-sm text-muted-foreground">
-          Shown in the sidebar and later on quotation and invoice PDFs.
-        </p>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Company name">
-            <Input {...text('companyName')} />
-          </Field>
-          <Field label="Tagline">
-            <Input {...text('companyTagline')} />
-          </Field>
-          <Field label="Address" className="sm:col-span-2">
-            <Input {...text('companyAddress')} />
-          </Field>
-          <Field label="Email">
-            <Input type="email" {...text('companyEmail')} />
-          </Field>
-          <Field label="Phone">
-            <Input {...text('companyPhone')} />
-          </Field>
+      <SectionCard title="Language">
+        <div className="grid grid-cols-2 gap-3 sm:max-w-sm">
+          {LANGUAGES.map((language) => (
+            <button
+              key={language.value}
+              type="button"
+              onClick={() => updateSettings({ language: language.value as Language })}
+              className={cn(
+                'rounded-lg border p-3 text-sm font-medium transition-colors hover:bg-accent',
+                settings.language === language.value && 'border-primary bg-primary/5 text-primary ring-1 ring-primary',
+              )}
+            >
+              {language.label}
+            </button>
+          ))}
         </div>
       </SectionCard>
 
-      <SectionCard title="Profile">
+      <SectionCard title="Company">
+        <p className="mb-4 text-sm text-muted-foreground">
+          {t('Shown in the sidebar and later on quotation and invoice PDFs.')}
+        </p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Your name">
-            <Input {...text('userName')} />
-          </Field>
-          <Field label="Role">
-            <Input {...text('userRole')} />
-          </Field>
+          <FormField label="Company name" htmlFor="companyName">
+            <Input {...text('companyName')} />
+          </FormField>
+          <FormField label="Tagline" htmlFor="companyTagline">
+            <Input {...text('companyTagline')} />
+          </FormField>
+          <FormField label="Address" htmlFor="companyAddress" className="sm:col-span-2">
+            <Input {...text('companyAddress')} />
+          </FormField>
+          <FormField label="Email" htmlFor="companyEmail">
+            <Input type="email" {...text('companyEmail')} />
+          </FormField>
+          <FormField label="Phone" htmlFor="companyPhone">
+            <Input {...text('companyPhone')} />
+          </FormField>
         </div>
+      </SectionCard>
+
+      <SectionCard title="Document numbers">
+        <div className="grid items-end gap-4 sm:grid-cols-2">
+          <FormField label="Prefix" htmlFor="documentPrefix">
+            <div className="flex gap-2">
+              <Input
+                id="documentPrefix"
+                maxLength={4}
+                value={settings.documentPrefix}
+                onChange={(event) =>
+                  updateSettings({ documentPrefix: event.target.value.toUpperCase().replace(/[^A-Z]/g, '') })
+                }
+              />
+              <Button
+                variant="outline"
+                onClick={() => updateSettings({ documentPrefix: prefixFromName(settings.companyName) })}
+              >
+                <Wand2 />
+                {t('From company name')}
+              </Button>
+            </div>
+          </FormField>
+          <div className="rounded-lg border bg-muted/40 px-4 py-2.5 text-sm">
+            <span className="text-muted-foreground">{t('Next number looks like')} </span>
+            <span className="font-medium tabular-nums">{settings.documentPrefix || 'XX'}000001</span>
+          </div>
+        </div>
+        <p className="mt-3 text-sm text-muted-foreground">
+          {t('Quotations and shipments share one counter. A shipment keeps the number of its quotation.')}
+        </p>
       </SectionCard>
 
       <SectionCard title="Quotation defaults">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Default currency">
+          <FormField label="Default currency" htmlFor="defaultCurrency">
             <NativeSelect
               id="defaultCurrency"
               value={settings.defaultCurrency}
@@ -92,8 +136,8 @@ export function SettingsPage() {
                 </option>
               ))}
             </NativeSelect>
-          </Field>
-          <Field label="Quotation valid for (days)">
+          </FormField>
+          <FormField label="Quotation valid for (days)" htmlFor="quotationValidityDays">
             <Input
               id="quotationValidityDays"
               type="number"
@@ -102,9 +146,11 @@ export function SettingsPage() {
               value={settings.quotationValidityDays}
               onChange={(event) => updateSettings({ quotationValidityDays: Number(event.target.value) || 1 })}
             />
-          </Field>
+          </FormField>
         </div>
       </SectionCard>
+
+      {canManageTeam && <TeamSection />}
 
       <SectionCard title="Appearance">
         <div className="grid grid-cols-3 gap-3">
@@ -119,7 +165,7 @@ export function SettingsPage() {
               )}
             >
               <Icon className="size-5" />
-              {label}
+              {t(label)}
             </button>
           ))}
         </div>
@@ -129,7 +175,7 @@ export function SettingsPage() {
         <div className="divide-y">
           <ToggleRow
             title="Shipment status changes"
-            description="Loaded, at port, delivered and other tracking updates."
+            description="Loaded, in transit, delivered and other tracking updates."
             checked={settings.notifyStatusChanges}
             onChange={(value) => updateSettings({ notifyStatusChanges: value })}
           />
@@ -147,16 +193,144 @@ export function SettingsPage() {
           />
         </div>
       </SectionCard>
+
+      {canManageTeam && (
+        <SectionCard title="Demo data">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <p className="max-w-lg text-sm text-muted-foreground">
+              {t(
+                'Everything you create is saved in this browser. Reset brings back the original sample quotations, shipments and invoices.',
+              )}
+            </p>
+            <Button variant="outline" onClick={() => setResetOpen(true)}>
+              <Database />
+              {t('Reset demo data')}
+            </Button>
+          </div>
+        </SectionCard>
+      )}
+
+      <ConfirmDelete
+        open={resetOpen}
+        onOpenChange={setResetOpen}
+        title={t('Reset demo data?')}
+        description="Everything you created or changed will be replaced with the sample data."
+        onConfirm={resetDemoData}
+      />
     </div>
   )
 }
 
-function Field({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
+// Команда компании: админ добавляет людей и раздаёт роли
+function TeamSection() {
+  const team = useTeam()
+  const session = useSession()
+  const [addOpen, setAddOpen] = useState(false)
+
   return (
-    <div className={cn('space-y-2', className)}>
-      <Label>{label}</Label>
-      {children}
-    </div>
+    <SectionCard
+      title="Team and roles"
+      action={
+        <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
+          <UserPlus />
+          {t('Add person')}
+        </Button>
+      }
+    >
+      <div className="divide-y">
+        {team.map((member) => (
+          <div key={member.id} className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium">{member.name}</div>
+              <div className="text-sm text-muted-foreground">{member.email}</div>
+            </div>
+            <div className="w-48">
+              <NativeSelect
+                aria-label={t('Role')}
+                value={member.role}
+                disabled={member.email === session?.email}
+                onChange={(event) => updateTeamMember(member.id, { role: event.target.value as Role })}
+              >
+                {ROLES.map((role) => (
+                  <option key={role} value={role}>
+                    {t(roleLabels[role])}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t('Remove')}
+              disabled={member.email === session?.email}
+              onClick={() => removeTeamMember(member.id)}
+            >
+              <Trash2 />
+            </Button>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-2 rounded-lg bg-muted/40 p-3 text-sm sm:grid-cols-3">
+        {ROLES.map((role) => (
+          <div key={role}>
+            <div className="font-medium">{t(roleLabels[role])}</div>
+            <div className="text-muted-foreground">{t(roleDescriptions[role])}</div>
+          </div>
+        ))}
+      </div>
+
+      <AddMemberDialog open={addOpen} onOpenChange={setAddOpen} />
+    </SectionCard>
+  )
+}
+
+function AddMemberDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [role, setRole] = useState<Role>('employee')
+
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault()
+    addTeamMember({ name: name.trim(), email: email.trim(), role })
+    setName('')
+    setEmail('')
+    setRole('employee')
+    onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('Add person')}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-4">
+          <FormField label="Name" htmlFor="member-name" required>
+            <Input id="member-name" required value={name} onChange={(e) => setName(e.target.value)} />
+          </FormField>
+          <FormField label="Email" htmlFor="member-email" required>
+            <Input id="member-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          </FormField>
+          <FormField label="Role" htmlFor="member-role">
+            <NativeSelect id="member-role" value={role} onChange={(e) => setRole(e.target.value as Role)}>
+              {ROLES.map((item) => (
+                <option key={item} value={item}>
+                  {t(roleLabels[item])}
+                </option>
+              ))}
+            </NativeSelect>
+          </FormField>
+          <p className="text-sm text-muted-foreground">{t(roleDescriptions[role])}</p>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              {t('Cancel')}
+            </Button>
+            <Button type="submit">{t('Add')}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -174,8 +348,8 @@ function ToggleRow({
   return (
     <label className="flex cursor-pointer items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
       <div>
-        <div className="text-sm font-medium">{title}</div>
-        <div className="text-sm text-muted-foreground">{description}</div>
+        <div className="text-sm font-medium">{t(title)}</div>
+        <div className="text-sm text-muted-foreground">{t(description)}</div>
       </div>
       <Switch checked={checked} onCheckedChange={onChange} />
     </label>

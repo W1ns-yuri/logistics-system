@@ -5,6 +5,7 @@ import { chargeTotals, quotationTotals } from '@/lib/calculation'
 import { formatMoney, formatPercent } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { Quotation } from '@/types/quotation'
+import { t } from '@/i18n'
 
 // Вкладка Calculation: итоги (слайд 4) + строки начислений (скриншот Scope)
 export function QuotationCalculationTab({ quotation: q }: { quotation: Quotation }) {
@@ -28,14 +29,14 @@ export function QuotationCalculationTab({ quotation: q }: { quotation: Quotation
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow className="hover:bg-transparent">
-              <TableHead className="pl-5">Order type</TableHead>
-              <TableHead>Charge type</TableHead>
-              <TableHead className="text-right">Rate (income)</TableHead>
-              <TableHead className="text-right">Income</TableHead>
-              <TableHead className="text-right">Rate (cost)</TableHead>
-              <TableHead className="text-right">Cost</TableHead>
-              <TableHead className="text-right">Profit</TableHead>
-              <TableHead className="pr-5 text-right">Margin</TableHead>
+              <TableHead className="pl-5">{t('Order type')}</TableHead>
+              <TableHead>{t('Charge type')}</TableHead>
+              <TableHead className="text-right">{t('Rate (income)')}</TableHead>
+              <TableHead className="text-right">{t('Income')}</TableHead>
+              <TableHead className="text-right">{t('Rate (cost)')}</TableHead>
+              <TableHead className="text-right">{t('Cost')}</TableHead>
+              <TableHead className="text-right">{t('Profit')}</TableHead>
+              <TableHead className="pr-5 text-right">{t('Margin')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -62,7 +63,7 @@ export function QuotationCalculationTab({ quotation: q }: { quotation: Quotation
           <TableFooter>
             <TableRow className="hover:bg-transparent">
               <TableCell className="pl-5" colSpan={3}>
-                Total
+                {t('Total')}
               </TableCell>
               <TableCell className="text-right tabular-nums">{money(totals.income)}</TableCell>
               <TableCell />
@@ -97,7 +98,7 @@ export function QuotationCalculationTab({ quotation: q }: { quotation: Quotation
 function KpiTile({ label, value, tone }: { label: string; value: string; tone?: 'positive' | 'negative' }) {
   return (
     <div className="rounded-xl border bg-card p-4 shadow-xs">
-      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="text-xs text-muted-foreground">{t(label)}</div>
       <div
         className={cn(
           'mt-1 text-xl font-semibold tabular-nums',
