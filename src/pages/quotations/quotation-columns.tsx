@@ -28,8 +28,8 @@ export const quotationColumns: ColumnDef<Quotation, unknown>[] = [
     meta: { label: 'Customer' },
     cell: ({ row }) => <span className="font-medium">{row.original.customer}</span>,
   },
-  { accessorKey: 'collectionAddress', header: 'Collection', meta: { label: 'Collection address' } },
-  { accessorKey: 'deliveryAddress', header: 'Delivery', meta: { label: 'Delivery address' } },
+  { accessorKey: 'collectionAddress', header: 'Pick up', meta: { label: 'Pick up location' } },
+  { accessorKey: 'deliveryAddress', header: 'Delivery', meta: { label: 'Delivery location' } },
   {
     accessorKey: 'weightKg',
     header: 'Weight',
@@ -38,8 +38,8 @@ export const quotationColumns: ColumnDef<Quotation, unknown>[] = [
   },
   {
     accessorKey: 'transportQuantity',
-    header: 'Qty',
-    meta: { label: 'Quantity of transport' },
+    header: 'Containers',
+    meta: { label: 'Number of containers' },
     cell: ({ row }) => <span className="tabular-nums">{row.original.transportQuantity}</span>,
   },
   { accessorKey: 'equipment', header: 'Equipment', meta: { label: 'Equipment' } },

@@ -1,13 +1,15 @@
 import { createBrowserRouter } from 'react-router'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { RequireAuth } from '@/components/require-auth'
+import { RequireAuth, RequirePayments } from '@/components/require-auth'
+import { AnalyticsPage } from '@/pages/analytics/analytics-page'
 import { CustomersPage } from '@/pages/customers/customers-page'
 import { HomePage } from '@/pages/home'
 import { LoginPage } from '@/pages/login/login-page'
 import { NotFoundPage } from '@/pages/not-found'
 import { PaymentsPage } from '@/pages/payments/payments-page'
 import { QuotationDetailPage } from '@/pages/quotations/quotation-detail-page'
+import { QuotationFormPage } from '@/pages/quotations/quotation-form-page'
 import { QuotationsPage } from '@/pages/quotations/quotations-page'
 import { SettingsPage } from '@/pages/settings'
 import { ShipmentDetailPage } from '@/pages/shipments/shipment-detail-page'
@@ -28,12 +30,29 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage /> },
       { path: 'quotations', element: <QuotationsPage /> },
+      { path: 'quotations/new', element: <QuotationFormPage /> },
       { path: 'quotations/:id', element: <QuotationDetailPage /> },
+      { path: 'quotations/:id/edit', element: <QuotationFormPage /> },
       { path: 'shipments', element: <ShipmentsPage /> },
       { path: 'shipments/:id', element: <ShipmentDetailPage /> },
       { path: 'customers', element: <CustomersPage /> },
       { path: 'vendors', element: <VendorsPage /> },
-      { path: 'payments', element: <PaymentsPage /> },
+      {
+        path: 'payments',
+        element: (
+          <RequirePayments>
+            <PaymentsPage />
+          </RequirePayments>
+        ),
+      },
+      {
+        path: 'analytics',
+        element: (
+          <RequirePayments>
+            <AnalyticsPage />
+          </RequirePayments>
+        ),
+      },
       { path: 'settings', element: <SettingsPage /> },
       { path: 'support', element: <SupportPage /> },
       { path: '*', element: <NotFoundPage /> },

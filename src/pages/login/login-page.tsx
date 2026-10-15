@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { signIn, useSession } from '@/data/auth'
-import { useSettings } from '@/data/settings'
+import { updateSettings, useSettings } from '@/data/settings'
+import { LANGUAGES, t } from '@/i18n'
 import { cn } from '@/lib/utils'
 
 const CURRENT_YEAR = new Date().getFullYear()
@@ -59,12 +60,12 @@ export function LoginPage() {
             <span className="text-sm font-semibold">{settings.companyName}</span>
           </div>
 
-          <h1 className="mt-8 text-xl font-semibold tracking-tight">Sign in</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Use your work email to open the workspace.</p>
+          <h1 className="mt-8 text-xl font-semibold tracking-tight">{t('Sign in')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('Use your work email to open the workspace.')}</p>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('Email')}</Label>
               <Input
                 id="email"
                 type="email"
@@ -78,9 +79,9 @@ export function LoginPage() {
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t('Password')}</Label>
                 <button type="button" className="text-xs text-muted-foreground hover:text-foreground">
-                  Forgot password?
+                  {t('Forgot password?')}
                 </button>
               </div>
               <div className="relative">
@@ -96,7 +97,7 @@ export function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showPassword ? t('Hide password') : t('Show password')}
                   className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -106,23 +107,37 @@ export function LoginPage() {
 
             <label className="flex items-center gap-2 pt-1 text-sm text-muted-foreground">
               <input type="checkbox" defaultChecked className="size-4 rounded border-input accent-primary" />
-              Keep me signed in
+              {t('Keep me signed in')}
             </label>
 
             <Button type="submit" className="mt-2 h-10 w-full" disabled={loading}>
-              {loading ? 'Signing in…' : 'Sign in'}
+              {loading ? t('Signing in…') : t('Sign in')}
             </Button>
           </form>
         </div>
 
         <div className="border-t bg-muted/40 px-8 py-3 text-xs text-muted-foreground">
-          Demo access: any email and password will work.
+          {t('Demo access: any email and password will work.')}
         </div>
       </main>
 
-      <p className="mt-6 text-xs text-muted-foreground">
-        © {CURRENT_YEAR} {settings.companyName}
-      </p>
+      <div className="mt-6 flex items-center gap-3 text-xs text-muted-foreground">
+        <span>
+          © {CURRENT_YEAR} {settings.companyName}
+        </span>
+        <span aria-hidden>·</span>
+        {/* Язык можно выбрать ещё до входа */}
+        {LANGUAGES.map((lang) => (
+          <button
+            key={lang.value}
+            type="button"
+            onClick={() => updateSettings({ language: lang.value })}
+            className={cn('hover:text-foreground', settings.language === lang.value && 'font-medium text-foreground')}
+          >
+            {lang.label}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

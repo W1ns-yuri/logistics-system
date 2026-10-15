@@ -36,17 +36,17 @@ export type Quotation = {
 
   collectionAddress: string // Pick up location
   deliveryAddress: string
-  portOfDeparture: string
-  portOfDelivery: string
+  portOfDeparture?: string // необязательно (door to door без портов)
+  portOfDelivery?: string
   incoterm: Incoterm
   movement: Movement
 
   equipment: EquipmentType
   transportQuantity: number
   weightKg: number
-  volumeM3: number
+  volumeM3?: number // необязательно
   chargeableWeightKg?: number
-  natureOfGoods: string
+  natureOfGoods: string // обязательно
   cargo: CargoLine[]
 
   // Calculation

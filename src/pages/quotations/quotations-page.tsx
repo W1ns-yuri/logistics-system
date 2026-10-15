@@ -11,6 +11,7 @@ import { TRANSPORT_MODES, transportModeLabels } from '@/types/logistics'
 import { QUOTATION_STATUSES, type Quotation } from '@/types/quotation'
 import { quotationColumns } from './quotation-columns'
 import { QuotationPreview } from './quotation-preview'
+import { t } from '@/i18n'
 
 const statusOptions = QUOTATION_STATUSES.map((value) => ({ value, label: quotationStatuses[value].label }))
 const modeOptions = TRANSPORT_MODES.map((value) => ({ value, label: transportModeLabels[value] }))
@@ -34,6 +35,8 @@ export function QuotationsPage() {
         actions={
           <DocumentToolbar
             hasSelection={!!selected}
+            onNew={() => navigate('/quotations/new')}
+            onEdit={() => selected && navigate(`/quotations/${selected.id}/edit`)}
             onOpen={() => selected && open(selected)}
             onCopy={() => {
               const copy = selected && copyQuotation(selected.id)
@@ -68,14 +71,14 @@ export function QuotationsPage() {
         <QuotationPreview quotation={selected} />
       ) : (
         <p className="px-1 text-xs text-muted-foreground">
-          Click a row to select it, double-click to open the quotation.
+          {t('Click a row to select it, double-click to open the quotation.')}
         </p>
       )}
 
       <ConfirmDelete
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title={`Delete quotation ${selected?.reference ?? ''}?`}
+        title={t('Delete quotation {ref}?', { ref: selected?.reference ?? '' })}
         description="The quotation and its calculation will be removed. This cannot be undone."
         onConfirm={() => {
           if (selected) deleteQuotation(selected.id)

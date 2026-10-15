@@ -1,4 +1,17 @@
-import { ChevronRight, FileText, LogOut, Moon, Plus, Search, Settings, Sun, Truck, User } from 'lucide-react'
+import {
+  ChevronRight,
+  FileText,
+  Languages,
+  LogOut,
+  Moon,
+  Plus,
+  Search,
+  Settings,
+  Sun,
+  Truck,
+  User,
+  Warehouse,
+} from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router'
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -8,14 +21,18 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { findNavItem } from '@/config/navigation'
-import { signOut } from '@/data/auth'
-import { initials, useSettings } from '@/data/settings'
+import { signOut, switchRole, usePermissions, useSession } from '@/data/auth'
+import { initials, updateSettings, useSettings } from '@/data/settings'
 import { useTheme } from '@/hooks/use-theme'
+import { t } from '@/i18n'
+import { ROLES, roleLabels, type Role } from '@/types/team'
 import { NotificationsMenu } from './notifications-menu'
 
 export function AppHeader() {
@@ -23,59 +40,82 @@ export function AppHeader() {
   const current = findNavItem(pathname)
   const { theme, toggleTheme } = useTheme()
   const settings = useSettings()
+  const session = useSession()
+  const { canEditOrders } = usePermissions()
   const navigate = useNavigate()
+  const userName = session?.name ?? ''
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-4 border-b bg-background px-6">
       {/* Хлебные крошки: Home > Quotations */}
       <nav className="flex min-w-0 items-center gap-1.5 text-sm">
         <Link to="/" className="text-muted-foreground hover:text-foreground">
-          Home
+          {t('Home')}
         </Link>
         {current && current.path !== '/' && (
           <>
             <ChevronRight className="size-3.5 text-muted-foreground" />
-            <span className="truncate font-medium">{current.title}</span>
+            <span className="truncate font-medium">{t(current.title)}</span>
           </>
         )}
       </nav>
 
       <div className="ml-auto flex items-center gap-2">
-        <div className="relative hidden md:block">
+        <div className="relative hidden lg:block">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search by reference, customer..." className="h-9 w-72 pl-8" />
+          <Input placeholder={t('Search by reference, customer...')} className="h-9 w-72 pl-8" />
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm">
-              <Plus />
-              New
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem asChild>
-              <Link to="/quotations">
-                <FileText />
-                Quotation
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link to="/shipments">
-                <Truck />
-                Shipment
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link to="/customers">
-                <User />
-                Customer
-              </Link>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {canEditOrders && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm">
+                <Plus />
+                {t('New')}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem asChild>
+                <Link to="/quotations/new">
+                  <FileText />
+                  {t('Quotation')}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/shipments?new=1">
+                  <Truck />
+                  {t('Shipment')}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/customers?new=1">
+                  <User />
+                  {t('Customer')}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/vendors?new=1">
+                  <Warehouse />
+                  {t('Vendor')}
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
 
-        <Button variant="ghost" size="icon-sm" onClick={toggleTheme} aria-label="Toggle theme">
+        {/* Быстрое переключение языка */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 px-2 font-semibold"
+          onClick={() => updateSettings({ language: settings.language === 'en' ? 'ru' : 'en' })}
+          aria-label={t('Language')}
+        >
+          <Languages />
+          {settings.language.toUpperCase()}
+        </Button>
+
+        <Button variant="ghost" size="icon-sm" onClick={toggleTheme} aria-label={t('Toggle theme')}>
           {theme === 'dark' ? <Sun /> : <Moon />}
         </Button>
 
@@ -88,20 +128,32 @@ export function AppHeader() {
               className="rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
               <Avatar>
-                <AvatarFallback className="bg-primary/10 text-primary">{initials(settings.userName)}</AvatarFallback>
+                <AvatarFallback className="bg-primary/10 text-primary">{initials(userName)}</AvatarFallback>
               </Avatar>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent align="end" className="w-60">
             <DropdownMenuLabel>
-              <div className="font-medium">{settings.userName}</div>
-              <div className="text-xs font-normal text-muted-foreground">{settings.userRole}</div>
+              <div className="font-medium">{userName}</div>
+              <div className="text-xs font-normal text-muted-foreground">{session?.email}</div>
             </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {/* Для демо: посмотреть систему глазами другой роли */}
+            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+              {t('View as role')}
+            </DropdownMenuLabel>
+            <DropdownMenuRadioGroup value={session?.role} onValueChange={(value) => switchRole(value as Role)}>
+              {ROLES.map((role) => (
+                <DropdownMenuRadioItem key={role} value={role}>
+                  {t(roleLabels[role])}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link to="/settings">
                 <Settings />
-                Settings
+                {t('Settings')}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -112,7 +164,7 @@ export function AppHeader() {
               }}
             >
               <LogOut />
-              Log out
+              {t('Log out')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

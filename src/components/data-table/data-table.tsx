@@ -10,6 +10,7 @@ import {
   useReactTable,
   type ColumnDef,
   type ColumnFiltersState,
+  type HeaderContext,
   type SortingState,
   type VisibilityState,
 } from '@tanstack/react-table'
@@ -21,6 +22,7 @@ import { cn } from '@/lib/utils'
 import { DataTableFacetFilter, type FacetOption } from './data-table-facet-filter'
 import { DataTablePagination } from './data-table-pagination'
 import { DataTableViewOptions } from './data-table-view-options'
+import { t } from '@/i18n'
 
 export type FacetFilterConfig = {
   columnId: string
@@ -98,7 +100,7 @@ export function DataTable<TData>({
           <Input
             value={globalFilter}
             onChange={(event) => setGlobalFilter(event.target.value)}
-            placeholder={searchPlaceholder}
+            placeholder={t(searchPlaceholder)}
             className="h-8 w-64 pl-8"
           />
         </div>
@@ -129,7 +131,7 @@ export function DataTable<TData>({
                         onClick={header.column.getToggleSortingHandler()}
                         className="-ml-1 inline-flex items-center gap-1 rounded px-1 py-0.5 hover:text-foreground"
                       >
-                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {renderHeader(header.column.columnDef.header, header.getContext())}
                         {sorted === 'asc' ? (
                           <ArrowUp className="size-3.5" />
                         ) : sorted === 'desc' ? (
@@ -139,7 +141,7 @@ export function DataTable<TData>({
                         )}
                       </button>
                     ) : (
-                      flexRender(header.column.columnDef.header, header.getContext())
+                      renderHeader(header.column.columnDef.header, header.getContext())
                     )}
                   </TableHead>
                 )
@@ -165,7 +167,7 @@ export function DataTable<TData>({
           ) : (
             <TableRow className="hover:bg-transparent">
               <TableCell colSpan={columns.length} className="h-32 text-center text-muted-foreground">
-                Nothing found. Try changing the search or filters.
+                {t('Nothing found. Try changing the search or filters.')}
               </TableCell>
             </TableRow>
           )}
@@ -175,4 +177,9 @@ export function DataTable<TData>({
       <DataTablePagination table={table} />
     </div>
   )
+}
+
+// Строковые заголовки колонок переводим, функции рендерим как есть
+function renderHeader<TData>(header: ColumnDef<TData, unknown>['header'], context: HeaderContext<TData, unknown>) {
+  return typeof header === 'string' ? t(header) : flexRender(header, context)
 }

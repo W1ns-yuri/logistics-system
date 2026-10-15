@@ -3,6 +3,7 @@ import { formatMoney, formatPercent, formatWeight } from '@/lib/format'
 import { quotationTotals } from '@/lib/calculation'
 import { movementLabels } from '@/types/logistics'
 import type { Quotation } from '@/types/quotation'
+import { t } from '@/i18n'
 
 // Панель под таблицей, как в Scope: быстрый просмотр выбранной котировки без открытия карточки
 export function QuotationPreview({ quotation: q }: { quotation: Quotation }) {
@@ -16,15 +17,16 @@ export function QuotationPreview({ quotation: q }: { quotation: Quotation }) {
       </InfoField>
       <div className="space-y-3">
         <InfoField label="Route">
-          {q.portOfDeparture} → {q.portOfDelivery}
+          {q.portOfDeparture ?? q.collectionAddress} → {q.portOfDelivery ?? q.deliveryAddress}
         </InfoField>
         <InfoField label="Incoterms / Movement">
-          {q.incoterm} · {movementLabels[q.movement]}
+          {q.incoterm} · {t(movementLabels[q.movement])}
         </InfoField>
       </div>
       <div className="space-y-3">
         <InfoField label="Cargo">
-          {q.natureOfGoods}, {formatWeight(q.weightKg)}, {q.volumeM3} m³
+          {q.natureOfGoods}, {formatWeight(q.weightKg)}
+          {q.volumeM3 != null && `, ${q.volumeM3} m³`}
         </InfoField>
         <InfoField label="Carrier">{q.carrier}</InfoField>
       </div>

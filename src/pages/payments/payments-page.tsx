@@ -1,12 +1,18 @@
 import { useMemo, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
+import { Wallet } from 'lucide-react'
 import { Link } from 'react-router'
 
 import { DataTable } from '@/components/data-table/data-table'
 import { PageHeader } from '@/components/page-header'
+import { RecordPaymentDialog } from '@/components/record-payment-dialog'
 import { InvoiceStatusBadge, invoiceStatuses } from '@/components/status-badge'
+import { Button } from '@/components/ui/button'
+import { usePermissions } from '@/data/auth'
 import { useInvoices } from '@/data/store'
+import { t } from '@/i18n'
 import { invoiceTotals } from '@/lib/calculation'
+import { toUSD } from '@/lib/currency'
 import { formatDate, formatMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { INVOICE_STATUSES, type Invoice } from '@/types/invoice'
@@ -79,42 +85,62 @@ const statusOptions = INVOICE_STATUSES.map((value) => ({ value, label: invoiceSt
 
 export function PaymentsPage() {
   const invoices = useInvoices()
+  const { canEditPayments } = usePermissions()
   const [selectedId, setSelectedId] = useState<string>()
+  const [paying, setPaying] = useState(false)
 
   const rows = useMemo<InvoiceRow[]>(() => invoices.map((inv) => ({ ...inv, ...invoiceTotals(inv) })), [invoices])
   const selected = rows.find((row) => row.id === selectedId)
 
-  // Итоги для плиток сверху (все инвойсы в USD)
-  const sum = (list: InvoiceRow[], key: 'total' | 'balanceDue') => list.reduce((acc, row) => acc + row[key], 0)
+  // Итоги для плиток сверху: инвойсы бывают в USD, TMT и EUR — сводим в доллары по демо-курсу
+  const usd = (row: InvoiceRow, key: 'total' | 'balanceDue' | 'paid') => toUSD(row[key], row.currency)
+  const sum = (list: InvoiceRow[], key: 'total' | 'balanceDue' | 'paid') =>
+    list.reduce((acc, row) => acc + usd(row, key), 0)
   const overdue = rows.filter((row) => row.status === 'overdue')
   const kpis = [
-    { label: 'Total invoiced', value: formatMoney(sum(rows, 'total'), 'USD'), hint: `${rows.length} invoices` },
+    {
+      label: 'Total invoiced',
+      value: formatMoney(sum(rows, 'total'), 'USD'),
+      hint: t('{n} invoices', { n: rows.length }),
+    },
     {
       label: 'Received',
-      value: formatMoney(
-        rows.reduce((acc, row) => acc + row.paid, 0),
-        'USD',
-      ),
-      hint: `${rows.filter((r) => r.status === 'paid').length} paid in full`,
+      value: formatMoney(sum(rows, 'paid'), 'USD'),
+      hint: t('{n} paid in full', { n: rows.filter((r) => r.status === 'paid').length }),
       tone: 'text-success',
     },
-    { label: 'Outstanding', value: formatMoney(sum(rows, 'balanceDue'), 'USD'), hint: 'Balance due on all invoices' },
+    {
+      label: 'Outstanding',
+      value: formatMoney(sum(rows, 'balanceDue'), 'USD'),
+      hint: t('Balance due on all invoices'),
+    },
     {
       label: 'Overdue',
       value: formatMoney(sum(overdue, 'balanceDue'), 'USD'),
-      hint: `${overdue.length} invoices past due date`,
+      hint: t('{n} invoices past due date', { n: overdue.length }),
       tone: 'text-destructive',
     },
   ]
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-4 p-6">
-      <PageHeader title="Payments" description="Customer invoices, payments received and balance due." />
+      <PageHeader
+        title="Payments"
+        description="Customer invoices, payments received and balance due."
+        actions={
+          canEditPayments && (
+            <Button size="sm" disabled={!selected || selected.status === 'paid'} onClick={() => setPaying(true)}>
+              <Wallet />
+              {t('Record payment')}
+            </Button>
+          )
+        }
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {kpis.map((kpi) => (
           <div key={kpi.label} className="rounded-xl border bg-card p-4 shadow-xs">
-            <div className="text-xs text-muted-foreground">{kpi.label}</div>
+            <div className="text-xs text-muted-foreground">{t(kpi.label)}</div>
             <div className={cn('mt-1 text-xl font-semibold tabular-nums', kpi.tone)}>{kpi.value}</div>
             <div className="mt-1 text-xs text-muted-foreground">{kpi.hint}</div>
           </div>
@@ -137,13 +163,15 @@ export function PaymentsPage() {
         <InvoicePreview invoice={selected} />
       ) : (
         <p className="px-1 text-xs text-muted-foreground">
-          Click an invoice to preview it.{' '}
+          {t('Click an invoice to preview it.')}{' '}
           <Link to="/shipments" className="text-primary hover:underline">
-            Invoices are linked to shipments
+            {t('Invoices are created from a shipment')}
           </Link>
-          .
         </p>
       )}
+      <p className="px-1 text-xs text-muted-foreground">{t('Totals are converted to USD at demo rates.')}</p>
+
+      <RecordPaymentDialog invoice={paying ? selected : undefined} onOpenChange={(open) => !open && setPaying(false)} />
     </div>
   )
 }

@@ -3,8 +3,10 @@ import { matchPath, NavLink, useLocation } from 'react-router'
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { navigation, settingsItem, supportItem, type NavItem } from '@/config/navigation'
+import { usePermissions } from '@/data/auth'
 import { useSettings } from '@/data/settings'
 import { cn } from '@/lib/utils'
+import { t } from '@/i18n'
 
 type AppSidebarProps = {
   collapsed: boolean
@@ -13,6 +15,11 @@ type AppSidebarProps = {
 
 export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const { companyName, companyTagline } = useSettings()
+  const { canSeePayments } = usePermissions()
+  // Сотрудник не видит разделы с деньгами
+  const groups = navigation
+    .map((group) => ({ ...group, items: group.items.filter((item) => canSeePayments || !item.payments) }))
+    .filter((group) => group.items.length > 0)
 
   return (
     <aside
@@ -40,13 +47,13 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
       </div>
 
       <nav className={cn('flex-1 overflow-y-auto px-3 py-4', collapsed ? 'space-y-1' : 'space-y-5')}>
-        {navigation.map((group, index) => (
-          <div key={group.label}>
+        {groups.map((group, index) => (
+          <div key={t(group.label)}>
             {/* В свёрнутом виде вместо подписей групп — тонкий разделитель */}
             {collapsed && index > 0 && <div className="mx-auto mb-1 h-px w-6 bg-sidebar-border" />}
             {!collapsed && (
               <div className="mb-1.5 px-2 text-[11px] font-medium tracking-wider text-sidebar-foreground/50 uppercase">
-                {group.label}
+                {t(group.label)}
               </div>
             )}
             <ul className="space-y-0.5">
@@ -66,14 +73,14 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         <button
           type="button"
           onClick={onToggle}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={t(collapsed ? 'Expand sidebar' : 'Collapse sidebar')}
           className={cn(
             'flex h-9 items-center gap-3 rounded-md text-sm text-sidebar-foreground/70 outline-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring',
             collapsed ? 'mx-auto w-10 justify-center' : 'w-full px-2.5',
           )}
         >
           <ChevronsLeft className={cn('size-4 shrink-0 transition-transform', collapsed && 'rotate-180')} />
-          {!collapsed && <span>Collapse</span>}
+          {!collapsed && <span>{t('Collapse')}</span>}
         </button>
       </div>
     </aside>
@@ -102,7 +109,7 @@ function SidebarLink({ item, collapsed }: { item: NavItem; collapsed: boolean })
       )}
     >
       <Icon className="size-4 shrink-0" />
-      {!collapsed && <span className="truncate">{item.title}</span>}
+      {!collapsed && <span className="truncate">{t(item.title)}</span>}
     </NavLink>
   )
 
@@ -112,7 +119,7 @@ function SidebarLink({ item, collapsed }: { item: NavItem; collapsed: boolean })
   return (
     <Tooltip>
       <TooltipTrigger asChild>{link}</TooltipTrigger>
-      <TooltipContent side="right">{item.title}</TooltipContent>
+      <TooltipContent side="right">{t(item.title)}</TooltipContent>
     </Tooltip>
   )
 }

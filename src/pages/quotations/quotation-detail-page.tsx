@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, Calculator, Copy, FileText, Info, Printer, Trash2, Truck } from 'lucide-react'
+import { ArrowLeft, Calculator, Copy, FileText, Info, Pencil, Printer, Trash2, Truck } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router'
 
 import { ComingSoon } from '@/components/coming-soon'
@@ -9,6 +9,8 @@ import { TransportModeIcon } from '@/components/transport-mode'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { copyQuotation, createShipmentFromQuotation, deleteQuotation, useQuotation } from '@/data/store'
+import { usePermissions } from '@/data/auth'
+import { t } from '@/i18n'
 import { formatDate } from '@/lib/format'
 import { NotFoundPage } from '@/pages/not-found'
 import { QuotationCalculationTab } from './quotation-calculation-tab'
@@ -20,6 +22,7 @@ export function QuotationDetailPage() {
   const navigate = useNavigate()
   const quotation = useQuotation(id)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const { canEditOrders } = usePermissions()
 
   if (!quotation) return <NotFoundPage />
 
@@ -29,7 +32,7 @@ export function QuotationDetailPage() {
     <div className="mx-auto max-w-[1600px] space-y-5 p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-3">
-          <Button asChild variant="outline" size="icon-sm" aria-label="Back to quotations">
+          <Button asChild variant="outline" size="icon-sm" aria-label={t('Back to quotations')}>
             <Link to="/quotations">
               <ArrowLeft />
             </Link>
@@ -47,11 +50,11 @@ export function QuotationDetailPage() {
                 {quotation.collectionAddress} → {quotation.deliveryAddress}
               </span>
               <span>·</span>
-              <span>Created {formatDate(quotation.createdAt)}</span>
+              <span>{t('Created {date}', { date: formatDate(quotation.createdAt) })}</span>
               {quotation.validTo && (
                 <>
                   <span>·</span>
-                  <span>Valid to {formatDate(quotation.validTo)}</span>
+                  <span>{t('Valid to {date}', { date: formatDate(quotation.validTo) })}</span>
                 </>
               )}
             </div>
@@ -59,41 +62,49 @@ export function QuotationDetailPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="outline" disabled title="PDF comes in a later step">
+          <Button size="sm" variant="outline" disabled title={t('PDF comes in a later step')}>
             <Printer />
-            Print
+            {t('Print')}
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              const copy = copyQuotation(quotation.id)
-              if (copy) navigate(`/quotations/${copy.id}`)
-            }}
-          >
-            <Copy />
-            Copy
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setConfirmOpen(true)}
-            className="text-destructive hover:text-destructive"
-          >
-            <Trash2 />
-            Delete
-          </Button>
-          <Button
-            size="sm"
-            disabled={!canCreateShipment}
-            onClick={() => {
-              const shipment = createShipmentFromQuotation(quotation.id)
-              if (shipment) navigate(`/shipments/${shipment.id}`)
-            }}
-          >
-            <Truck />
-            Create shipment
-          </Button>
+          {canEditOrders && (
+            <>
+              <Button size="sm" variant="outline" onClick={() => navigate(`/quotations/${quotation.id}/edit`)}>
+                <Pencil />
+                {t('Edit')}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const copy = copyQuotation(quotation.id)
+                  if (copy) navigate(`/quotations/${copy.id}`)
+                }}
+              >
+                <Copy />
+                {t('Copy')}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setConfirmOpen(true)}
+                className="text-destructive hover:text-destructive"
+              >
+                <Trash2 />
+                {t('Delete')}
+              </Button>
+              <Button
+                size="sm"
+                disabled={!canCreateShipment}
+                onClick={() => {
+                  const shipment = createShipmentFromQuotation(quotation.id)
+                  if (shipment) navigate(`/shipments/${shipment.id}`)
+                }}
+              >
+                <Truck />
+                {t('Create shipment')}
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -101,11 +112,11 @@ export function QuotationDetailPage() {
         <TabsList>
           <TabsTrigger value="general">
             <Info />
-            General
+            {t('General')}
           </TabsTrigger>
           <TabsTrigger value="calculation">
             <Calculator />
-            Calculation
+            {t('Calculation')}
           </TabsTrigger>
           <TabsTrigger value="pdf">
             <FileText />
@@ -130,7 +141,7 @@ export function QuotationDetailPage() {
       <ConfirmDelete
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title={`Delete quotation ${quotation.reference}?`}
+        title={t('Delete quotation {ref}?', { ref: quotation.reference })}
         description="The quotation and its calculation will be removed. This cannot be undone."
         onConfirm={() => {
           deleteQuotation(quotation.id)

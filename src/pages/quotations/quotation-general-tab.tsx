@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { formatWeight } from '@/lib/format'
 import { movementLabels } from '@/types/logistics'
 import type { Quotation } from '@/types/quotation'
+import { t } from '@/i18n'
 
 // Вкладка General: поля со слайда 3 презентации, сгруппированы по смыслу
 export function QuotationGeneralTab({ quotation: q }: { quotation: Quotation }) {
@@ -32,7 +33,7 @@ export function QuotationGeneralTab({ quotation: q }: { quotation: Quotation }) 
           <InfoField label="Port of departure">{q.portOfDeparture}</InfoField>
           <InfoField label="Port of delivery">{q.portOfDelivery}</InfoField>
           <InfoField label="Incoterms">{q.incoterm}</InfoField>
-          <InfoField label="Movement">{movementLabels[q.movement]}</InfoField>
+          <InfoField label="Movement">{t(movementLabels[q.movement])}</InfoField>
         </div>
       </SectionCard>
 
@@ -42,50 +43,54 @@ export function QuotationGeneralTab({ quotation: q }: { quotation: Quotation }) 
             <TransportModeLabel mode={q.mode} />
           </InfoField>
           <InfoField label="Type">{q.equipment}</InfoField>
-          <InfoField label="Number">{q.transportQuantity}</InfoField>
+          <InfoField label="Number of containers">{q.transportQuantity}</InfoField>
           <InfoField label="Nature of goods">{q.natureOfGoods}</InfoField>
           <InfoField label="Gross weight">{formatWeight(q.weightKg)}</InfoField>
-          <InfoField label="Volume">{q.volumeM3} m³</InfoField>
+          <InfoField label="Volume">{q.volumeM3 != null ? `${q.volumeM3} m³` : ''}</InfoField>
           <InfoField label="Chargeable weight (CWT)">
             {q.chargeableWeightKg ? formatWeight(q.chargeableWeightKg) : '—'}
           </InfoField>
         </div>
       </SectionCard>
 
-      <SectionCard title="Cargo" className="lg:col-span-3 [&>div:last-child]:p-0">
-        <Table>
-          <TableHeader className="bg-muted/50">
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="pl-5">Pieces</TableHead>
-              <TableHead>Package type</TableHead>
-              <TableHead>Nature of goods</TableHead>
-              <TableHead>Dimensions</TableHead>
-              <TableHead className="text-right">Weight</TableHead>
-              <TableHead className="pr-5 text-right">Volume</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {q.cargo.map((line, index) => (
-              <TableRow key={index}>
-                <TableCell className="pl-5 tabular-nums">{line.pieces}</TableCell>
-                <TableCell>{line.packageType}</TableCell>
-                <TableCell>{line.natureOfGoods}</TableCell>
-                <TableCell className="text-muted-foreground">{line.dimensions}</TableCell>
-                <TableCell className="text-right tabular-nums">{formatWeight(line.weightKg)}</TableCell>
-                <TableCell className="pr-5 text-right tabular-nums">{line.volumeM3} m³</TableCell>
+      {q.cargo.length > 0 && (
+        <SectionCard title="Cargo" className="lg:col-span-3 [&>div:last-child]:p-0">
+          <Table>
+            <TableHeader className="bg-muted/50">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="pl-5">{t('Pieces')}</TableHead>
+                <TableHead>{t('Package type')}</TableHead>
+                <TableHead>{t('Nature of goods')}</TableHead>
+                <TableHead>{t('Dimensions')}</TableHead>
+                <TableHead className="text-right">{t('Weight')}</TableHead>
+                <TableHead className="pr-5 text-right">{t('Volume')}</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-          <TableFooter>
-            <TableRow className="hover:bg-transparent">
-              <TableCell className="pl-5 tabular-nums">{totalPieces}</TableCell>
-              <TableCell colSpan={3}>Total</TableCell>
-              <TableCell className="text-right tabular-nums">{formatWeight(q.weightKg)}</TableCell>
-              <TableCell className="pr-5 text-right tabular-nums">{q.volumeM3} m³</TableCell>
-            </TableRow>
-          </TableFooter>
-        </Table>
-      </SectionCard>
+            </TableHeader>
+            <TableBody>
+              {q.cargo.map((line, index) => (
+                <TableRow key={index}>
+                  <TableCell className="pl-5 tabular-nums">{line.pieces}</TableCell>
+                  <TableCell>{line.packageType}</TableCell>
+                  <TableCell>{line.natureOfGoods}</TableCell>
+                  <TableCell className="text-muted-foreground">{line.dimensions}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatWeight(line.weightKg)}</TableCell>
+                  <TableCell className="pr-5 text-right tabular-nums">{line.volumeM3} m³</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+            <TableFooter>
+              <TableRow className="hover:bg-transparent">
+                <TableCell className="pl-5 tabular-nums">{totalPieces}</TableCell>
+                <TableCell colSpan={3}>{t('Total')}</TableCell>
+                <TableCell className="text-right tabular-nums">{formatWeight(q.weightKg)}</TableCell>
+                <TableCell className="pr-5 text-right tabular-nums">
+                  {q.volumeM3 != null ? `${q.volumeM3} m³` : '—'}
+                </TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
+        </SectionCard>
+      )}
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   CreditCard,
   FileText,
   LayoutDashboard,
@@ -14,6 +15,8 @@ export type NavItem = {
   title: string
   path: string
   icon: LucideIcon
+  // Раздел с оплатами: сотрудник (employee) его не видит
+  payments?: boolean
 }
 
 export type NavGroup = {
@@ -43,7 +46,10 @@ export const navigation: NavGroup[] = [
   },
   {
     label: 'Finance',
-    items: [{ title: 'Payments', path: '/payments', icon: CreditCard }],
+    items: [
+      { title: 'Payments', path: '/payments', icon: CreditCard, payments: true },
+      { title: 'Analytics', path: '/analytics', icon: BarChart3, payments: true },
+    ],
   },
 ]
 

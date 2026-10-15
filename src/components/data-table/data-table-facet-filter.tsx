@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { t } from '@/i18n'
 
 export type FacetOption = { value: string; label: string }
 
@@ -41,7 +42,7 @@ export function DataTableFacetFilter<TData>({
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" className="border-dashed">
           <ListFilter />
-          {title}
+          {t(title)}
           {selected.size > 0 && (
             <Badge variant="info" className="ml-1 rounded-sm px-1.5">
               {selected.size}
@@ -50,7 +51,9 @@ export function DataTableFacetFilter<TData>({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">
-        <DropdownMenuLabel className="text-xs text-muted-foreground">Filter by {title.toLowerCase()}</DropdownMenuLabel>
+        <DropdownMenuLabel className="text-xs text-muted-foreground">
+          {t('Filter by {name}', { name: t(title).toLowerCase() })}
+        </DropdownMenuLabel>
         {options.map((option) => (
           <DropdownMenuCheckboxItem
             key={option.value}
@@ -58,7 +61,7 @@ export function DataTableFacetFilter<TData>({
             onCheckedChange={() => toggle(option.value)}
             onSelect={(event) => event.preventDefault()}
           >
-            {option.label}
+            {t(option.label)}
             <span className="ml-auto text-xs text-muted-foreground tabular-nums">{counts.get(option.value) ?? 0}</span>
           </DropdownMenuCheckboxItem>
         ))}
@@ -67,7 +70,7 @@ export function DataTableFacetFilter<TData>({
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => column.setFilterValue(undefined)}>
               <X />
-              Clear filter
+              {t('Clear filter')}
             </DropdownMenuItem>
           </>
         )}

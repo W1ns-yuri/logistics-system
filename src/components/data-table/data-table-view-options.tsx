@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { t } from '@/i18n'
 
 // Меню «Columns»: показать/скрыть колонки. Название берём из meta.label колонки.
 export function DataTableViewOptions<TData>({ table }: { table: Table<TData> }) {
@@ -18,11 +19,11 @@ export function DataTableViewOptions<TData>({ table }: { table: Table<TData> }) 
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm">
           <Columns3 />
-          Columns
+          {t('Columns')}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuLabel className="text-xs text-muted-foreground">Visible columns</DropdownMenuLabel>
+        <DropdownMenuLabel className="text-xs text-muted-foreground">{t('Visible columns')}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {table
           .getAllColumns()
@@ -34,7 +35,7 @@ export function DataTableViewOptions<TData>({ table }: { table: Table<TData> }) 
               onCheckedChange={(value) => column.toggleVisibility(!!value)}
               onSelect={(event) => event.preventDefault()}
             >
-              {(column.columnDef.meta as { label?: string } | undefined)?.label ?? column.id}
+              {t((column.columnDef.meta as { label?: string } | undefined)?.label ?? column.id)}
             </DropdownMenuCheckboxItem>
           ))}
       </DropdownMenuContent>

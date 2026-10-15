@@ -1,50 +1,60 @@
-import { Copy, FolderOpen, Plus, Trash2, Truck } from 'lucide-react'
+import { Copy, FolderOpen, Pencil, Plus, Trash2, Truck } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { usePermissions } from '@/data/auth'
+import { t } from '@/i18n'
 
 type DocumentToolbarProps = {
   hasSelection: boolean
+  onNew?: () => void
   onOpen?: () => void
+  onEdit?: () => void
   onCopy?: () => void
   onCreateShipment?: () => void
   onDelete?: () => void
   createShipmentDisabled?: boolean
 }
 
-// Тулбар из презентации: New / Open / Copy / Create shipment / Delete.
+// Тулбар из презентации: New / Open / Copy / Create shipment / Delete (+ Edit).
 // Кнопки работают с выбранной строкой таблицы, поэтому без выбора они неактивны.
+// Если роли нельзя менять заказы (бухгалтер), кнопки изменения скрыты.
 export function DocumentToolbar({
   hasSelection,
+  onNew,
   onOpen,
+  onEdit,
   onCopy,
   onCreateShipment,
   onDelete,
   createShipmentDisabled,
 }: DocumentToolbarProps) {
+  const { canEditOrders } = usePermissions()
+
   return (
     <>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          {/* span нужен, чтобы подсказка показывалась и на неактивной кнопке */}
-          <span>
-            <Button size="sm" disabled>
-              <Plus />
-              New
-            </Button>
-          </span>
-        </TooltipTrigger>
-        <TooltipContent>Creation form comes in the next step</TooltipContent>
-      </Tooltip>
+      {canEditOrders && onNew && (
+        <Button size="sm" onClick={onNew}>
+          <Plus />
+          {t('New')}
+        </Button>
+      )}
       <Button size="sm" variant="outline" disabled={!hasSelection} onClick={onOpen}>
         <FolderOpen />
-        Open
+        {t('Open')}
       </Button>
-      <Button size="sm" variant="outline" disabled={!hasSelection} onClick={onCopy}>
-        <Copy />
-        Copy
-      </Button>
-      {onCreateShipment && (
+      {canEditOrders && onEdit && (
+        <Button size="sm" variant="outline" disabled={!hasSelection} onClick={onEdit}>
+          <Pencil />
+          {t('Edit')}
+        </Button>
+      )}
+      {canEditOrders && onCopy && (
+        <Button size="sm" variant="outline" disabled={!hasSelection} onClick={onCopy}>
+          <Copy />
+          {t('Copy')}
+        </Button>
+      )}
+      {canEditOrders && onCreateShipment && (
         <Button
           size="sm"
           variant="outline"
@@ -52,19 +62,21 @@ export function DocumentToolbar({
           onClick={onCreateShipment}
         >
           <Truck />
-          Create shipment
+          {t('Create shipment')}
         </Button>
       )}
-      <Button
-        size="sm"
-        variant="outline"
-        disabled={!hasSelection}
-        onClick={onDelete}
-        className="text-destructive hover:text-destructive"
-      >
-        <Trash2 />
-        Delete
-      </Button>
+      {canEditOrders && onDelete && (
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!hasSelection}
+          onClick={onDelete}
+          className="text-destructive hover:text-destructive"
+        >
+          <Trash2 />
+          {t('Delete')}
+        </Button>
+      )}
     </>
   )
 }

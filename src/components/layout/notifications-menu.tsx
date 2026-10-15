@@ -7,6 +7,7 @@ import { markAllRead, markRead, useReadIds, visibleNotifications, type Notificat
 import { useSettings } from '@/data/settings'
 import { formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { t } from '@/i18n'
 
 const kindIcon: Record<NotificationKind, { icon: typeof Bell; className: string }> = {
   status: { icon: Truck, className: 'bg-primary/10 text-primary' },
@@ -34,20 +35,20 @@ export function NotificationsMenu() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-96 p-0">
         <div className="flex items-center justify-between border-b px-4 py-3">
-          <div className="text-sm font-semibold">Notifications</div>
+          <div className="text-sm font-semibold">{t('Notifications')}</div>
           <button
             type="button"
             onClick={markAllRead}
             disabled={unread === 0}
             className="text-xs font-medium text-primary hover:underline disabled:pointer-events-none disabled:text-muted-foreground"
           >
-            Mark all as read
+            {t('Mark all as read')}
           </button>
         </div>
         <div className="max-h-96 overflow-y-auto p-1">
           {items.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-              No notifications. You can turn them on in Settings.
+              {t('No notifications. You can turn them on in Settings.')}
             </div>
           ) : (
             items.map((n) => {
@@ -63,9 +64,9 @@ export function NotificationsMenu() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className={cn('block truncate text-sm', isUnread ? 'font-semibold' : 'font-medium')}>
-                        {n.title}
+                        {t(n.title)}
                       </span>
-                      <span className="block truncate text-xs text-muted-foreground">{n.description}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{t(n.description)}</span>
                       <span className="mt-0.5 block text-xs text-muted-foreground">{formatDateTime(n.at)}</span>
                     </span>
                     {isUnread && <span className="mt-2 size-2 shrink-0 rounded-full bg-primary" />}
@@ -77,7 +78,7 @@ export function NotificationsMenu() {
         </div>
         <div className="border-t p-1">
           <DropdownMenuItem asChild className="justify-center text-xs text-muted-foreground">
-            <Link to="/settings">Notification settings</Link>
+            <Link to="/settings">{t('Notification settings')}</Link>
           </DropdownMenuItem>
         </div>
       </DropdownMenuContent>

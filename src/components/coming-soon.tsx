@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
+import { t } from '@/i18n'
 
 type ComingSoonProps = {
   icon: LucideIcon
@@ -13,8 +14,8 @@ export function ComingSoon({ icon: Icon, title, description }: ComingSoonProps) 
       <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
         <Icon className="size-6" />
       </div>
-      <h2 className="mt-4 font-semibold">{title}</h2>
-      <p className="mt-1 max-w-md text-sm text-muted-foreground">{description}</p>
+      <h2 className="mt-4 font-semibold">{t(title)}</h2>
+      <p className="mt-1 max-w-md text-sm text-muted-foreground">{t(description)}</p>
     </div>
   )
 }
