@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 
 import { FormField } from '@/components/form-field'
+import { Combobox } from '@/components/combobox'
 import { TransportModeIcon } from '@/components/transport-mode'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -8,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { createVendor, updateVendor } from '@/data/store'
 import { t } from '@/i18n'
+import { countryOptions } from '@/lib/countries'
 import { cn } from '@/lib/utils'
 import { VENDOR_TYPES, vendorTypeLabels, type Vendor, type VendorType } from '@/types/directory'
 import { TRANSPORT_MODES, transportModeLabels, type TransportMode } from '@/types/logistics'
@@ -80,6 +82,8 @@ function VendorForm({
   const pickType = (type: VendorType) =>
     setForm((prev) => ({ ...prev, type, modes: type === 'agent' ? prev.modes : [modeByType[type]] }))
 
+  const countries = useMemo(() => countryOptions(), [])
+
   const toggleMode = (mode: TransportMode) =>
     set('modes', form.modes.includes(mode) ? form.modes.filter((m) => m !== mode) : [...form.modes, mode])
 
@@ -124,7 +128,17 @@ function VendorForm({
           </NativeSelect>
         </FormField>
         <FormField label="Country" htmlFor="vendor-country" required error={errors.country}>
-          <Input {...text('country')} />
+          <Combobox
+            id="vendor-country"
+            value={form.country}
+            invalid={!!errors.country}
+            options={countries}
+            placeholder="Select country"
+            onChange={(country) => {
+              set('country', country)
+              setErrors((prev) => ({ ...prev, country: undefined }))
+            }}
+          />
         </FormField>
         <FormField label="Transport they handle" required error={errors.modes} className="sm:col-span-2">
           <div className="flex flex-wrap gap-2">

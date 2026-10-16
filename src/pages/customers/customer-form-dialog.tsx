@@ -1,11 +1,13 @@
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 
+import { Combobox } from '@/components/combobox'
 import { FormField } from '@/components/form-field'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { createCustomer, updateCustomer } from '@/data/store'
+import { createCustomer, updateCustomer, useCustomers } from '@/data/store'
 import { t } from '@/i18n'
+import { citySuggestions, countryOptions } from '@/lib/countries'
 import type { Customer } from '@/types/directory'
 
 type FormState = Omit<Customer, 'id' | 'code'>
@@ -57,6 +59,18 @@ function CustomerForm({
     },
   })
 
+  // Страна — из списка, город — подсказки по стране (и города уже заведённых клиентов), можно вписать свой
+  const countries = useMemo(() => countryOptions(), [])
+  const allCustomers = useCustomers()
+  const cities = citySuggestions(
+    form.country,
+    allCustomers.filter((c) => c.country === form.country).map((c) => c.city),
+  ).map((city) => ({ value: city, label: city }))
+  const pick = (patch: Partial<FormState>) => {
+    setForm((prev) => ({ ...prev, ...patch }))
+    setErrors((prev) => ({ ...prev, ...Object.fromEntries(Object.keys(patch).map((k) => [k, undefined])) }))
+  }
+
   const submit = (event: FormEvent) => {
     event.preventDefault()
     const next: typeof errors = {}
@@ -80,10 +94,25 @@ function CustomerForm({
           <Input {...bind('name')} autoFocus />
         </FormField>
         <FormField label="Country" htmlFor="customer-country" required error={errors.country}>
-          <Input {...bind('country')} />
+          <Combobox
+            id="customer-country"
+            value={form.country}
+            invalid={!!errors.country}
+            options={countries}
+            placeholder="Select country"
+            onChange={(country) => pick({ country, city: country === form.country ? form.city : '' })}
+          />
         </FormField>
         <FormField label="City" htmlFor="customer-city" required error={errors.city}>
-          <Input {...bind('city')} />
+          <Combobox
+            id="customer-city"
+            value={form.city}
+            invalid={!!errors.city}
+            options={cities}
+            placeholder="Select or type a city"
+            allowCustom
+            onChange={(city) => pick({ city })}
+          />
         </FormField>
         <FormField label="Address" htmlFor="customer-address" className="sm:col-span-2">
           <Input {...bind('address')} />

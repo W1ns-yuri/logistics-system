@@ -2,19 +2,25 @@ import { useState } from 'react'
 import { ArrowLeft, Calculator, Copy, FileText, Info, Pencil, Printer, Trash2, Truck } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router'
 
-import { ComingSoon } from '@/components/coming-soon'
 import { ConfirmDelete } from '@/components/confirm-delete'
 import { QuotationStatusBadge } from '@/components/status-badge'
 import { TransportModeIcon } from '@/components/transport-mode'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { copyQuotation, createShipmentFromQuotation, deleteQuotation, useQuotation } from '@/data/store'
+import {
+  copyQuotation,
+  createShipmentFromQuotation,
+  deleteQuotation,
+  updateQuotation,
+  useQuotation,
+} from '@/data/store'
 import { usePermissions } from '@/data/auth'
 import { t } from '@/i18n'
 import { formatDate } from '@/lib/format'
 import { NotFoundPage } from '@/pages/not-found'
 import { QuotationCalculationTab } from './quotation-calculation-tab'
 import { QuotationGeneralTab } from './quotation-general-tab'
+import { QuotationPreview } from './quotation-preview'
 
 // Карточка котировки: вкладки General / Calculation / PDF (слайды 3–4 презентации)
 export function QuotationDetailPage() {
@@ -22,9 +28,18 @@ export function QuotationDetailPage() {
   const navigate = useNavigate()
   const quotation = useQuotation(id)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [tab, setTab] = useState('general')
   const { canEditOrders } = usePermissions()
 
   if (!quotation) return <NotFoundPage />
+
+  // Печать или «Сохранить как PDF» в том же окне. Котировку в работе после этого считаем
+  // отправленной клиенту → «Завершена» (так попросил заказчик).
+  const print = () => {
+    setTab('pdf')
+    if (quotation.status === 'in_progress') updateQuotation(quotation.id, { status: 'completed' })
+    setTimeout(() => window.print(), 50)
+  }
 
   const canCreateShipment = quotation.status !== 'shipment_created' && quotation.status !== 'cancelled'
 
@@ -62,9 +77,9 @@ export function QuotationDetailPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="outline" disabled title={t('PDF comes in a later step')}>
+          <Button size="sm" variant="outline" onClick={print}>
             <Printer />
-            {t('Print')}
+            {t('Print / PDF')}
           </Button>
           {canEditOrders && (
             <>
@@ -108,7 +123,7 @@ export function QuotationDetailPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="general">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="general">
             <Info />
@@ -130,11 +145,7 @@ export function QuotationDetailPage() {
           <QuotationCalculationTab quotation={quotation} />
         </TabsContent>
         <TabsContent value="pdf">
-          <ComingSoon
-            icon={FileText}
-            title="PDF preview is on the way"
-            description="The quotation will be rendered as a PDF in the same layout as the Kras Logistics example."
-          />
+          <QuotationPreview quotation={quotation} />
         </TabsContent>
       </Tabs>
 

@@ -140,7 +140,7 @@ export function ShipmentDetailPage() {
           </SectionCard>
           <SectionCard title="Cargo">
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-              <InfoField label="Number of containers">
+              <InfoField label="Quantity">
                 {shipment.transportQuantity} × {shipment.equipment}
               </InfoField>
               <InfoField label="Packages">{shipment.cargoDescription || '—'}</InfoField>

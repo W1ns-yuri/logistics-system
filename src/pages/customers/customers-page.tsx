@@ -12,6 +12,7 @@ import { QuotationStatusBadge } from '@/components/status-badge'
 import { deleteCustomer, useCustomers, useQuotations, useShipments } from '@/data/store'
 import { useFormMode } from '@/hooks/use-form-mode'
 import { t } from '@/i18n'
+import { countryLabel } from '@/lib/countries'
 import { formatDate } from '@/lib/format'
 import type { Customer } from '@/types/directory'
 import type { Quotation } from '@/types/quotation'
@@ -41,7 +42,13 @@ const columns: ColumnDef<CustomerRow, unknown>[] = [
     enableHiding: false,
     cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
   },
-  { accessorKey: 'country', header: 'Country', meta: { label: 'Country' }, filterFn: 'arrIncludesSome' },
+  {
+    accessorKey: 'country',
+    header: 'Country',
+    meta: { label: 'Country' },
+    filterFn: 'arrIncludesSome',
+    cell: ({ row }) => countryLabel(row.original.country),
+  },
   { accessorKey: 'city', header: 'City', meta: { label: 'City' } },
   { accessorKey: 'contactPerson', header: 'Contact', meta: { label: 'Contact' } },
   {

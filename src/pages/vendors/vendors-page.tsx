@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { deleteVendor, useShipments, useVendors } from '@/data/store'
 import { useFormMode } from '@/hooks/use-form-mode'
 import { t } from '@/i18n'
+import { countryLabel } from '@/lib/countries'
 import { VENDOR_TYPES, vendorTypeLabels, type Vendor } from '@/types/directory'
 import { transportModeLabels } from '@/types/logistics'
 import { VendorFormDialog } from './vendor-form-dialog'
@@ -52,7 +53,12 @@ const columns: ColumnDef<VendorRow, unknown>[] = [
       </span>
     ),
   },
-  { accessorKey: 'country', header: 'Country', meta: { label: 'Country' } },
+  {
+    accessorKey: 'country',
+    header: 'Country',
+    meta: { label: 'Country' },
+    cell: ({ row }) => countryLabel(row.original.country),
+  },
   { accessorKey: 'contactPerson', header: 'Contact', meta: { label: 'Contact' } },
   {
     accessorKey: 'email',

@@ -1,7 +1,8 @@
 import type { EquipmentType, TransportMode } from './logistics'
 
-// Только основные этапы: заказчик сказал, что подробно не нужно — за грузом следит человек
-export const SHIPMENT_STATUSES = ['loaded', 'in_transit', 'at_border', 'delivered', 'completed'] as const
+// Только основные этапы: заказчик сказал, что подробно не нужно — за грузом следит человек.
+// «В ожидании» — заказ есть, но груз ещё не забрали (попросил заказчик).
+export const SHIPMENT_STATUSES = ['pending', 'loaded', 'in_transit', 'at_border', 'delivered', 'completed'] as const
 export type ShipmentStatus = (typeof SHIPMENT_STATUSES)[number] | 'cancelled'
 
 export type ShipmentEvent = {

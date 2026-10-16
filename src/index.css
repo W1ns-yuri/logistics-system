@@ -133,3 +133,21 @@
     font-feature-settings: 'cv11', 'ss01';
   }
 }
+
+/* Печать / сохранение в PDF: на бумагу идёт только документ (.print-area), без меню и кнопок */
+@media print {
+  @page {
+    margin: 14mm;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    inset: 0 0 auto 0;
+  }
+}

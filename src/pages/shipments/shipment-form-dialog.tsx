@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 
+import { CustomerPicker } from '@/components/customer-picker'
 import { FormField } from '@/components/form-field'
 import { shipmentStatuses } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
@@ -7,7 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
-import { createShipment, updateShipment, useCustomers, useVendors } from '@/data/store'
+import { createShipment, updateShipment, useVendors } from '@/data/store'
 import { t } from '@/i18n'
 import {
   EQUIPMENT_TYPES,
@@ -58,7 +59,7 @@ function toForm(s?: Shipment): FormState {
     transportQuantity: String(s?.transportQuantity ?? 1),
     cargoDescription: s?.cargoDescription ?? '',
     weightKg: s ? String(s.weightKg) : '',
-    status: s?.status ?? 'loaded',
+    status: s?.status ?? 'pending',
     notes: s?.notes ?? '',
   }
 }
@@ -97,7 +98,6 @@ function ShipmentForm({
   onDone: () => void
   onSaved?: (shipment: Shipment) => void
 }) {
-  const customers = useCustomers()
   const vendors = useVendors()
   const [form, setForm] = useState(() => toForm(shipment))
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({})
@@ -159,12 +159,15 @@ function ShipmentForm({
     <form onSubmit={submit} noValidate className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField label="Customer" htmlFor="shipment-customer" required error={errors.customer}>
-          <Input {...bind('customer')} list="shipment-customers" />
-          <datalist id="shipment-customers">
-            {customers.map((c) => (
-              <option key={c.id} value={c.name} />
-            ))}
-          </datalist>
+          <CustomerPicker
+            id="shipment-customer"
+            value={form.customer}
+            invalid={!!errors.customer}
+            onChange={(name) => {
+              setForm((prev) => ({ ...prev, customer: name }))
+              setErrors((prev) => ({ ...prev, customer: undefined }))
+            }}
+          />
         </FormField>
         <FormField label="Vendor (carrier)" htmlFor="shipment-vendorId">
           <NativeSelect {...bind('vendorId')}>
@@ -215,12 +218,7 @@ function ShipmentForm({
             ))}
           </NativeSelect>
         </FormField>
-        <FormField
-          label="Number of containers"
-          htmlFor="shipment-transportQuantity"
-          required
-          error={errors.transportQuantity}
-        >
+        <FormField label="Quantity" htmlFor="shipment-transportQuantity" required error={errors.transportQuantity}>
           <Input {...bind('transportQuantity')} type="number" min={1} />
         </FormField>
         <FormField label="Weight, kg" htmlFor="shipment-weightKg" required error={errors.weightKg}>
