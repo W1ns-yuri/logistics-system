@@ -1,4 +1,5 @@
 import {
+  ChevronDown,
   ChevronRight,
   FileText,
   Languages,
@@ -31,7 +32,7 @@ import { findNavItem } from '@/config/navigation'
 import { signOut, switchRole, usePermissions, useSession } from '@/data/auth'
 import { initials, updateSettings, useSettings } from '@/data/settings'
 import { useTheme } from '@/hooks/use-theme'
-import { t } from '@/i18n'
+import { LANGUAGES, t, type Language } from '@/i18n'
 import { ROLES, roleLabels, type Role } from '@/types/team'
 import { NotificationsMenu } from './notifications-menu'
 
@@ -103,17 +104,30 @@ export function AppHeader() {
           </DropdownMenu>
         )}
 
-        {/* Быстрое переключение языка */}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-1.5 px-2 font-semibold"
-          onClick={() => updateSettings({ language: settings.language === 'en' ? 'ru' : 'en' })}
-          aria-label={t('Language')}
-        >
-          <Languages />
-          {settings.language.toUpperCase()}
-        </Button>
+        {/* Выбор языка: выпадающий список, чтобы потом легко добавить третий язык */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="gap-1.5 px-2 font-semibold" aria-label={t('Language')}>
+              <Languages />
+              {settings.language.toUpperCase()}
+              <ChevronDown className="size-3.5 text-muted-foreground" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuLabel>{t('Language')}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuRadioGroup
+              value={settings.language}
+              onValueChange={(value) => updateSettings({ language: value as Language })}
+            >
+              {LANGUAGES.map((lang) => (
+                <DropdownMenuRadioItem key={lang.value} value={lang.value}>
+                  {lang.label}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <Button variant="ghost" size="icon-sm" onClick={toggleTheme} aria-label={t('Toggle theme')}>
           {theme === 'dark' ? <Sun /> : <Moon />}

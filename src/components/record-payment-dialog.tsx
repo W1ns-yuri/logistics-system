@@ -129,11 +129,7 @@ function PaymentForm({ invoice, onDone }: { invoice: Invoice; onDone: () => void
             ))}
           </NativeSelect>
         </FormField>
-        <FormField
-          label={t('Discount, {currency}', { currency: invoice.currency })}
-          htmlFor="payment-discount"
-          optional
-        >
+        <FormField label={t('Discount, {currency}', { currency: invoice.currency })} htmlFor="payment-discount">
           <Input
             id="payment-discount"
             type="number"
@@ -143,7 +139,7 @@ function PaymentForm({ invoice, onDone }: { invoice: Invoice; onDone: () => void
             onChange={(e) => setDiscount(e.target.value)}
           />
         </FormField>
-        <FormField label="Reference" htmlFor="payment-reference" optional className="sm:col-span-2">
+        <FormField label="Reference" htmlFor="payment-reference" className="sm:col-span-2">
           <Input
             id="payment-reference"
             value={reference}
@@ -151,7 +147,7 @@ function PaymentForm({ invoice, onDone }: { invoice: Invoice; onDone: () => void
             onChange={(e) => setReference(e.target.value)}
           />
         </FormField>
-        <FormField label="Receipt" optional className="sm:col-span-2">
+        <FormField label="Receipt" className="sm:col-span-2">
           {receipt ? (
             <div className="flex h-9 items-center gap-2 rounded-md border px-3 text-sm">
               <Paperclip className="size-4 text-muted-foreground" />

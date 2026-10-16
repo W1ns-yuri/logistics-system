@@ -49,7 +49,13 @@ export function DocumentToolbar({
         </Button>
       )}
       {canEditOrders && onCopy && (
-        <Button size="sm" variant="outline" disabled={!hasSelection} onClick={onCopy}>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!hasSelection}
+          onClick={onCopy}
+          title={t('New document with the same customer, route and rates')}
+        >
           <Copy />
           {t('Copy')}
         </Button>

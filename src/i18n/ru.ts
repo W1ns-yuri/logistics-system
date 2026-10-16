@@ -38,7 +38,8 @@ export const ru: Record<string, string> = {
   // Общие кнопки и слова
   Open: 'Открыть',
   Edit: 'Изменить',
-  Copy: 'Копировать',
+  Copy: 'Дублировать',
+  'New document with the same customer, route and rates': 'Новый документ с тем же клиентом, маршрутом и ставками',
   Delete: 'Удалить',
   Cancel: 'Отмена',
   Back: 'Назад',
@@ -100,10 +101,12 @@ export const ru: Record<string, string> = {
   Mode: 'Вид транспорта',
   'Mode of transport': 'Вид транспорта',
   Modes: 'Виды транспорта',
+  'Company type': 'Тип компании',
+  'Transport they handle': 'Какие перевозки делает',
   Sign: 'Знак',
   Equipment: 'Транспорт',
   Containers: 'Контейнеры',
-  'Number of containers': 'Количество контейнеров',
+  'Number of containers': 'Кол-во контейнеров',
   'Pick at least one mode': 'Выберите хотя бы один вид транспорта',
 
   // Статусы

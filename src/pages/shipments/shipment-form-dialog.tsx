@@ -166,7 +166,7 @@ function ShipmentForm({
             ))}
           </datalist>
         </FormField>
-        <FormField label="Vendor (carrier)" htmlFor="shipment-vendorId" optional>
+        <FormField label="Vendor (carrier)" htmlFor="shipment-vendorId">
           <NativeSelect {...bind('vendorId')}>
             <option value="">—</option>
             {sortedVendors.map((v) => (
@@ -193,10 +193,10 @@ function ShipmentForm({
         <FormField label="Order date" htmlFor="shipment-orderDate" required error={errors.orderDate}>
           <Input {...bind('orderDate')} type="date" />
         </FormField>
-        <FormField label="ETD" htmlFor="shipment-etd" optional>
+        <FormField label="ETD" htmlFor="shipment-etd">
           <Input {...bind('etd')} type="date" />
         </FormField>
-        <FormField label="ETA" htmlFor="shipment-eta" optional>
+        <FormField label="ETA" htmlFor="shipment-eta">
           <Input {...bind('eta')} type="date" />
         </FormField>
         <FormField label="Mode" htmlFor="shipment-mode" required>
@@ -226,7 +226,7 @@ function ShipmentForm({
         <FormField label="Weight, kg" htmlFor="shipment-weightKg" required error={errors.weightKg}>
           <Input {...bind('weightKg')} type="number" min={0} />
         </FormField>
-        <FormField label="Packages" htmlFor="shipment-cargoDescription" optional className="sm:col-span-2">
+        <FormField label="Packages" htmlFor="shipment-cargoDescription">
           <Input {...bind('cargoDescription')} placeholder={t('e.g. 24 Box')} />
         </FormField>
         <FormField label="Status" htmlFor="shipment-status">
@@ -238,7 +238,7 @@ function ShipmentForm({
             ))}
           </NativeSelect>
         </FormField>
-        <FormField label="Notes" htmlFor="shipment-notes" optional className="sm:col-span-2">
+        <FormField label="Notes" htmlFor="shipment-notes" className="sm:col-span-3">
           <Textarea {...bind('notes')} rows={2} />
         </FormField>
       </div>

@@ -293,7 +293,7 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
                 ))}
               </datalist>
             </FormField>
-            <FormField label="Customer address" htmlFor="customerAddress" optional>
+            <FormField label="Customer address" htmlFor="customerAddress">
               <Input {...bind('customerAddress')} />
             </FormField>
             <FormField label="Contact person" htmlFor="contactPerson" required error={errors.contactPerson}>
@@ -325,10 +325,10 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
             <FormField label="Delivery location" htmlFor="deliveryAddress" required error={errors.deliveryAddress}>
               <Input {...bind('deliveryAddress')} placeholder="Ashgabat" />
             </FormField>
-            <FormField label="Port of departure" htmlFor="portOfDeparture" optional>
+            <FormField label="Port of departure" htmlFor="portOfDeparture">
               <Input {...bind('portOfDeparture')} />
             </FormField>
-            <FormField label="Port of delivery" htmlFor="portOfDelivery" optional>
+            <FormField label="Port of delivery" htmlFor="portOfDelivery">
               <Input {...bind('portOfDelivery')} />
             </FormField>
             <FormField label="Incoterms" htmlFor="incoterm" required>
@@ -397,16 +397,16 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
                     value={form.weightUnit}
                     onChange={(e) => set('weightUnit', e.target.value as 'kg' | 't')}
                   >
-                    <option value="kg">kg</option>
+                    <option value="kg">{t('kg')}</option>
                     <option value="t">{t('ton')}</option>
                   </NativeSelect>
                 </div>
               </div>
             </FormField>
-            <FormField label="Volume, m³" htmlFor="volumeM3" optional>
+            <FormField label="Volume, m³" htmlFor="volumeM3">
               <Input {...bind('volumeM3')} type="number" min={0} step="any" />
             </FormField>
-            <FormField label="CWT, kg" htmlFor="chargeableWeightKg" optional>
+            <FormField label="CWT, kg" htmlFor="chargeableWeightKg">
               <Input {...bind('chargeableWeightKg')} type="number" min={0} step="any" />
             </FormField>
             <FormField
@@ -628,7 +628,7 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
         </div>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <FormField label="Carrier" htmlFor="carrier" optional>
+          <FormField label="Carrier" htmlFor="carrier">
             <Input {...bind('carrier')} list="vendor-options" />
             <datalist id="vendor-options">
               {vendors.map((v) => (
@@ -647,24 +647,19 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
               ))}
             </NativeSelect>
           </FormField>
-          <FormField label="Transit time" htmlFor="transitTime" optional>
+          <FormField label="Transit time" htmlFor="transitTime">
             <Input {...bind('transitTime')} placeholder={t('e.g. 15 days')} />
           </FormField>
-          <FormField label="Payment terms" htmlFor="paymentTerms" optional>
+          <FormField label="Payment terms" htmlFor="paymentTerms">
             <Input {...bind('paymentTerms')} placeholder="30% / 70%" />
           </FormField>
-          <FormField label="Valid to" htmlFor="validTo" optional>
+          <FormField label="Valid to" htmlFor="validTo">
             <Input {...bind('validTo')} type="date" />
           </FormField>
-          <FormField
-            label="Terms & conditions"
-            htmlFor="termsAndConditions"
-            optional
-            className="sm:col-span-2 lg:col-span-3"
-          >
+          <FormField label="Terms & conditions" htmlFor="termsAndConditions" className="sm:col-span-2 lg:col-span-3">
             <Textarea {...bind('termsAndConditions')} rows={3} />
           </FormField>
-          <FormField label="Notes" htmlFor="notes" optional className="sm:col-span-2">
+          <FormField label="Notes" htmlFor="notes" className="sm:col-span-2">
             <Textarea {...bind('notes')} rows={3} />
           </FormField>
         </div>
