@@ -270,6 +270,7 @@ function build() {
         const etd = addDays(orderDate, 2)
         const eta = addDays(etd, transitDays[lane.mode])
         const history: ShipmentEvent[] = [
+          { status: 'pending', at: `${orderDate}T10:00` },
           { status: 'loaded', at: `${etd}T09:00` },
           { status: 'in_transit', at: `${addDays(etd, 1)}T10:00` },
         ]
@@ -281,7 +282,7 @@ function build() {
         )
         // Что ещё не наступило, обрезаем: длинные морские перевозки сентября ещё в пути
         const past = history.filter((e) => e.at.slice(0, 10) <= TODAY)
-        const status = past.at(-1)?.status ?? 'loaded'
+        const status = past.at(-1)?.status ?? 'pending'
         const delivered = status === 'delivered' || status === 'completed'
 
         shipments.push({

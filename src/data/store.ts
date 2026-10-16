@@ -196,8 +196,8 @@ export function createShipmentFromQuotation(id: string) {
     transportQuantity: q.transportQuantity,
     cargoDescription: q.cargo.map((line) => `${line.pieces} ${line.packageType}`).join(', ') || q.natureOfGoods,
     weightKg: q.weightKg,
-    status: 'loaded',
-    history: [{ status: 'loaded', at: now(), note: `Created from quotation ${q.reference}` }],
+    status: 'pending',
+    history: [{ status: 'pending', at: now(), note: `Created from quotation ${q.reference}` }],
     documents: [],
   }
   setState((s) => ({
@@ -237,8 +237,8 @@ export function copyShipment(id: string) {
     id: newId(),
     number: nextDocumentNumber(),
     orderDate: today(),
-    status: 'loaded',
-    history: [{ status: 'loaded', at: now(), note: `Copied from ${source.number}` }],
+    status: 'pending',
+    history: [{ status: 'pending', at: now(), note: `Copied from ${source.number}` }],
     documents: [],
   }
   setState((s) => ({ ...s, shipments: [copy, ...s.shipments] }))

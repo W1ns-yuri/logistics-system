@@ -43,7 +43,7 @@ export function QuotationGeneralTab({ quotation: q }: { quotation: Quotation }) 
             <TransportModeLabel mode={q.mode} />
           </InfoField>
           <InfoField label="Type">{q.equipment}</InfoField>
-          <InfoField label="Number of containers">{q.transportQuantity}</InfoField>
+          <InfoField label="Quantity">{q.transportQuantity}</InfoField>
           <InfoField label="Nature of goods">{q.natureOfGoods}</InfoField>
           <InfoField label="Gross weight">{formatWeight(q.weightKg)}</InfoField>
           <InfoField label="Volume">{q.volumeM3 != null ? `${q.volumeM3} m³` : ''}</InfoField>

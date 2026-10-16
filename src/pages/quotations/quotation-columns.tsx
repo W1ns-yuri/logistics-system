@@ -38,8 +38,8 @@ export const quotationColumns: ColumnDef<Quotation, unknown>[] = [
   },
   {
     accessorKey: 'transportQuantity',
-    header: 'Containers',
-    meta: { label: 'Number of containers' },
+    header: 'Quantity',
+    meta: { label: 'Quantity' },
     cell: ({ row }) => <span className="tabular-nums">{row.original.transportQuantity}</span>,
   },
   { accessorKey: 'equipment', header: 'Equipment', meta: { label: 'Equipment' } },

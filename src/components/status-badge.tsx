@@ -4,7 +4,7 @@ import type { InvoiceStatus } from '@/types/invoice'
 import type { QuotationStatus } from '@/types/quotation'
 import type { ShipmentStatus } from '@/types/shipment'
 
-type Variant = 'info' | 'success' | 'warning' | 'destructive' | 'secondary'
+type Variant = 'info' | 'success' | 'warning' | 'destructive' | 'secondary' | 'outline'
 type StatusConfig<T extends string> = Record<T, { label: string; variant: Variant }>
 
 // Словари «статус → цвет и подпись», чтобы во всех таблицах статусы выглядели одинаково
@@ -18,6 +18,7 @@ export const quotationStatuses: StatusConfig<QuotationStatus> = {
 }
 
 export const shipmentStatuses: StatusConfig<ShipmentStatus> = {
+  pending: { label: 'Pending', variant: 'outline' },
   loaded: { label: 'Loaded', variant: 'info' },
   in_transit: { label: 'In transit', variant: 'info' },
   at_border: { label: 'At the border', variant: 'warning' },

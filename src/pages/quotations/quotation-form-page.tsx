@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router'
 
+import { CustomerPicker } from '@/components/customer-picker'
 import { FormField } from '@/components/form-field'
 import { SectionCard } from '@/components/section-card'
 import { Button } from '@/components/ui/button'
@@ -10,7 +11,8 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import { quotationStatuses } from '@/components/status-badge'
 import { useSettings } from '@/data/settings'
-import { createQuotation, updateQuotation, useCustomers, useQuotation, useVendors } from '@/data/store'
+import { createQuotation, updateQuotation, useQuotation, useVendors } from '@/data/store'
+import type { Customer } from '@/types/directory'
 import { t } from '@/i18n'
 import { chargeTotals, quotationTotals } from '@/lib/calculation'
 import { formatMoney, formatPercent } from '@/lib/format'
@@ -143,7 +145,6 @@ export function QuotationFormPage() {
 function QuotationForm({ existing }: { existing?: Quotation }) {
   const navigate = useNavigate()
   const settings = useSettings()
-  const customers = useCustomers()
   const vendors = useVendors()
   const [form, setForm] = useState(() =>
     toForm(existing, { currency: settings.defaultCurrency, validDays: settings.quotationValidityDays }),
@@ -165,8 +166,7 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
   })
 
   // Выбрали клиента из справочника — подставляем адрес и контакт
-  const pickCustomer = (name: string) => {
-    const customer = customers.find((c) => c.name === name)
+  const pickCustomer = (name: string, customer?: Customer) => {
     setForm((prev) => ({
       ...prev,
       customer: name,
@@ -281,17 +281,12 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
         <SectionCard title="Customer">
           <div className="space-y-4">
             <FormField label="Customer" htmlFor="customer" required error={errors.customer}>
-              <Input
-                {...bind('customer')}
-                list="customer-options"
-                placeholder={t('Start typing or pick from the list')}
-                onChange={(e) => pickCustomer(e.target.value)}
+              <CustomerPicker
+                id="customer"
+                value={form.customer}
+                invalid={!!errors.customer}
+                onChange={(name, customer) => pickCustomer(name, customer)}
               />
-              <datalist id="customer-options">
-                {customers.map((c) => (
-                  <option key={c.id} value={c.name} />
-                ))}
-              </datalist>
             </FormField>
             <FormField label="Customer address" htmlFor="customerAddress">
               <Input {...bind('customerAddress')} />
@@ -380,12 +375,7 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
                 ))}
               </NativeSelect>
             </FormField>
-            <FormField
-              label="Number of containers"
-              htmlFor="transportQuantity"
-              required
-              error={errors.transportQuantity}
-            >
+            <FormField label="Quantity" htmlFor="transportQuantity" required error={errors.transportQuantity}>
               <Input {...bind('transportQuantity')} type="number" min={1} />
             </FormField>
             <FormField label="Weight" htmlFor="weight" required error={errors.weight}>
