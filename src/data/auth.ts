@@ -74,7 +74,10 @@ export function usePermissions() {
     role,
     canSeePayments: role !== 'employee',
     canEditOrders: role !== 'accountant',
+    // Внести оплату и приложить чек: админ и бухгалтер
     canEditPayments: role !== 'employee',
+    // Создать, изменить, удалить инвойс или оплату: только админ (менеджер)
+    canEditInvoices: role === 'admin',
     canManageTeam: role === 'admin',
   }
 }

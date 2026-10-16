@@ -29,7 +29,12 @@ function marginPercent(income: number, profit: number) {
 }
 
 // Сумма инвойса и остаток к оплате (Balance Due)
-export function invoiceTotals(invoice: { lines: { quantity: number; rate: number }[]; paid: number }) {
+// Скидка при оплате (Payment Discount) тоже уменьшает остаток
+export function invoiceTotals(invoice: {
+  lines: { quantity: number; rate: number }[]
+  paid: number
+  discount?: number
+}) {
   const total = invoice.lines.reduce((sum, line) => sum + line.quantity * line.rate, 0)
-  return { total, balanceDue: total - invoice.paid }
+  return { total, balanceDue: total - invoice.paid - (invoice.discount ?? 0) }
 }

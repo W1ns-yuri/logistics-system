@@ -44,6 +44,12 @@ export function InvoicePreview({ invoice }: { invoice: Invoice }) {
           <dd className="text-right">{invoice.terms}</dd>
           <dt className="text-muted-foreground">{t('Due date')}</dt>
           <dd className="text-right">{formatDate(invoice.dueDate)}</dd>
+          {invoice.poNumber && (
+            <>
+              <dt className="text-muted-foreground">P.O.#</dt>
+              <dd className="text-right">{invoice.poNumber}</dd>
+            </>
+          )}
           <dt className="text-muted-foreground">{t('Project')}</dt>
           <dd className="text-right">
             {invoice.shipmentId ? (
@@ -86,7 +92,8 @@ export function InvoicePreview({ invoice }: { invoice: Invoice }) {
       <div className="mt-4 ml-auto w-64 space-y-1.5">
         <Row label="Sub total" value={money(total)} />
         <Row label="Total" value={money(total)} strong />
-        <Row label="Paid" value={`− ${money(invoice.paid)}`} />
+        <Row label="Payment made" value={`− ${money(invoice.paid)}`} />
+        {invoice.discount > 0 && <Row label="Payment discount" value={`− ${money(invoice.discount)}`} />}
         <div className="flex justify-between rounded-md bg-muted px-3 py-2 font-semibold">
           <span>{t('Balance due')}</span>
           <span className="tabular-nums">{money(balanceDue)}</span>

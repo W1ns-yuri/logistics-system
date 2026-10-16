@@ -13,7 +13,7 @@ export const roleLabels: Record<Role, string> = {
 
 export const roleDescriptions: Record<Role, string> = {
   admin: 'Full access. Manages the team and roles.',
-  accountant: 'Sees orders and all payments.',
+  accountant: 'Views orders and invoices. Records payments and attaches receipts.',
   employee: 'Works with orders. Does not see payments.',
 }
 

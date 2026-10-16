@@ -359,7 +359,7 @@ function DocumentsSection({ shipment, canEdit }: { shipment: Shipment; canEdit: 
 // Оплата по шипменту: инвойсы клиенту и сколько он уже заплатил
 function PaymentSection({ shipment }: { shipment: Shipment }) {
   const invoices = useInvoices().filter((inv) => inv.shipmentId === shipment.id)
-  const { canEditPayments } = usePermissions()
+  const { canEditPayments, canEditInvoices } = usePermissions()
   const [paying, setPaying] = useState<Invoice>()
   // Нет котировки — сумму инвойса вводим руками
   const [manualOpen, setManualOpen] = useState(false)
@@ -370,7 +370,7 @@ function PaymentSection({ shipment }: { shipment: Shipment }) {
     <SectionCard
       title="Payment"
       action={
-        canEditPayments && (
+        canEditInvoices && (
           <Button
             size="sm"
             variant="outline"
