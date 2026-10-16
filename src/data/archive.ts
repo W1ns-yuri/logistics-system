@@ -205,7 +205,7 @@ function build() {
   const shipments: Shipment[] = []
   const invoices: Invoice[] = []
   let n = 101
-  let inv = 101
+  let inv = 1
 
   for (const { month, count } of months) {
     for (let i = 0; i < count; i++) {
@@ -279,6 +279,10 @@ function build() {
           { status: 'delivered', at: `${eta}T16:00` },
           { status: 'completed', at: `${addDays(eta, 2)}T11:00` },
         )
+        // Что ещё не наступило, обрезаем: длинные морские перевозки сентября ещё в пути
+        const past = history.filter((e) => e.at.slice(0, 10) <= TODAY)
+        const status = past.at(-1)?.status ?? 'loaded'
+        const delivered = status === 'delivered' || status === 'completed'
 
         shipments.push({
           id: `as${n}`,
@@ -296,12 +300,13 @@ function build() {
           transportQuantity: qty,
           cargoDescription: '',
           weightKg,
-          status: 'completed',
-          history,
+          status,
+          history: past.length ? past : history.slice(0, 1),
           documents: [],
         })
 
-        const invoiceDate = addDays(eta, 2)
+        // Доставленные выставляем после доставки, остальные — после отправки
+        const invoiceDate = delivered ? addDays(eta, 2) : addDays(etd, 1)
         const dueDate = addDays(invoiceDate, 30)
         // Старые инвойсы оплачены, свежие — частично или ещё нет
         const recent = dueDate >= '2026-09-20'
@@ -314,13 +319,21 @@ function build() {
           invoiceDate,
           terms: 'Net 30',
           dueDate,
-          projectName: `${number} · ${lane.from} → ${lane.to}`,
+          poNumber: number,
+          projectName: `${orderDate.replaceAll('-', '.')}-${number}`,
           shipmentId: `as${n}`,
           currency: lane.currency,
           lines: [
-            { item: 'Freight', quantity: 1, rate: income - local },
+            {
+              item: 'Freight Forwarding Services',
+              description: `${lane.mode === 'sea' ? 'FOB' : 'EXW'} ${lane.from} – DAP ${lane.to}`,
+              quantity: 1,
+              rate: income - local,
+            },
             { item: 'Local charges', quantity: 1, rate: local },
           ],
+          payments: [],
+          discount: 0,
           paid,
           status: paid >= income ? 'paid' : dueDate < TODAY ? 'overdue' : paid > 0 ? 'partially_paid' : 'sent',
         })

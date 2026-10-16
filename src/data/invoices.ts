@@ -1,10 +1,13 @@
 import type { Invoice } from '@/types/invoice'
 
-// Первый инвойс — точная копия примера INV-AHL-000140
-export const mockInvoices: Invoice[] = [
+// Оплаты (payments) достраивает store.ts из поля paid, чтобы не писать их руками
+type MockInvoice = Omit<Invoice, 'payments' | 'discount'>
+
+// Первый инвойс — копия примера INV-AHL-000140 (номер с префиксом нашей демо-компании)
+export const mockInvoices: MockInvoice[] = [
   {
     id: 'i1',
-    number: 'INV-AHL-000140',
+    number: 'INV-AT-000140',
     billTo: 'Oguzabat',
     invoiceDate: '2026-07-29',
     terms: 'Custom',
@@ -17,12 +20,12 @@ export const mockInvoices: Invoice[] = [
   },
   {
     id: 'i2',
-    number: 'INV-AHL-000141',
+    number: 'INV-AT-000141',
     billTo: 'Huawei',
     invoiceDate: '2026-10-02',
     terms: '30% prepayment / 70% after delivery',
     dueDate: '2026-10-20',
-    projectName: 'AT000001 · Shanghai → Ashgabat',
+    projectName: '2026.10.02-AT000001',
     shipmentId: 's1',
     currency: 'USD',
     lines: [
@@ -35,12 +38,12 @@ export const mockInvoices: Invoice[] = [
   },
   {
     id: 'i3',
-    number: 'INV-AHL-000142',
+    number: 'INV-AT-000142',
     billTo: 'Hyundai',
     invoiceDate: '2026-09-25',
     terms: 'Net 30',
     dueDate: '2026-10-25',
-    projectName: 'AT000002 · Busan → Mary',
+    projectName: '2026.09.25-AT000002',
     shipmentId: 's2',
     currency: 'USD',
     lines: [{ item: 'FTL – Full truck load', quantity: 2, rate: 5800 }],
@@ -49,12 +52,12 @@ export const mockInvoices: Invoice[] = [
   },
   {
     id: 'i4',
-    number: 'INV-AHL-000143',
+    number: 'INV-AT-000143',
     billTo: 'Express Air Cargo',
     invoiceDate: '2026-10-08',
     terms: '100% prepayment',
     dueDate: '2026-10-08',
-    projectName: 'AT000009 · Dubai → Tunis',
+    projectName: '2026.10.08-AT000009',
     shipmentId: 's7',
     currency: 'USD',
     lines: [{ item: 'Airfreight', quantity: 720, rate: 3.2 }],
@@ -63,12 +66,12 @@ export const mockInvoices: Invoice[] = [
   },
   {
     id: 'i5',
-    number: 'INV-AHL-000144',
+    number: 'INV-AT-000144',
     billTo: 'Hazar logistik ES',
     invoiceDate: '2026-09-10',
     terms: '100% before departure',
     dueDate: '2026-09-07',
-    projectName: 'AT000015 · Singapore → Ashgabat',
+    projectName: '2026.09.10-AT000015',
     shipmentId: 's8',
     currency: 'USD',
     lines: [
@@ -80,12 +83,12 @@ export const mockInvoices: Invoice[] = [
   },
   {
     id: 'i6',
-    number: 'INV-AHL-000145',
+    number: 'INV-AT-000145',
     billTo: 'Inditex Trading',
     invoiceDate: '2026-10-03',
     terms: '100% after delivery',
     dueDate: '2026-10-24',
-    projectName: 'AT000008 · Istanbul → Ashgabat',
+    projectName: '2026.10.03-AT000008',
     shipmentId: 's5',
     currency: 'USD',
     lines: [{ item: 'LTL – Groupage', quantity: 1, rate: 3600 }],
@@ -94,12 +97,12 @@ export const mockInvoices: Invoice[] = [
   },
   {
     id: 'i7',
-    number: 'INV-AHL-000146',
+    number: 'INV-AT-000146',
     billTo: 'TBM',
     invoiceDate: '2026-09-20',
     terms: '50% prepayment / 50% after delivery',
     dueDate: '2026-09-30',
-    projectName: 'AT000012 · Samarkand → Manisa',
+    projectName: '2026.09.20-AT000012',
     shipmentId: 's4',
     currency: 'USD',
     lines: [{ item: 'Rail freight 20 GP', quantity: 10, rate: 3100 }],
@@ -108,12 +111,12 @@ export const mockInvoices: Invoice[] = [
   },
   {
     id: 'i8',
-    number: 'INV-AHL-000147',
+    number: 'INV-AT-000147',
     billTo: 'Promate Technologies',
     invoiceDate: '2026-10-09',
     terms: '30% prepayment / 70% after delivery',
     dueDate: '2026-10-30',
-    projectName: 'AT000014 · Bandar Abbas → Ashgabat',
+    projectName: '2026.10.09-AT000014',
     shipmentId: 's6',
     currency: 'USD',
     lines: [

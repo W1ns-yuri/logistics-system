@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react'
 
 import { invoiceTotals } from '@/lib/calculation'
 import type { Customer, Vendor } from '@/types/directory'
-import type { Invoice, InvoiceStatus } from '@/types/invoice'
+import type { Invoice, InvoiceStatus, Payment } from '@/types/invoice'
 import type { Currency } from '@/types/logistics'
 import type { Quotation } from '@/types/quotation'
 import type { Shipment, ShipmentDocument, ShipmentStatus } from '@/types/shipment'
@@ -40,14 +40,57 @@ const initialState = (): State => ({
   shipments: [...mockShipments, ...archive.shipments],
   customers: mockCustomers,
   vendors: mockVendors,
-  invoices: [...mockInvoices, ...archive.invoices],
+  invoices: withPayments([...mockInvoices, ...archive.invoices], [...mockShipments, ...archive.shipments]),
   team: mockTeam,
 })
+
+/*
+ * Демо-инвойсы хранят только сумму paid. Превращаем её в список оплат, а сохранения из прошлой
+ * версии (без payments) достраиваем так же — ничего, что пользователь создал, не теряется.
+ */
+function withPayments(invoices: (Omit<Invoice, 'payments' | 'discount'> & Partial<Invoice>)[], shipments: Shipment[]) {
+  let counter = 100
+  return invoices.map((inv): Invoice => {
+    const shipment = shipments.find((s) => s.id === inv.shipmentId)
+    const base: Invoice = {
+      ...inv,
+      // Номер заказа и Project Name — по номеру перевозки
+      poNumber: inv.payments ? inv.poNumber : (shipment?.number ?? inv.poNumber),
+      projectName:
+        shipment && !inv.payments ? `${shipment.orderDate.replaceAll('-', '.')}-${shipment.number}` : inv.projectName,
+      payments: inv.payments ?? [],
+      discount: inv.discount ?? 0,
+    }
+    if (inv.payments?.length || !inv.paid) return base
+    const { total } = invoiceTotals({ ...base, discount: 0 })
+    const prefix = inv.number.split('-')[1] ?? 'XX'
+    const day = (offset: number) => {
+      const d = new Date(`${inv.invoiceDate}T00:00:00Z`)
+      d.setUTCDate(d.getUTCDate() + offset)
+      return d.toISOString().slice(0, 10)
+    }
+    // Крупные оплаченные инвойсы — двумя платежами, как в примере клиента (10 000 + 21 200)
+    const parts = inv.paid >= total && total > 5000 ? [0.4, 0.6] : [1]
+    const payments = parts.map((share, i) => ({
+      id: `${inv.id}-p${i}`,
+      number: `CP-${prefix}-${String(++counter).padStart(3, '0')}`,
+      // today() объявлен ниже и при загрузке ещё не готов, поэтому дата прямо здесь
+      date: [day(3 + i * 20), new Date().toISOString().slice(0, 10)].sort()[0]!,
+      amount: Math.round(inv.paid * share * 100) / 100,
+      discount: 0,
+      method: (i === 0 ? 'bank_transfer' : 'cash') as Payment['method'],
+    }))
+    return { ...base, payments }
+  })
+}
 
 function load(): State {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return { ...initialState(), ...JSON.parse(raw) }
+    if (raw) {
+      const saved = { ...initialState(), ...JSON.parse(raw) } as State
+      return { ...saved, invoices: withPayments(saved.invoices, saved.shipments) }
+    }
   } catch {
     // нет доступа к localStorage или там мусор — начинаем с демо-данных
   }
@@ -298,13 +341,21 @@ export function deleteVendor(id: string) {
 
 export const useInvoices = () => useStore((s) => s.invoices)
 
-// Статус инвойса считается из суммы оплат и срока
+// Статус инвойса считается из оплат и срока
 function invoiceStatus(invoice: Invoice): InvoiceStatus {
-  const { total } = invoiceTotals(invoice)
-  if (invoice.paid >= total && total > 0) return 'paid'
+  const { total, balanceDue } = invoiceTotals(invoice)
+  if (total > 0 && balanceDue <= 0.005) return 'paid'
   if (invoice.dueDate < today()) return 'overdue'
   if (invoice.paid > 0) return 'partially_paid'
   return invoice.status === 'draft' ? 'draft' : 'sent'
+}
+
+// paid и discount — сумма по списку оплат; после любого изменения пересчитываем
+function recalc(invoice: Invoice): Invoice {
+  const paid = invoice.payments.reduce((acc, p) => acc + p.amount, 0)
+  const discount = invoice.payments.reduce((acc, p) => acc + (p.discount || 0), 0)
+  const next = { ...invoice, paid, discount }
+  return { ...next, status: invoiceStatus(next) }
 }
 
 // Номер инвойса: INV-<префикс>-000141
@@ -313,18 +364,36 @@ function nextInvoiceNumber() {
   return `INV-${getSettings().documentPrefix}-${String(max + 1).padStart(6, '0')}`
 }
 
+// Номер оплаты: CP-<префикс>-124 (как в приложении клиента). Счётчик общий для всех инвойсов.
+function nextPaymentNumber() {
+  const max = state.invoices
+    .flatMap((inv) => inv.payments)
+    .reduce((acc, p) => Math.max(acc, Number(p.number.split('-').pop()) || 0), 0)
+  return `CP-${getSettings().documentPrefix}-${String(max + 1).padStart(3, '0')}`
+}
+
+// «Project Name» как у клиента: дата заказа + номер, 2026.05.18-AHL-62
+const projectNameFor = (shipment: Shipment) => `${shipment.orderDate.replaceAll('-', '.')}-${shipment.number}`
+
 // Инвойс из шипмента: строки берём из калькуляции котировки (доход по каждой строке)
 // Если котировки нет, сумму и валюту вводят вручную (manual)
 export function createInvoiceFromShipment(shipmentId: string, manual?: { amount: number; currency: Currency }) {
   const shipment = state.shipments.find((s) => s.id === shipmentId)
   if (!shipment) return
   const quotation = state.quotations.find((q) => q.id === shipment.quotationId)
+  const route = `${shipment.collectionAddress} → ${shipment.deliveryAddress}`
   const lines =
     !manual && quotation?.charges.length
-      ? quotation.charges.map((c) => ({ item: c.chargeType, quantity: c.quantity, rate: c.rateIncome }))
+      ? quotation.charges.map((c) => ({
+          item: c.chargeType,
+          description: c.orderType,
+          quantity: c.quantity,
+          rate: c.rateIncome,
+        }))
       : [
           {
-            item: `Freight ${shipment.collectionAddress} → ${shipment.deliveryAddress}`,
+            item: 'Freight Forwarding Services',
+            description: quotation ? `${quotation.incoterm} ${route}` : route,
             quantity: 1,
             rate: manual?.amount ?? 0,
           },
@@ -338,26 +407,57 @@ export function createInvoiceFromShipment(shipmentId: string, manual?: { amount:
     invoiceDate: today(),
     terms: quotation?.paymentTerms ?? 'Net 30',
     dueDate: due.toISOString().slice(0, 10),
-    projectName: `${shipment.number} · ${shipment.collectionAddress} → ${shipment.deliveryAddress}`,
+    poNumber: shipment.number,
+    projectName: projectNameFor(shipment),
     shipmentId,
     currency: manual?.currency ?? quotation?.currency ?? getSettings().defaultCurrency,
     lines,
+    payments: [],
     paid: 0,
+    discount: 0,
     status: 'sent',
   }
   setState((s) => ({ ...s, invoices: [invoice, ...s.invoices] }))
   return invoice
 }
 
-export function recordPayment(invoiceId: string, amount: number) {
-  setState((s) => ({
-    ...s,
-    invoices: s.invoices.map((inv) => {
-      if (inv.id !== invoiceId) return inv
-      const next = { ...inv, paid: Math.max(0, inv.paid + amount) }
-      return { ...next, status: invoiceStatus(next) }
-    }),
+export function updateInvoice(id: string, patch: Partial<Invoice>) {
+  setState((s) => ({ ...s, invoices: s.invoices.map((inv) => (inv.id === id ? recalc({ ...inv, ...patch }) : inv)) }))
+}
+
+const mapInvoice = (id: string, update: (inv: Invoice) => Invoice) =>
+  setState((s) => ({ ...s, invoices: s.invoices.map((inv) => (inv.id === id ? recalc(update(inv)) : inv)) }))
+
+// Добавить оплату. Если чек не влез в память браузера — сохраняем оплату без файла и возвращаем false.
+export function addPayment(invoiceId: string, data: Omit<Payment, 'id' | 'number'>) {
+  const payment: Payment = { ...data, id: newId(), number: nextPaymentNumber() }
+  const saved = mapInvoice(invoiceId, (inv) => ({ ...inv, payments: [...inv.payments, payment] }))
+  if (!saved && payment.receipt?.dataUrl) {
+    updatePayment(invoiceId, payment.id, { receipt: { ...payment.receipt, dataUrl: undefined } })
+    return false
+  }
+  return true
+}
+
+export function updatePayment(invoiceId: string, paymentId: string, patch: Partial<Payment>) {
+  const saved = mapInvoice(invoiceId, (inv) => ({
+    ...inv,
+    payments: inv.payments.map((p) => (p.id === paymentId ? { ...p, ...patch } : p)),
   }))
+  if (!saved && patch.receipt?.dataUrl) {
+    mapInvoice(invoiceId, (inv) => ({
+      ...inv,
+      payments: inv.payments.map((p) =>
+        p.id === paymentId && p.receipt ? { ...p, receipt: { ...p.receipt, dataUrl: undefined } } : p,
+      ),
+    }))
+    return false
+  }
+  return true
+}
+
+export function removePayment(invoiceId: string, paymentId: string) {
+  mapInvoice(invoiceId, (inv) => ({ ...inv, payments: inv.payments.filter((p) => p.id !== paymentId) }))
 }
 
 export function deleteInvoice(id: string) {

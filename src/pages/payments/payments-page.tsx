@@ -1,14 +1,10 @@
 import { useMemo, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Wallet } from 'lucide-react'
 import { Link } from 'react-router'
 
 import { DataTable } from '@/components/data-table/data-table'
 import { PageHeader } from '@/components/page-header'
-import { RecordPaymentDialog } from '@/components/record-payment-dialog'
 import { InvoiceStatusBadge, invoiceStatuses } from '@/components/status-badge'
-import { Button } from '@/components/ui/button'
-import { usePermissions } from '@/data/auth'
 import { useInvoices } from '@/data/store'
 import { t } from '@/i18n'
 import { invoiceTotals } from '@/lib/calculation'
@@ -16,7 +12,7 @@ import { toUSD } from '@/lib/currency'
 import { formatDate, formatMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { INVOICE_STATUSES, type Invoice } from '@/types/invoice'
-import { InvoicePreview } from './invoice-preview'
+import { InvoicePanel } from './invoice-panel'
 
 type InvoiceRow = Invoice & { total: number; balanceDue: number }
 
@@ -33,6 +29,12 @@ const columns: ColumnDef<InvoiceRow, unknown>[] = [
     header: 'Bill to',
     meta: { label: 'Bill to' },
     cell: ({ row }) => <span className="font-medium">{row.original.billTo}</span>,
+  },
+  {
+    accessorKey: 'poNumber',
+    header: 'P.O.#',
+    meta: { label: 'P.O.#' },
+    cell: ({ row }) => <span className="tabular-nums">{row.original.poNumber ?? '—'}</span>,
   },
   {
     accessorKey: 'projectName',
@@ -85,9 +87,7 @@ const statusOptions = INVOICE_STATUSES.map((value) => ({ value, label: invoiceSt
 
 export function PaymentsPage() {
   const invoices = useInvoices()
-  const { canEditPayments } = usePermissions()
   const [selectedId, setSelectedId] = useState<string>()
-  const [paying, setPaying] = useState(false)
 
   const rows = useMemo<InvoiceRow[]>(() => invoices.map((inv) => ({ ...inv, ...invoiceTotals(inv) })), [invoices])
   const selected = rows.find((row) => row.id === selectedId)
@@ -124,18 +124,7 @@ export function PaymentsPage() {
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-4 p-6">
-      <PageHeader
-        title="Payments"
-        description="Customer invoices, payments received and balance due."
-        actions={
-          canEditPayments && (
-            <Button size="sm" disabled={!selected || selected.status === 'paid'} onClick={() => setPaying(true)}>
-              <Wallet />
-              {t('Record payment')}
-            </Button>
-          )
-        }
-      />
+      <PageHeader title="Payments" description="Customer invoices, payments received and balance due." />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {kpis.map((kpi) => (
@@ -160,7 +149,7 @@ export function PaymentsPage() {
       />
 
       {selected ? (
-        <InvoicePreview invoice={selected} />
+        <InvoicePanel invoice={selected} onDeleted={() => setSelectedId(undefined)} />
       ) : (
         <p className="px-1 text-xs text-muted-foreground">
           {t('Click an invoice to preview it.')}{' '}
@@ -170,8 +159,6 @@ export function PaymentsPage() {
         </p>
       )}
       <p className="px-1 text-xs text-muted-foreground">{t('Totals are converted to USD at demo rates.')}</p>
-
-      <RecordPaymentDialog invoice={paying ? selected : undefined} onOpenChange={(open) => !open && setPaying(false)} />
     </div>
   )
 }
