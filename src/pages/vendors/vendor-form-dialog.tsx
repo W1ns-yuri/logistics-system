@@ -9,10 +9,17 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { createVendor, updateVendor } from '@/data/store'
 import { t } from '@/i18n'
 import { cn } from '@/lib/utils'
-import { VENDOR_TYPES, vendorTypeLabels, type Vendor } from '@/types/directory'
+import { VENDOR_TYPES, vendorTypeLabels, type Vendor, type VendorType } from '@/types/directory'
 import { TRANSPORT_MODES, transportModeLabels, type TransportMode } from '@/types/logistics'
 
 type FormState = Omit<Vendor, 'id' | 'code'>
+
+const modeByType: Record<Exclude<VendorType, 'agent'>, TransportMode> = {
+  airline: 'air',
+  shipping_line: 'sea',
+  trucking: 'road',
+  rail: 'rail',
+}
 const empty: FormState = {
   name: '',
   type: 'trucking',
@@ -68,6 +75,11 @@ function VendorForm({
     'aria-invalid': !!errors[key],
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, e.target.value),
   })
+  // Тип — кто это за компания, виды транспорта — что она реально возит. У авиакомпании это всегда
+  // авиа, у линии — море и т.д., поэтому подставляем сами. Агент может делать что угодно — отмечают вручную.
+  const pickType = (type: VendorType) =>
+    setForm((prev) => ({ ...prev, type, modes: type === 'agent' ? prev.modes : [modeByType[type]] }))
+
   const toggleMode = (mode: TransportMode) =>
     set('modes', form.modes.includes(mode) ? form.modes.filter((m) => m !== mode) : [...form.modes, mode])
 
@@ -102,12 +114,8 @@ function VendorForm({
         <FormField label="Company name" htmlFor="vendor-name" required error={errors.name} className="sm:col-span-2">
           <Input {...text('name')} autoFocus />
         </FormField>
-        <FormField label="Type" htmlFor="vendor-type" required>
-          <NativeSelect
-            id="vendor-type"
-            value={form.type}
-            onChange={(e) => set('type', e.target.value as FormState['type'])}
-          >
+        <FormField label="Company type" htmlFor="vendor-type" required>
+          <NativeSelect id="vendor-type" value={form.type} onChange={(e) => pickType(e.target.value as VendorType)}>
             {VENDOR_TYPES.map((value) => (
               <option key={value} value={value}>
                 {t(vendorTypeLabels[value])}
@@ -118,7 +126,7 @@ function VendorForm({
         <FormField label="Country" htmlFor="vendor-country" required error={errors.country}>
           <Input {...text('country')} />
         </FormField>
-        <FormField label="Modes" required error={errors.modes} className="sm:col-span-2">
+        <FormField label="Transport they handle" required error={errors.modes} className="sm:col-span-2">
           <div className="flex flex-wrap gap-2">
             {TRANSPORT_MODES.map((mode) => {
               const active = form.modes.includes(mode)
@@ -140,13 +148,13 @@ function VendorForm({
             })}
           </div>
         </FormField>
-        <FormField label="Contact person" htmlFor="vendor-contactPerson" optional>
+        <FormField label="Contact person" htmlFor="vendor-contactPerson">
           <Input {...text('contactPerson')} />
         </FormField>
-        <FormField label="Phone" htmlFor="vendor-phone" optional>
+        <FormField label="Phone" htmlFor="vendor-phone">
           <Input {...text('phone')} />
         </FormField>
-        <FormField label="Email" htmlFor="vendor-email" optional className="sm:col-span-2">
+        <FormField label="Email" htmlFor="vendor-email" className="sm:col-span-2">
           <Input {...text('email')} type="email" />
         </FormField>
       </div>

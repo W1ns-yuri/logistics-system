@@ -85,16 +85,16 @@ function CustomerForm({
         <FormField label="City" htmlFor="customer-city" required error={errors.city}>
           <Input {...bind('city')} />
         </FormField>
-        <FormField label="Address" htmlFor="customer-address" optional className="sm:col-span-2">
+        <FormField label="Address" htmlFor="customer-address" className="sm:col-span-2">
           <Input {...bind('address')} />
         </FormField>
-        <FormField label="Contact person" htmlFor="customer-contactPerson" optional>
+        <FormField label="Contact person" htmlFor="customer-contactPerson">
           <Input {...bind('contactPerson')} />
         </FormField>
-        <FormField label="Phone" htmlFor="customer-phone" optional>
+        <FormField label="Phone" htmlFor="customer-phone">
           <Input {...bind('phone')} />
         </FormField>
-        <FormField label="Email" htmlFor="customer-email" optional className="sm:col-span-2">
+        <FormField label="Email" htmlFor="customer-email" className="sm:col-span-2">
           <Input {...bind('email')} type="email" />
         </FormField>
       </div>

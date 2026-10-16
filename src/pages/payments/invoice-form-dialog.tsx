@@ -98,10 +98,10 @@ function InvoiceForm({ invoice, onDone }: { invoice: Invoice; onDone: () => void
             ))}
           </NativeSelect>
         </FormField>
-        <FormField label="P.O.#" htmlFor="invoice-poNumber" optional>
+        <FormField label="P.O.#" htmlFor="invoice-poNumber">
           <Input {...bind('poNumber')} />
         </FormField>
-        <FormField label="Project name" htmlFor="invoice-projectName" optional className="sm:col-span-2">
+        <FormField label="Project name" htmlFor="invoice-projectName" className="sm:col-span-2">
           <Input {...bind('projectName')} placeholder="2026.05.18-AHL-62" />
         </FormField>
         <FormField label="Invoice date" htmlFor="invoice-invoiceDate" required>
@@ -110,7 +110,7 @@ function InvoiceForm({ invoice, onDone }: { invoice: Invoice; onDone: () => void
         <FormField label="Due date" htmlFor="invoice-dueDate" required>
           <Input {...bind('dueDate')} type="date" />
         </FormField>
-        <FormField label="Terms" htmlFor="invoice-terms" optional>
+        <FormField label="Terms" htmlFor="invoice-terms">
           <Input {...bind('terms')} />
         </FormField>
       </div>
