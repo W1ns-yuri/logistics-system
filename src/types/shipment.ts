@@ -1,4 +1,5 @@
-import type { EquipmentType, TransportMode } from './logistics'
+import type { PaymentMethod, PaymentReceipt } from './invoice'
+import type { Currency, EquipmentType, TransportMode } from './logistics'
 
 // Только основные этапы: заказчик сказал, что подробно не нужно — за грузом следит человек.
 // «В ожидании» — заказ есть, но груз ещё не забрали (попросил заказчик).
@@ -34,6 +35,19 @@ export type ShipmentDocument = {
   dataUrl?: string // сам файл (только небольшие, пока нет сервера)
 }
 
+// Оплата подрядчику (перевозчику, агенту) — наши расходы по перевозке. VP-<префикс>-001
+export type VendorPayment = {
+  id: string
+  number: string
+  vendorId?: string
+  date: string
+  amount: number
+  currency: Currency
+  method: PaymentMethod
+  reference?: string
+  receipt?: PaymentReceipt
+}
+
 export type Shipment = {
   id: string
   number: string // тот же номер, что у котировки, из которой создан (как на слайде 5)
@@ -53,5 +67,6 @@ export type Shipment = {
   status: ShipmentStatus
   history: ShipmentEvent[]
   documents: ShipmentDocument[]
+  vendorPayments?: VendorPayment[]
   notes?: string
 }

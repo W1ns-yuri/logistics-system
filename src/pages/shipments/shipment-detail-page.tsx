@@ -1,56 +1,26 @@
-import {
-  ArrowLeft,
-  Check,
-  ChevronRight,
-  CircleX,
-  Download,
-  FileText,
-  Paperclip,
-  Pencil,
-  Plus,
-  Receipt,
-  Trash2,
-} from 'lucide-react'
-import { useRef, useState, type FormEvent } from 'react'
+import { ArrowLeft, Check, ChevronRight, CircleX, Download, FileText, Paperclip, Pencil, Trash2 } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
-import { FormField } from '@/components/form-field'
 import { InfoField } from '@/components/info-field'
-import { RecordPaymentDialog } from '@/components/record-payment-dialog'
 import { SectionCard } from '@/components/section-card'
-import { InvoiceStatusBadge, ShipmentStatusBadge, shipmentStatuses } from '@/components/status-badge'
+import { ShipmentStatusBadge, shipmentStatuses } from '@/components/status-badge'
 import { TransportModeLabel } from '@/components/transport-mode'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { usePermissions } from '@/data/auth'
-import { useSettings } from '@/data/settings'
 import {
   addShipmentDocument,
-  createInvoiceFromShipment,
   removeShipmentDocument,
   setShipmentStatus,
-  shipmentPayment,
-  useInvoices,
   useQuotation,
   useShipment,
   useVendors,
 } from '@/data/store'
 import { t } from '@/i18n'
-import { invoiceTotals } from '@/lib/calculation'
-import { formatDate, formatDateTime, formatMoney, formatWeight } from '@/lib/format'
+import { formatDate, formatDateTime, formatWeight } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { NotFoundPage } from '@/pages/not-found'
-import type { Invoice } from '@/types/invoice'
-import { CURRENCIES, type Currency } from '@/types/logistics'
 import {
   DOCUMENT_TYPES,
   SHIPMENT_STATUSES,
@@ -60,6 +30,7 @@ import {
   type ShipmentStatus,
 } from '@/types/shipment'
 import { ShipmentFormDialog } from './shipment-form-dialog'
+import { CustomerPaymentsSection, VendorPaymentsSection } from './shipment-payments'
 
 export function ShipmentDetailPage() {
   const { id } = useParams()
@@ -163,7 +134,12 @@ export function ShipmentDetailPage() {
             </div>
           </SectionCard>
           <DocumentsSection shipment={shipment} canEdit={canEditOrders} />
-          {canSeePayments && <PaymentSection shipment={shipment} />}
+          {canSeePayments && (
+            <>
+              <CustomerPaymentsSection shipment={shipment} />
+              <VendorPaymentsSection shipment={shipment} />
+            </>
+          )}
         </div>
 
         <TrackingSection shipment={shipment} canEdit={canEditOrders} />
@@ -357,144 +333,3 @@ function DocumentsSection({ shipment, canEdit }: { shipment: Shipment; canEdit: 
 }
 
 // Оплата по шипменту: инвойсы клиенту и сколько он уже заплатил
-function PaymentSection({ shipment }: { shipment: Shipment }) {
-  const invoices = useInvoices().filter((inv) => inv.shipmentId === shipment.id)
-  const { canEditPayments, canEditInvoices } = usePermissions()
-  const [paying, setPaying] = useState<Invoice>()
-  // Нет котировки — сумму инвойса вводим руками
-  const [manualOpen, setManualOpen] = useState(false)
-  const { paid, total, currency } = shipmentPayment(shipment.id, invoices)
-  const share = total ? Math.min(1, paid / total) : 0
-
-  return (
-    <SectionCard
-      title="Payment"
-      action={
-        canEditInvoices && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => (shipment.quotationId ? createInvoiceFromShipment(shipment.id) : setManualOpen(true))}
-          >
-            <Plus />
-            {t('Create invoice')}
-          </Button>
-        )
-      }
-    >
-      {invoices.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t('No invoice for this shipment yet.')}</p>
-      ) : (
-        <div className="space-y-4">
-          <div>
-            <div className="flex items-baseline justify-between text-sm">
-              <span>
-                {t('Paid')}: <span className="font-semibold tabular-nums">{formatMoney(paid, currency)}</span>
-              </span>
-              <span className="text-muted-foreground tabular-nums">
-                {t('of')} {formatMoney(total, currency)}
-              </span>
-            </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
-              <div
-                className={cn('h-full rounded-full', share >= 1 ? 'bg-emerald-500' : 'bg-amber-500')}
-                style={{ width: `${share * 100}%` }}
-              />
-            </div>
-          </div>
-          <ul className="divide-y rounded-lg border">
-            {invoices.map((inv) => (
-              <li key={inv.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
-                <Receipt className="size-4 text-muted-foreground" />
-                <Link to="/payments" className="text-sm font-medium text-primary hover:underline">
-                  {inv.number}
-                </Link>
-                <InvoiceStatusBadge status={inv.status} />
-                <span className="ml-auto text-sm tabular-nums">
-                  {formatMoney(inv.paid, inv.currency)} / {formatMoney(invoiceTotals(inv).total, inv.currency)}
-                </span>
-                {canEditPayments && inv.status !== 'paid' && (
-                  <Button size="sm" variant="outline" onClick={() => setPaying(inv)}>
-                    {t('Record payment')}
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      <RecordPaymentDialog invoice={paying} onOpenChange={(open) => !open && setPaying(undefined)} />
-      <ManualInvoiceDialog shipmentId={shipment.id} open={manualOpen} onOpenChange={setManualOpen} />
-    </SectionCard>
-  )
-}
-
-function ManualInvoiceDialog({
-  shipmentId,
-  open,
-  onOpenChange,
-}: {
-  shipmentId: string
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}) {
-  const settings = useSettings()
-  const [amount, setAmount] = useState('')
-  const [currency, setCurrency] = useState<Currency>(settings.defaultCurrency)
-  const [error, setError] = useState<string>()
-
-  const submit = (event: FormEvent) => {
-    event.preventDefault()
-    const value = Number(amount)
-    if (!value || value <= 0) return setError(t('Enter an amount greater than 0'))
-    createInvoiceFromShipment(shipmentId, { amount: value, currency })
-    setAmount('')
-    onOpenChange(false)
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <form onSubmit={submit} noValidate className="space-y-4">
-          <DialogHeader>
-            <DialogTitle>{t('Create invoice')}</DialogTitle>
-            <DialogDescription>{t('This shipment has no quotation, so enter the amount to bill.')}</DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-[1fr_7rem] gap-3">
-            <FormField label="Amount" htmlFor="invoice-amount" required error={error}>
-              <Input
-                id="invoice-amount"
-                type="number"
-                min={0}
-                value={amount}
-                aria-invalid={!!error}
-                onChange={(e) => {
-                  setAmount(e.target.value)
-                  setError(undefined)
-                }}
-                autoFocus
-              />
-            </FormField>
-            <FormField label="Currency" htmlFor="invoice-currency" required>
-              <NativeSelect
-                id="invoice-currency"
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value as Currency)}
-              >
-                {CURRENCIES.map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
-              </NativeSelect>
-            </FormField>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              {t('Cancel')}
-            </Button>
-            <Button type="submit">{t('Create invoice')}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
