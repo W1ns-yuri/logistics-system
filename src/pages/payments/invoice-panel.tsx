@@ -101,6 +101,7 @@ export function InvoicePanel({ invoice, onDeleted }: { invoice: Invoice; onDelet
 function PaymentsList({ invoice }: { invoice: Invoice }) {
   const { canEditPayments, canEditInvoices } = usePermissions()
   const [removing, setRemoving] = useState<Payment>()
+  const [editing, setEditing] = useState<Payment>()
   const { total } = invoiceTotals(invoice)
   const money = (v: number) => formatMoney(v, invoice.currency)
 
@@ -142,6 +143,11 @@ function PaymentsList({ invoice }: { invoice: Invoice }) {
                 )}
               </div>
             </div>
+            {canEditPayments && (
+              <Button size="icon-sm" variant="ghost" aria-label={t('Edit')} onClick={() => setEditing(p)}>
+                <Pencil />
+              </Button>
+            )}
             {canEditInvoices && (
               <Button
                 size="icon-sm"
@@ -174,6 +180,11 @@ function PaymentsList({ invoice }: { invoice: Invoice }) {
         title={t('Delete payment {ref}?', { ref: removing?.number ?? '' })}
         description="The balance due will go back up by this amount."
         onConfirm={() => removing && removePayment(invoice.id, removing.id)}
+      />
+      <RecordPaymentDialog
+        invoice={editing ? invoice : undefined}
+        payment={editing}
+        onOpenChange={(open) => !open && setEditing(undefined)}
       />
     </>
   )

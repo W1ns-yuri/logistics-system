@@ -73,6 +73,9 @@ function CustomerForm({
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
+    // Форма может открываться поверх другой формы (выбор клиента в перевозке): React передаёт
+    // submit наверх даже через портал, поэтому не даём ему дойти до внешней формы
+    event.stopPropagation()
     const next: typeof errors = {}
     for (const key of required) if (!form[key].trim()) next[key] = t('Required field')
     setErrors(next)

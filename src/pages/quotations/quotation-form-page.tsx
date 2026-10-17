@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 
 import { CustomerPicker } from '@/components/customer-picker'
 import { FormField } from '@/components/form-field'
+import { VendorPicker } from '@/components/vendor-picker'
 import { SectionCard } from '@/components/section-card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -80,7 +81,7 @@ type Errors = Partial<Record<keyof FormState, string>>
 
 const emptyCharge = (): Charge => ({
   id: crypto.randomUUID(),
-  orderType: 'Main carriage',
+  vendorId: '', // '' — подрядчик не выбран (своя услуга)
   chargeType: '',
   quantity: 1,
   rateIncome: 0,
@@ -225,7 +226,10 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
       chargeableWeightKg: form.chargeableWeightKg ? Number(form.chargeableWeightKg) : undefined,
       natureOfGoods: form.natureOfGoods.trim(),
       cargo: form.cargo,
-      carrier: form.carrier.trim(),
+      // Для поиска и списка: все перевозчики из строк расчёта
+      carrier: [
+        ...new Set(form.charges.map((c) => vendors.find((v) => v.id === c.vendorId)?.name).filter(Boolean)),
+      ].join(', '),
       currency: form.currency,
       transitTime: form.transitTime.trim(),
       paymentTerms: form.paymentTerms.trim(),
@@ -530,8 +534,8 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
         }
       >
         <div className="space-y-2 overflow-x-auto">
-          <div className="grid min-w-[980px] grid-cols-[1.1fr_1.4fr_90px_120px_120px_1fr_36px] gap-2 text-xs text-muted-foreground">
-            <span>{t('Order type')}</span>
+          <div className="grid min-w-[980px] grid-cols-[1.2fr_1.4fr_80px_120px_120px_minmax(240px,1fr)_36px] gap-2 text-xs text-muted-foreground">
+            <span>{t('Carrier')}</span>
             <span>{t('Charge type')}</span>
             <span>{t('Qty')}</span>
             <span>{t('Rate income')}</span>
@@ -544,13 +548,12 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
             return (
               <div
                 key={charge.id}
-                className="grid min-w-[980px] grid-cols-[1.1fr_1.4fr_90px_120px_120px_1fr_36px] items-center gap-2"
+                className="grid min-w-[980px] grid-cols-[1.2fr_1.4fr_80px_120px_120px_minmax(240px,1fr)_36px] items-center gap-2"
               >
-                <Input
-                  aria-label={t('Order type')}
-                  list="order-types"
-                  value={charge.orderType}
-                  onChange={(e) => updateCharge(charge.id, { orderType: e.target.value })}
+                <VendorPicker
+                  value={charge.vendorId ?? ''}
+                  mode={form.mode}
+                  onChange={(vendorId) => updateCharge(charge.id, { vendorId })}
                 />
                 <Input
                   aria-label={t('Charge type')}
@@ -602,11 +605,6 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
               </div>
             )
           })}
-          <datalist id="order-types">
-            {['Main carriage', 'Pre-carriage', 'On-carriage', 'Local charges', 'Customs'].map((value) => (
-              <option key={value} value={value} />
-            ))}
-          </datalist>
         </div>
 
         {/* Итоги считаются на лету, пока человек вводит ставки */}
@@ -617,15 +615,7 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
           <Total label="Margin" value={formatPercent(totals.margin)} tone={totals.margin >= 0 ? 'good' : 'bad'} />
         </div>
 
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <FormField label="Carrier" htmlFor="carrier">
-            <Input {...bind('carrier')} list="vendor-options" />
-            <datalist id="vendor-options">
-              {vendors.map((v) => (
-                <option key={v.id} value={v.name} />
-              ))}
-            </datalist>
-          </FormField>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <FormField label="Currency" htmlFor="currency" required>
             <NativeSelect
               id="currency"
@@ -646,7 +636,7 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
           <FormField label="Valid to" htmlFor="validTo">
             <Input {...bind('validTo')} type="date" />
           </FormField>
-          <FormField label="Terms & conditions" htmlFor="termsAndConditions" className="sm:col-span-2 lg:col-span-3">
+          <FormField label="Terms & conditions" htmlFor="termsAndConditions" className="sm:col-span-2">
             <Textarea {...bind('termsAndConditions')} rows={3} />
           </FormField>
           <FormField label="Notes" htmlFor="notes" className="sm:col-span-2">

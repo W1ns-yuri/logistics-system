@@ -89,6 +89,9 @@ function VendorForm({
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
+    // Форма может открываться поверх другой формы (выбор клиента в перевозке): React передаёт
+    // submit наверх даже через портал, поэтому не даём ему дойти до внешней формы
+    event.stopPropagation()
     const next: typeof errors = {}
     if (!form.name.trim()) next.name = t('Required field')
     if (!form.country.trim()) next.country = t('Required field')
