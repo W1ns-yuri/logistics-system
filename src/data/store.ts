@@ -59,6 +59,21 @@ function nextShipmentNumber() {
  * (SHP-AT-000001) по порядку дат заказа, префикс берём из старого номера. В инвойсах обновляем
  * P.O.# и Project Name — чтобы ничего не разъехалось.
  */
+// Перевозчик раньше был один на котировку (поле Carrier). Теперь он в каждой строке расчёта:
+// старым строкам без перевозчика подставляем того, кто был указан в котировке или в её перевозке.
+function chargesWithVendors(data: State): State {
+  const quotations = data.quotations.map((q) => {
+    if (q.charges.every((c) => 'vendorId' in c)) return q
+    const fallback =
+      data.vendors.find((v) => v.name === q.carrier)?.id ?? data.shipments.find((s) => s.quotationId === q.id)?.vendorId
+    return {
+      ...q,
+      charges: q.charges.map((c, i) => ('vendorId' in c ? c : { ...c, vendorId: i === 0 ? fallback : undefined })),
+    }
+  })
+  return { ...data, quotations }
+}
+
 function renumberShipments(data: State): State {
   const old = data.shipments
     .filter((s) => !SHIPMENT_NUMBER.test(s.number))
@@ -87,8 +102,10 @@ function renumberShipments(data: State): State {
   return { ...data, shipments, invoices }
 }
 
+const normalize = (data: State) => renumberShipments(chargesWithVendors(data))
+
 const initialState = (): State =>
-  renumberShipments({
+  normalize({
     quotations: [...mockQuotations, ...archive.quotations],
     shipments: [...mockShipments, ...archive.shipments],
     customers: mockCustomers,
@@ -142,7 +159,7 @@ function load(): State {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
       const saved = { ...initialState(), ...JSON.parse(raw) } as State
-      return renumberShipments({ ...saved, invoices: withPayments(saved.invoices, saved.shipments) })
+      return normalize({ ...saved, invoices: withPayments(saved.invoices, saved.shipments) })
     }
   } catch {
     // нет доступа к localStorage или там мусор — начинаем с демо-данных
@@ -239,7 +256,8 @@ export function createShipmentFromQuotation(id: string) {
     quotationId: q.id,
     mode: q.mode,
     customer: q.customer,
-    vendorId: state.vendors.find((v) => v.name === q.carrier)?.id,
+    // Основной перевозчик — из первой строки расчёта; остальные видны в оплатах подрядчикам
+    vendorId: q.charges.find((c) => c.vendorId)?.vendorId,
     collectionAddress: q.collectionAddress,
     deliveryAddress: q.deliveryAddress,
     orderDate: today(),
@@ -476,7 +494,6 @@ export function createInvoiceFromShipment(shipmentId: string, manual?: { amount:
     !manual && quotation?.charges.length
       ? quotation.charges.map((c) => ({
           item: c.chargeType,
-          description: c.orderType,
           quantity: c.quantity,
           rate: c.rateIncome,
         }))

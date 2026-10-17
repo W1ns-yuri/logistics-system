@@ -18,6 +18,8 @@ export const ru: Record<string, string> = {
   Payments: 'Оплаты',
   Payment: 'Оплата',
   'Customer payments': 'Оплаты клиента',
+  'By calculation': 'По расчёту',
+  'Left to pay': 'Осталось',
   'Vendor payments': 'Оплаты подрядчикам',
   'Record vendor payment': 'Оплатить подрядчику',
   'Paid to vendors': 'Оплачено подрядчикам',

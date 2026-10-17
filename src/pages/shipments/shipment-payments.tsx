@@ -40,7 +40,7 @@ import {
   useVendors,
 } from '@/data/store'
 import { t } from '@/i18n'
-import { invoiceTotals, quotationTotals } from '@/lib/calculation'
+import { chargeTotals, invoiceTotals, quotationTotals } from '@/lib/calculation'
 import { readReceipt } from '@/lib/files'
 import { formatDate, formatMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -190,11 +190,24 @@ export function VendorPaymentsSection({ shipment }: { shipment: Shipment }) {
   const [removing, setRemoving] = useState<VendorPayment>()
   const payments = [...(shipment.vendorPayments ?? [])].sort((a, b) => b.date.localeCompare(a.date))
 
-  // Сколько должны подрядчикам — себестоимость из калькуляции котировки
+  // Сколько должны подрядчикам — себестоимость из калькуляции котировки.
+  // В одной перевозке может быть несколько подрядчиков, поэтому считаем по каждому.
   const cost = quotation ? quotationTotals(quotation).cost : 0
   const costCurrency = quotation?.currency
-  const paidInCost = payments.filter((p) => p.currency === costCurrency).reduce((acc, p) => acc + p.amount, 0)
+  const paidTo = (vendorId?: string) =>
+    payments
+      .filter((p) => p.currency === costCurrency && (vendorId === undefined || p.vendorId === vendorId))
+      .reduce((acc, p) => acc + p.amount, 0)
+  const paidInCost = paidTo()
   const vendorName = (id?: string) => vendors.find((v) => v.id === id)?.name ?? '—'
+  const owed = new Map<string, number>()
+  for (const charge of quotation?.charges ?? []) {
+    if (charge.vendorId) owed.set(charge.vendorId, (owed.get(charge.vendorId) ?? 0) + chargeTotals(charge).cost)
+  }
+  for (const p of payments) if (p.vendorId && !owed.has(p.vendorId)) owed.set(p.vendorId, 0)
+  const byVendor = [...owed].map(([vendorId, amount]) => ({ vendorId, owed: amount, paid: paidTo(vendorId) }))
+  const remaining = (vendorId: string) => Math.max(0, (owed.get(vendorId) ?? 0) - paidTo(vendorId))
+  const defaultVendorId = byVendor.find((row) => row.owed > row.paid)?.vendorId ?? shipment.vendorId ?? ''
 
   return (
     <SectionCard
@@ -211,6 +224,35 @@ export function VendorPaymentsSection({ shipment }: { shipment: Shipment }) {
       <div className="space-y-4">
         {cost > 0 && costCurrency && (
           <Progress paid={paidInCost} total={cost} currency={costCurrency} label="Paid to vendors" />
+        )}
+        {costCurrency && byVendor.length > 0 && (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-muted-foreground">
+                <th className="py-1 font-medium">{t('Vendor')}</th>
+                <th className="py-1 text-right font-medium">{t('By calculation')}</th>
+                <th className="py-1 text-right font-medium">{t('Paid')}</th>
+                <th className="py-1 text-right font-medium">{t('Left to pay')}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {byVendor.map((row) => (
+                <tr key={row.vendorId}>
+                  <td className="py-1.5">{vendorName(row.vendorId)}</td>
+                  <td className="py-1.5 text-right tabular-nums">{formatMoney(row.owed, costCurrency)}</td>
+                  <td className="py-1.5 text-right tabular-nums">{formatMoney(row.paid, costCurrency)}</td>
+                  <td
+                    className={cn(
+                      'py-1.5 text-right font-medium tabular-nums',
+                      row.owed > row.paid ? 'text-amber-600 dark:text-warning' : 'text-success',
+                    )}
+                  >
+                    {formatMoney(Math.max(0, row.owed - row.paid), costCurrency)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
         {payments.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('No payments to vendors yet.')}</p>
@@ -234,7 +276,9 @@ export function VendorPaymentsSection({ shipment }: { shipment: Shipment }) {
         open={!!form}
         payment={form?.payment}
         shipment={shipment}
-        suggested={cost > paidInCost ? { amount: cost - paidInCost, currency: costCurrency! } : undefined}
+        defaultVendorId={defaultVendorId}
+        costCurrency={costCurrency}
+        remaining={remaining}
         onOpenChange={(open) => !open && setForm(undefined)}
       />
       <ConfirmDelete
@@ -343,51 +387,56 @@ function VendorPaymentDialog({
   open,
   payment,
   shipment,
-  suggested,
   onOpenChange,
+  ...rest
 }: {
   open: boolean
   payment?: VendorPayment
   shipment: Shipment
-  suggested?: { amount: number; currency: Currency }
   onOpenChange: (open: boolean) => void
-}) {
+} & Suggestion) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         {open && (
-          <VendorPaymentForm
-            payment={payment}
-            shipment={shipment}
-            suggested={suggested}
-            onDone={() => onOpenChange(false)}
-          />
+          <VendorPaymentForm payment={payment} shipment={shipment} {...rest} onDone={() => onOpenChange(false)} />
         )}
       </DialogContent>
     </Dialog>
   )
 }
 
+// Подсказка суммы: сколько ещё должны выбранному подрядчику по расчёту котировки
+type Suggestion = {
+  defaultVendorId: string
+  costCurrency?: Currency
+  remaining: (vendorId: string) => number
+}
+
+const round = (value: number) => (value ? String(Math.round(value * 100) / 100) : '')
+
 function VendorPaymentForm({
   payment,
   shipment,
-  suggested,
+  defaultVendorId,
+  costCurrency,
+  remaining,
   onDone,
 }: {
   payment?: VendorPayment
   shipment: Shipment
-  suggested?: { amount: number; currency: Currency }
   onDone: () => void
-}) {
+} & Suggestion) {
   const settings = useSettings()
   const fileRef = useRef<HTMLInputElement>(null)
-  const [vendorId, setVendorId] = useState(payment?.vendorId ?? shipment.vendorId ?? '')
-  const [amount, setAmount] = useState(
-    payment ? String(payment.amount) : suggested ? String(Math.round(suggested.amount * 100) / 100) : '',
-  )
-  const [currency, setCurrency] = useState<Currency>(
-    payment?.currency ?? suggested?.currency ?? settings.defaultCurrency,
-  )
+  const [vendorId, setVendorId] = useState(payment?.vendorId ?? defaultVendorId)
+  const [amount, setAmount] = useState(payment ? String(payment.amount) : round(remaining(defaultVendorId)))
+  const [currency, setCurrency] = useState<Currency>(payment?.currency ?? costCurrency ?? settings.defaultCurrency)
+  const pickVendor = (next: string) => {
+    setVendorId(next)
+    // Новая оплата: подставляем остаток долга именно этому подрядчику
+    if (!payment) setAmount(round(remaining(next)))
+  }
   const [date, setDate] = useState(() => payment?.date ?? new Date().toISOString().slice(0, 10))
   const [method, setMethod] = useState<PaymentMethod>(payment?.method ?? 'bank_transfer')
   const [reference, setReference] = useState(payment?.reference ?? '')
@@ -427,7 +476,7 @@ function VendorPaymentForm({
       </DialogHeader>
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField label="Vendor" htmlFor="vendor-payment-vendor" className="sm:col-span-2">
-          <VendorPicker id="vendor-payment-vendor" value={vendorId} mode={shipment.mode} onChange={setVendorId} />
+          <VendorPicker id="vendor-payment-vendor" value={vendorId} mode={shipment.mode} onChange={pickVendor} />
         </FormField>
         <FormField label="Amount" htmlFor="vendor-payment-amount" required error={error}>
           <div className="flex gap-2">

@@ -1,6 +1,7 @@
 import { InfoField } from '@/components/info-field'
 import { SectionCard } from '@/components/section-card'
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { useVendors } from '@/data/store'
 import { chargeTotals, quotationTotals } from '@/lib/calculation'
 import { formatMoney, formatPercent } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -11,6 +12,8 @@ import { t } from '@/i18n'
 export function QuotationCalculationTab({ quotation: q }: { quotation: Quotation }) {
   const totals = quotationTotals(q)
   const money = (value: number) => formatMoney(value, q.currency)
+  const vendors = useVendors()
+  const vendorName = (id?: string) => vendors.find((v) => v.id === id)?.name ?? '—'
 
   return (
     <div className="space-y-4">
@@ -29,7 +32,7 @@ export function QuotationCalculationTab({ quotation: q }: { quotation: Quotation
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow className="hover:bg-transparent">
-              <TableHead className="pl-5">{t('Order type')}</TableHead>
+              <TableHead className="pl-5">{t('Carrier')}</TableHead>
               <TableHead>{t('Charge type')}</TableHead>
               <TableHead className="text-right">{t('Rate (income)')}</TableHead>
               <TableHead className="text-right">{t('Income')}</TableHead>
@@ -44,7 +47,7 @@ export function QuotationCalculationTab({ quotation: q }: { quotation: Quotation
               const line = chargeTotals(charge)
               return (
                 <TableRow key={charge.id}>
-                  <TableCell className="pl-5">{charge.orderType}</TableCell>
+                  <TableCell className="pl-5">{vendorName(charge.vendorId)}</TableCell>
                   <TableCell>{charge.chargeType}</TableCell>
                   <TableCell className="text-right text-muted-foreground tabular-nums">
                     {money(charge.rateIncome)} × {charge.quantity}
@@ -78,7 +81,6 @@ export function QuotationCalculationTab({ quotation: q }: { quotation: Quotation
       <div className="grid gap-4 lg:grid-cols-2">
         <SectionCard title="Terms">
           <div className="grid grid-cols-2 gap-4">
-            <InfoField label="Carrier">{q.carrier}</InfoField>
             <InfoField label="Currency">{q.currency}</InfoField>
             <InfoField label="Transit time">{q.transitTime}</InfoField>
             <InfoField label="Payment terms">{q.paymentTerms}</InfoField>

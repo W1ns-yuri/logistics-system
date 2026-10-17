@@ -15,7 +15,8 @@ export type CargoLine = {
 // Строка калькуляции (вкладка Calculation): сколько берём с клиента и сколько платим вендору
 export type Charge = {
   id: string
-  orderType: string // Main carriage, Pre-carriage, Local charges...
+  vendorId?: string // кто оказывает услугу: перевозчик или агент. В одной перевозке их может быть несколько
+  orderType?: string // старое поле «Тип услуги» (Main carriage, Local charges) — заказчик попросил убрать
   chargeType: string // AF – Airfreight, EXW local charges...
   quantity: number
   rateIncome: number
@@ -50,7 +51,7 @@ export type Quotation = {
   cargo: CargoLine[]
 
   // Calculation
-  carrier: string
+  carrier: string // устарело: перевозчик теперь выбирается в каждой строке расчёта
   currency: Currency
   transitTime: string
   paymentTerms: string
