@@ -1,53 +1,161 @@
 import { useState, type FormEvent } from 'react'
-import { LogOut, ShieldCheck } from 'lucide-react'
-import { Link, Outlet } from 'react-router'
+import {
+  BarChart3,
+  Building2,
+  ChevronDown,
+  ChevronRight,
+  CreditCard,
+  ExternalLink,
+  Languages,
+  Layers,
+  LogOut,
+  Moon,
+  ShieldCheck,
+  Sun,
+} from 'lucide-react'
+import { Link, Outlet, useLocation } from 'react-router'
 
+import { AppSidebar } from '@/components/layout/app-sidebar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import type { NavGroup, NavItem } from '@/config/navigation'
 import { signInOwner, signOutOwner, usePlatformOwner } from '@/data/platform'
-import { t } from '@/i18n'
+import { initials, updateSettings, useSettings } from '@/data/settings'
+import { useTheme } from '@/hooks/use-theme'
+import { LANGUAGES, t, type Language } from '@/i18n'
+
+// Меню админки платформы: тот же сайдбар, что в рабочем приложении, но свои разделы
+const groups: NavGroup[] = [
+  { label: 'Overview', items: [{ title: 'Dashboard', path: '/platform', icon: BarChart3, end: true }] },
+  {
+    label: 'Clients',
+    items: [
+      { title: 'Companies', path: '/platform/companies', icon: Building2 },
+      { title: 'License payments', path: '/platform/payments', icon: CreditCard },
+      { title: 'Plans', path: '/platform/plans', icon: Layers },
+    ],
+  },
+]
+const footer: NavItem[] = [{ title: 'Open the app', path: '/', icon: ExternalLink }]
+const allItems = groups.flatMap((g) => g.items)
 
 /*
- * Админка владельца платформы. Отдельный вход и свой каркас, чтобы не путать с рабочим приложением.
+ * Админка владельца платформы. Отдельный вход, свои разделы, дизайн как у рабочего приложения.
  * В прототипе пускает с любым email; на бэкенде здесь будет отдельная роль и вход с двухфакторной защитой.
  */
 export function PlatformLayout() {
   const owner = usePlatformOwner()
+  const [collapsed, setCollapsed] = useState(false)
   if (!owner) return <OwnerLogin />
 
   return (
     <TooltipProvider>
-      <div className="min-h-svh bg-muted/40">
-        <header className="sticky top-0 z-10 border-b bg-sidebar text-sidebar-foreground">
-          <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-3 px-6">
-            <div className="flex size-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-              <ShieldCheck className="size-4" />
-            </div>
-            <Link to="/platform" className="text-sm font-semibold text-sidebar-accent-foreground">
-              {t('Platform admin')}
-            </Link>
-            <span className="text-xs text-sidebar-foreground/60">{t('All companies and licenses')}</span>
-            <div className="ml-auto flex items-center gap-3 text-sm">
-              <span className="hidden text-sidebar-foreground/70 sm:inline">{owner}</span>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={signOutOwner}
-                className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              >
-                <LogOut />
-                {t('Sign out')}
-              </Button>
-            </div>
-          </div>
-        </header>
-        <main>
-          <Outlet />
-        </main>
+      <div className="flex h-svh overflow-hidden bg-muted/40">
+        <AppSidebar
+          collapsed={collapsed}
+          onToggle={() => setCollapsed((prev) => !prev)}
+          nav={{ groups, footer, title: 'Platform admin', subtitle: 'All companies and licenses', icon: ShieldCheck }}
+        />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <PlatformHeader owner={owner} />
+          <main className="flex-1 overflow-y-auto">
+            <Outlet />
+          </main>
+        </div>
       </div>
     </TooltipProvider>
+  )
+}
+
+function PlatformHeader({ owner }: { owner: string }) {
+  const { pathname } = useLocation()
+  const { theme, toggleTheme } = useTheme()
+  const settings = useSettings()
+  // Самый длинный подходящий раздел: /platform/companies/123 → Companies
+  const current = [...allItems].reverse().find((item) => pathname.startsWith(item.path))
+
+  return (
+    <header className="flex h-14 shrink-0 items-center gap-4 border-b bg-background px-6">
+      <nav className="flex min-w-0 items-center gap-1.5 text-sm">
+        <Link to="/platform" className="text-muted-foreground hover:text-foreground">
+          {t('Platform')}
+        </Link>
+        {current && (
+          <>
+            <ChevronRight className="size-3.5 text-muted-foreground" />
+            <span className="truncate font-medium">{t(current.title)}</span>
+          </>
+        )}
+      </nav>
+
+      <div className="ml-auto flex items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="gap-1.5 px-2 font-semibold" aria-label={t('Language')}>
+              <Languages />
+              {settings.language.toUpperCase()}
+              <ChevronDown className="size-3.5 text-muted-foreground" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuLabel>{t('Language')}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuRadioGroup
+              value={settings.language}
+              onValueChange={(value) => updateSettings({ language: value as Language })}
+            >
+              {LANGUAGES.map((lang) => (
+                <DropdownMenuRadioItem key={lang.value} value={lang.value}>
+                  {lang.label}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Button variant="ghost" size="icon-sm" onClick={toggleTheme} aria-label={t('Toggle theme')}>
+          {theme === 'dark' ? <Sun /> : <Moon />}
+        </Button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label={t('Account')}
+              className="rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
+              <Avatar>
+                <AvatarFallback className="bg-primary/10 text-primary">{initials(owner)}</AvatarFallback>
+              </Avatar>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-60">
+            <DropdownMenuLabel>
+              <div className="font-medium">{t('Platform owner')}</div>
+              <div className="text-xs font-normal text-muted-foreground">{owner}</div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={signOutOwner}>
+              <LogOut />
+              {t('Sign out')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </header>
   )
 }
 

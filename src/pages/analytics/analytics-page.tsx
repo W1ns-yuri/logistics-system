@@ -4,36 +4,18 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { PageHeader } from '@/components/page-header'
 import { TransportModeIcon } from '@/components/transport-mode'
 import { useInvoices, useQuotations, useShipments, useVendors } from '@/data/store'
-import { locale, t } from '@/i18n'
+import { t } from '@/i18n'
 import { cn } from '@/lib/utils'
 import { transportModeLabels, type TransportMode } from '@/types/logistics'
 import { buildAnalytics, PERIODS, type Period } from './analytics-data'
 import { RevenueChart, BarList, Donut, LegendRow, Sparkline } from './charts'
+import { monthLabel, usd, usdShort } from './format'
 
 const modeColors: Record<TransportMode, string> = {
   road: 'var(--chart-3)',
   sea: 'var(--chart-1)',
   air: 'var(--chart-4)',
   rail: 'var(--chart-2)',
-}
-
-// $12 400 → $12.4k — для осей и плиток
-function usdShort(value: number) {
-  const abs = Math.abs(value)
-  if (abs >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`
-  if (abs >= 10_000) return `$${Math.round(value / 1000)}k`
-  if (abs >= 1000) return `$${(value / 1000).toFixed(1)}k`
-  return `$${Math.round(value)}`
-}
-
-function usd(value: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)
-}
-
-function monthLabel(month: string) {
-  return new Intl.DateTimeFormat(locale(), { month: 'short', timeZone: 'UTC' }).format(
-    new Date(`${month}-01T00:00:00Z`),
-  )
 }
 
 export function AnalyticsPage() {
@@ -283,7 +265,7 @@ const statusLabel: Record<string, string> = {
   delivered: 'Delivered',
 }
 
-function Panel({
+export function Panel({
   title,
   description,
   action,
@@ -310,7 +292,7 @@ function Panel({
   )
 }
 
-function KpiCard({
+export function KpiCard({
   label,
   value,
   delta,
@@ -441,7 +423,7 @@ function ReceivablesPanel({ receivables }: { receivables: ReturnType<typeof buil
   )
 }
 
-function Empty() {
+export function Empty() {
   return (
     <div className="flex h-32 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
       <Ship className="size-5" />

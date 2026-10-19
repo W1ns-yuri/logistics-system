@@ -22,6 +22,8 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   changePlan,
   extendLicense,
+  paymentAmount,
+  periodEnd,
   planLabels,
   PLANS,
   setBlocked,
@@ -33,6 +35,7 @@ import { t } from '@/i18n'
 import { countryLabel } from '@/lib/countries'
 import { formatDate, formatDateTime } from '@/lib/format'
 import { NotFoundPage } from '@/pages/not-found'
+import { usd } from '@/pages/analytics/format'
 import { useCompanyRows } from './company-rows'
 
 // Карточка компании: лицензия, продление, блокировка, заметка и история изменений
@@ -43,13 +46,15 @@ export function CompanyPage() {
   const [blockOpen, setBlockOpen] = useState(false)
 
   if (!company) return <NotFoundPage />
+  // Продление пробного периода переводит на Start — по этой цене и считаем
+  const renewPlan: Plan = company.plan === 'trial' ? 'start' : company.plan
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <Button asChild variant="outline" size="icon-sm" aria-label={t('Back')}>
-            <Link to="/platform">
+            <Link to="/platform/companies">
               <ArrowLeft />
             </Link>
           </Button>
@@ -93,6 +98,11 @@ export function CompanyPage() {
                 {company.seatsUsed} / {company.seats ?? '∞'}
               </span>
             </InfoField>
+            <InfoField label="Paid in total">
+              <span className="font-semibold tabular-nums">
+                {usd(company.payments.reduce((acc, p) => acc + p.amount, 0))}
+              </span>
+            </InfoField>
           </div>
         </SectionCard>
 
@@ -123,11 +133,11 @@ export function CompanyPage() {
           <div className="mt-5 flex flex-wrap items-center gap-2 border-t pt-4">
             <Button size="sm" onClick={() => extendLicense(company.id, 1)}>
               <CalendarPlus />
-              {t('+1 month')}
+              {t('+1 month')} · {usd(paymentAmount(renewPlan, 1))}
             </Button>
             <Button size="sm" variant="outline" onClick={() => extendLicense(company.id, 12)}>
               <CalendarPlus />
-              {t('+1 year')}
+              {t('+1 year')} · {usd(paymentAmount(renewPlan, 12))}
             </Button>
             <div className="ml-auto flex items-center gap-2">
               <Input
@@ -151,7 +161,9 @@ export function CompanyPage() {
             </div>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            {t('An expired license keeps the data visible but read-only. A trial becomes Start when extended.')}
+            {t(
+              'An expired license keeps the data visible but read-only. A trial becomes Start when extended. Extending records a payment.',
+            )}
           </p>
         </SectionCard>
       </div>
@@ -163,6 +175,28 @@ export function CompanyPage() {
           defaultValue={company.note}
           onBlur={(e) => setCompanyNote(company.id, e.target.value)}
         />
+      </SectionCard>
+
+      <SectionCard title="License payments" className="[&>div:last-child]:p-0">
+        {company.payments.length ? (
+          <table className="w-full text-sm">
+            <tbody>
+              {[...company.payments].reverse().map((p) => (
+                <tr key={p.id} className="border-b last:border-0">
+                  <td className="px-5 py-3 text-muted-foreground tabular-nums">{formatDate(p.date)}</td>
+                  <td className="px-3 py-3">{t(planLabels[p.plan])}</td>
+                  <td className="px-3 py-3 text-muted-foreground">
+                    {p.months === 12 ? t('1 year') : t('1 month')} ·{' '}
+                    {t('until {date}', { date: formatDate(periodEnd(p.from, p.months)) })}
+                  </td>
+                  <td className="px-5 py-3 text-right font-medium tabular-nums">{usd(p.amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="px-5 py-4 text-sm text-muted-foreground">{t('No payments yet.')}</p>
+        )}
       </SectionCard>
 
       <SectionCard title="History">
