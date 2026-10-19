@@ -6,6 +6,7 @@ import { useSyncExternalStore } from 'react'
  * На бэкенде это станут таблицы companies / licenses / license_events, а проверка лицензии уйдёт на сервер.
  */
 
+import type { TransportMode } from '@/types/logistics'
 import { seedCompanies } from './platform-seed'
 import {
   addDays,
@@ -50,6 +51,21 @@ export type Company = {
   note: string
   events: LicenseEvent[]
   payments: LicensePayment[]
+  // Что компания рассказала о себе при регистрации (у демо-компаний может не быть)
+  profile?: CompanyProfile
+}
+
+export const TEAM_SIZES = ['1-3', '4-10', '11-30', '30+'] as const
+export type TeamSize = (typeof TEAM_SIZES)[number]
+
+export type CompanyProfile = {
+  city: string
+  phone: string
+  website?: string
+  teamSize: TeamSize
+  modes: TransportMode[]
+  // Какой тариф выбрали на после пробного периода; undefined — решат потом
+  plannedPlan?: Plan
 }
 
 type State = {
@@ -132,7 +148,13 @@ function updateCompany(id: string, patch: Partial<Company>, eventText?: string, 
 }
 
 // Регистрация новой компании: пробный период, она становится текущей в этом браузере
-export function registerCompany(data: { name: string; country: string; adminName: string; adminEmail: string }) {
+export function registerCompany(data: {
+  name: string
+  country: string
+  adminName: string
+  adminEmail: string
+  profile: CompanyProfile
+}) {
   const now = new Date().toISOString()
   const company: Company = {
     ...data,
@@ -152,11 +174,14 @@ export function registerCompany(data: { name: string; country: string; adminName
 }
 
 // Продлить = принять оплату: от сегодняшнего дня, если уже истекла, иначе от текущей даты окончания.
-// Пробный период при продлении становится тарифом Start
+// Пробный период при продлении становится тарифом, выбранным при регистрации (или Start)
+export const renewalPlan = (company: Company): Plan =>
+  company.plan === 'trial' ? (company.profile?.plannedPlan ?? 'start') : company.plan
+
 export function extendLicense(id: string, months: number) {
   const company = state.companies.find((c) => c.id === id)
   if (!company) return
-  const plan: Plan = company.plan === 'trial' ? 'start' : company.plan
+  const plan = renewalPlan(company)
   const from = daysLeft(company) < 0 ? todayIso() : addDays(company.paidUntil, 1)
   const paidUntil = periodEnd(from, months)
   const payment: LicensePayment = {

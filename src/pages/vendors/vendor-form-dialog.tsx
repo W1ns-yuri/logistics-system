@@ -10,6 +10,7 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { createVendor, updateVendor } from '@/data/store'
 import { t } from '@/i18n'
 import { countryOptions } from '@/lib/countries'
+import { isValidEmail, isValidPhone } from '@/lib/input-rules'
 import { cn } from '@/lib/utils'
 import { VENDOR_TYPES, vendorTypeLabels, type Vendor, type VendorType } from '@/types/directory'
 import { TRANSPORT_MODES, transportModeLabels, type TransportMode } from '@/types/logistics'
@@ -96,6 +97,8 @@ function VendorForm({
     if (!form.name.trim()) next.name = t('Required field')
     if (!form.country.trim()) next.country = t('Required field')
     if (!form.modes.length) next.modes = t('Pick at least one mode')
+    if (form.phone.trim() && !isValidPhone(form.phone)) next.phone = t('Enter a valid phone number')
+    if (form.email.trim() && !isValidEmail(form.email)) next.email = t('Enter a valid email')
     setErrors(next)
     if (Object.keys(next).length) return
     const data: FormState = {
@@ -168,10 +171,10 @@ function VendorForm({
         <FormField label="Contact person" htmlFor="vendor-contactPerson">
           <Input {...text('contactPerson')} />
         </FormField>
-        <FormField label="Phone" htmlFor="vendor-phone">
-          <Input {...text('phone')} />
+        <FormField label="Phone" htmlFor="vendor-phone" error={errors.phone}>
+          <Input {...text('phone')} type="tel" placeholder="+993 12 345678" />
         </FormField>
-        <FormField label="Email" htmlFor="vendor-email" className="sm:col-span-2">
+        <FormField label="Email" htmlFor="vendor-email" className="sm:col-span-2" error={errors.email}>
           <Input {...text('email')} type="email" />
         </FormField>
       </div>

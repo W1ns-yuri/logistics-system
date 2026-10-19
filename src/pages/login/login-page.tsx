@@ -14,6 +14,12 @@ const CURRENT_YEAR = new Date().getFullYear()
 // Сколько «идёт запрос» при входе, мс. Столько же едет полоса сверху карточки
 const SIGN_IN_DELAY = 900
 
+const DEMO_ACCOUNTS = [
+  { email: 'manager@company.com', label: 'Admin' },
+  { email: 'operator@company.com', label: 'Employee' },
+  { email: 'accountant@company.com', label: 'Accountant' },
+]
+
 export function LoginPage() {
   const session = useSession()
   const settings = useSettings()
@@ -124,6 +130,20 @@ export function LoginPage() {
             </Link>
           </div>
           <div className="text-xs">{t('Demo access: any email and password will work.')}</div>
+          {/* Демо-команда: войти под другой ролью, чтобы посмотреть, что она видит */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+            <span>{t('Demo accounts:')}</span>
+            {DEMO_ACCOUNTS.map((account) => (
+              <button
+                key={account.email}
+                type="button"
+                onClick={() => setEmail(account.email)}
+                className="font-medium text-primary hover:underline"
+              >
+                {t(account.label)}
+              </button>
+            ))}
+          </div>
         </div>
       </main>
 

@@ -26,6 +26,7 @@ import {
   periodEnd,
   planLabels,
   PLANS,
+  renewalPlan,
   setBlocked,
   setCompanyNote,
   setLicenseUntil,
@@ -33,6 +34,7 @@ import {
 } from '@/data/platform'
 import { t } from '@/i18n'
 import { countryLabel } from '@/lib/countries'
+import { transportModeLabels } from '@/types/logistics'
 import { formatDate, formatDateTime } from '@/lib/format'
 import { NotFoundPage } from '@/pages/not-found'
 import { usd } from '@/pages/analytics/format'
@@ -46,8 +48,8 @@ export function CompanyPage() {
   const [blockOpen, setBlockOpen] = useState(false)
 
   if (!company) return <NotFoundPage />
-  // Продление пробного периода переводит на Start — по этой цене и считаем
-  const renewPlan: Plan = company.plan === 'trial' ? 'start' : company.plan
+  // Продление пробного периода переводит на выбранный при регистрации тариф (или Start)
+  const renewPlan = renewalPlan(company)
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 p-6">
@@ -92,6 +94,25 @@ export function CompanyPage() {
               {company.adminName}
               <div className="text-sm text-muted-foreground">{company.adminEmail}</div>
             </InfoField>
+            {company.profile && (
+              <>
+                <InfoField label="Contacts">
+                  {company.profile.city}, {countryLabel(company.country)}
+                  <div className="text-sm text-muted-foreground">
+                    {[company.profile.phone, company.profile.website].filter(Boolean).join(' · ')}
+                  </div>
+                </InfoField>
+                <InfoField label="What they transport">
+                  {company.profile.modes.map((mode) => t(transportModeLabels[mode])).join(', ')}
+                  <div className="text-sm text-muted-foreground">
+                    {t('Team size')}: {t('{n} people', { n: company.profile.teamSize })}
+                  </div>
+                </InfoField>
+                <InfoField label="Plan chosen at sign-up">
+                  {company.profile.plannedPlan ? t(planLabels[company.profile.plannedPlan]) : t('Decide later')}
+                </InfoField>
+              </>
+            )}
             <InfoField label="Last active">{formatDateTime(company.lastActiveAt)}</InfoField>
             <InfoField label="Seats">
               <span className="tabular-nums">
@@ -162,7 +183,7 @@ export function CompanyPage() {
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
             {t(
-              'An expired license keeps the data visible but read-only. A trial becomes Start when extended. Extending records a payment.',
+              'An expired license keeps the data visible but read-only. A trial becomes the plan picked at sign-up (or Start) when extended. Extending records a payment.',
             )}
           </p>
         </SectionCard>

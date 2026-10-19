@@ -29,6 +29,7 @@ export type Quotation = {
   mode: TransportMode
   status: QuotationStatus
   createdAt: string // ISO-дата
+  createdBy?: string // email того, кто создал: только он (и админ) может менять
   validTo?: string
 
   customer: string

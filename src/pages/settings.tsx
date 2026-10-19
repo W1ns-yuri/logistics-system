@@ -90,7 +90,13 @@ export function SettingsPage() {
             <Input type="email" {...text('companyEmail')} />
           </FormField>
           <FormField label="Phone" htmlFor="companyPhone">
-            <Input {...text('companyPhone')} />
+            <Input {...text('companyPhone')} type="tel" />
+          </FormField>
+          <FormField label="Tax ID" htmlFor="companyTaxId">
+            <Input {...text('companyTaxId')} maxLength={30} />
+          </FormField>
+          <FormField label="Website" htmlFor="companyWebsite">
+            <Input {...text('companyWebsite')} maxLength={100} placeholder="winfin.tm" />
           </FormField>
         </div>
       </SectionCard>

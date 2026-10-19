@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 
+import { CityPicker } from '@/components/city-picker'
 import { CustomerPicker } from '@/components/customer-picker'
 import { FormField } from '@/components/form-field'
 import { VendorPicker } from '@/components/vendor-picker'
@@ -178,10 +179,26 @@ function ShipmentForm({
           required
           error={errors.collectionAddress}
         >
-          <Input {...bind('collectionAddress')} />
+          <CityPicker
+            id="shipment-collectionAddress"
+            value={form.collectionAddress}
+            invalid={!!errors.collectionAddress}
+            onChange={(city) => {
+              setForm((prev) => ({ ...prev, collectionAddress: city }))
+              setErrors((prev) => ({ ...prev, collectionAddress: undefined }))
+            }}
+          />
         </FormField>
         <FormField label="Delivery location" htmlFor="shipment-deliveryAddress" required error={errors.deliveryAddress}>
-          <Input {...bind('deliveryAddress')} />
+          <CityPicker
+            id="shipment-deliveryAddress"
+            value={form.deliveryAddress}
+            invalid={!!errors.deliveryAddress}
+            onChange={(city) => {
+              setForm((prev) => ({ ...prev, deliveryAddress: city }))
+              setErrors((prev) => ({ ...prev, deliveryAddress: undefined }))
+            }}
+          />
         </FormField>
       </div>
 

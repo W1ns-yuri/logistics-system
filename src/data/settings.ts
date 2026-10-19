@@ -16,6 +16,9 @@ export type Settings = {
   companyAddress: string
   companyEmail: string
   companyPhone: string
+  // Реквизиты для документов: заполняются после регистрации в Settings
+  companyTaxId: string
+  companyWebsite: string
   // Первые буквы номера документов: компания Win Fin → WF000001
   documentPrefix: string
   language: Language
@@ -33,6 +36,8 @@ export const defaultSettings: Settings = {
   companyAddress: 'Ashgabat, Turkmenistan',
   companyEmail: 'info@company.com',
   companyPhone: '+993 00 000000',
+  companyTaxId: '',
+  companyWebsite: '',
   documentPrefix: 'AT',
   language: 'en',
   defaultCurrency: 'USD',

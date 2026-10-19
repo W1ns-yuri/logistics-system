@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { createCustomer, updateCustomer, useCustomers } from '@/data/store'
 import { t } from '@/i18n'
 import { citySuggestions, countryOptions } from '@/lib/countries'
+import { isValidEmail, isValidPhone } from '@/lib/input-rules'
 import type { Customer } from '@/types/directory'
 
 type FormState = Omit<Customer, 'id' | 'code'>
@@ -78,6 +79,8 @@ function CustomerForm({
     event.stopPropagation()
     const next: typeof errors = {}
     for (const key of required) if (!form[key].trim()) next[key] = t('Required field')
+    if (form.phone.trim() && !isValidPhone(form.phone)) next.phone = t('Enter a valid phone number')
+    if (form.email.trim() && !isValidEmail(form.email)) next.email = t('Enter a valid email')
     setErrors(next)
     if (Object.keys(next).length) return
     const data = Object.fromEntries(Object.entries(form).map(([k, v]) => [k, String(v).trim()])) as FormState
@@ -123,10 +126,10 @@ function CustomerForm({
         <FormField label="Contact person" htmlFor="customer-contactPerson">
           <Input {...bind('contactPerson')} />
         </FormField>
-        <FormField label="Phone" htmlFor="customer-phone">
-          <Input {...bind('phone')} />
+        <FormField label="Phone" htmlFor="customer-phone" error={errors.phone}>
+          <Input {...bind('phone')} type="tel" placeholder="+993 12 345678" />
         </FormField>
-        <FormField label="Email" htmlFor="customer-email" className="sm:col-span-2">
+        <FormField label="Email" htmlFor="customer-email" className="sm:col-span-2" error={errors.email}>
           <Input {...bind('email')} type="email" />
         </FormField>
       </div>

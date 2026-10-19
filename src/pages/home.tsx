@@ -7,6 +7,7 @@ import { InvoiceStatusBadge, QuotationStatusBadge, ShipmentStatusBadge } from '@
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { usePermissions } from '@/data/auth'
+import { useSettings } from '@/data/settings'
 import { useCustomers, useInvoices, useQuotations, useShipments, useTeam, useVendors } from '@/data/store'
 import { t } from '@/i18n'
 import { invoiceTotals, quotationTotals } from '@/lib/calculation'
@@ -189,7 +190,10 @@ function GettingStarted() {
   const customers = useCustomers()
   const vendors = useVendors()
   const team = useTeam()
+  const settings = useSettings()
+  // Второй этап регистрации: реквизиты для документов заполняются уже внутри, в Settings
   const steps = [
+    { title: 'Fill in company details', to: '/settings', done: !!settings.companyTaxId.trim() },
     { title: 'Add your first customer', to: '/customers?new=1', done: customers.length > 0 },
     { title: 'Add a carrier or agent', to: '/vendors?new=1', done: vendors.length > 0 },
     { title: 'Create a quotation', to: '/quotations/new', done: false },
@@ -200,11 +204,11 @@ function GettingStarted() {
       <CardHeader>
         <CardTitle>{t('Getting started')}</CardTitle>
         <CardDescription>
-          {t('Four steps to your first shipment. A quotation becomes a shipment in one click.')}
+          {t('Five steps to your first shipment. A quotation becomes a shipment in one click.')}
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ol className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {steps.map((step, index) => (
             <li key={step.to}>
               <Link
