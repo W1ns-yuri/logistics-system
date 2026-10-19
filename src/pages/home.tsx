@@ -1,13 +1,13 @@
-import { FileText, Receipt, Truck } from 'lucide-react'
+import { CheckCircle2, Circle, FileText, Receipt, Truck } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 
 import { PageHeader } from '@/components/page-header'
 import { InvoiceStatusBadge, QuotationStatusBadge, ShipmentStatusBadge } from '@/components/status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { usePermissions } from '@/data/auth'
-import { useInvoices, useQuotations, useShipments } from '@/data/store'
+import { useCustomers, useInvoices, useQuotations, useShipments, useTeam, useVendors } from '@/data/store'
 import { t } from '@/i18n'
 import { invoiceTotals, quotationTotals } from '@/lib/calculation'
 import { toUSD } from '@/lib/currency'
@@ -115,6 +115,8 @@ export function HomePage() {
     <div className="mx-auto max-w-7xl space-y-6 p-6">
       <PageHeader title="Home" description="Overview of quotations, shipments and payments." />
 
+      {quotations.length === 0 && <GettingStarted />}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {kpis.map((kpi) => (
           <Card key={kpi.label} className="gap-2">
@@ -179,5 +181,49 @@ export function HomePage() {
         </div>
       </Card>
     </div>
+  )
+}
+
+// Первые шаги для новой компании: пока нет ни одной котировки
+function GettingStarted() {
+  const customers = useCustomers()
+  const vendors = useVendors()
+  const team = useTeam()
+  const steps = [
+    { title: 'Add your first customer', to: '/customers?new=1', done: customers.length > 0 },
+    { title: 'Add a carrier or agent', to: '/vendors?new=1', done: vendors.length > 0 },
+    { title: 'Create a quotation', to: '/quotations/new', done: false },
+    { title: 'Invite your team', to: '/settings', done: team.length > 1 },
+  ]
+  return (
+    <Card className="gap-4">
+      <CardHeader>
+        <CardTitle>{t('Getting started')}</CardTitle>
+        <CardDescription>
+          {t('Four steps to your first shipment. A quotation becomes a shipment in one click.')}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ol className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {steps.map((step, index) => (
+            <li key={step.to}>
+              <Link
+                to={step.to}
+                className="flex h-full items-center gap-3 rounded-lg border p-3 text-sm transition-colors hover:bg-accent"
+              >
+                {step.done ? (
+                  <CheckCircle2 className="size-5 shrink-0 text-success" />
+                ) : (
+                  <Circle className="size-5 shrink-0 text-muted-foreground" />
+                )}
+                <span className={step.done ? 'text-muted-foreground line-through' : 'font-medium'}>
+                  {index + 1}. {t(step.title)}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ol>
+      </CardContent>
+    </Card>
   )
 }

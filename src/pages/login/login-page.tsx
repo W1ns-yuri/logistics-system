@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Container, Eye, EyeOff } from 'lucide-react'
-import { Navigate, useLocation, useNavigate } from 'react-router'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -116,8 +116,14 @@ export function LoginPage() {
           </form>
         </div>
 
-        <div className="border-t bg-muted/40 px-8 py-3 text-xs text-muted-foreground">
-          {t('Demo access: any email and password will work.')}
+        <div className="space-y-1 border-t bg-muted/40 px-8 py-3 text-sm text-muted-foreground">
+          <div>
+            {t('New company?')}{' '}
+            <Link to="/signup" className="font-medium text-primary hover:underline">
+              {t('Create an account')}
+            </Link>
+          </div>
+          <div className="text-xs">{t('Demo access: any email and password will work.')}</div>
         </div>
       </main>
 

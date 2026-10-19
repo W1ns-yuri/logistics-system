@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Outlet } from 'react-router'
 
+import { LicenseBanner } from '@/components/license'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AppHeader } from './app-header'
 import { AppSidebar } from './app-sidebar'
@@ -15,6 +16,7 @@ export function AppLayout() {
         <AppSidebar collapsed={collapsed} onToggle={() => setCollapsed((prev) => !prev)} />
         <div className="flex min-w-0 flex-1 flex-col">
           <AppHeader />
+          <LicenseBanner />
           <main className="flex-1 overflow-y-auto">
             <Outlet />
           </main>

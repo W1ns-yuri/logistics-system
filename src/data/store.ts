@@ -197,6 +197,18 @@ export function resetDemoData() {
   setState(() => initialState())
 }
 
+// Новая компания после регистрации: пустая база, в команде только её админ
+export function startEmptyWorkspace(admin: { name: string; email: string }) {
+  setState(() => ({
+    quotations: [],
+    shipments: [],
+    customers: [],
+    vendors: [],
+    invoices: [],
+    team: [{ id: crypto.randomUUID(), name: admin.name, email: admin.email, role: 'admin' }],
+  }))
+}
+
 /* ---------- Нумерация ---------- */
 
 // Номер котировки = префикс компании + 6 цифр: WF000001

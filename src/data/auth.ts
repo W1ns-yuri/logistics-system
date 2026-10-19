@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 
 import type { Role } from '@/types/team'
+import { licenseStatus, touchCurrentCompany, useCurrentCompany } from './platform'
 import { findMemberByEmail } from './store'
 
 /*
@@ -56,6 +57,7 @@ export function signIn(email: string) {
     role: member?.role ?? 'admin',
     signedInAt: new Date().toISOString(),
   })
+  touchCurrentCompany()
 }
 
 // Для демо: посмотреть систему глазами другой роли
@@ -70,14 +72,18 @@ export function signOut() {
 // Что разрешено текущей роли. Одно место, чтобы не разбрасывать проверки по страницам.
 export function usePermissions() {
   const role = useSession()?.role ?? 'employee'
+  const company = useCurrentCompany()
+  // Лицензия истекла — только просмотр: данные видны, менять ничего нельзя
+  const readOnly = !!company && licenseStatus(company) === 'expired'
   return {
     role,
+    readOnly,
     canSeePayments: role !== 'employee',
-    canEditOrders: role !== 'accountant',
+    canEditOrders: !readOnly && role !== 'accountant',
     // Внести оплату и приложить чек: админ и бухгалтер
-    canEditPayments: role !== 'employee',
+    canEditPayments: !readOnly && role !== 'employee',
     // Создать, изменить, удалить инвойс или оплату: только админ (менеджер)
-    canEditInvoices: role === 'admin',
-    canManageTeam: role === 'admin',
+    canEditInvoices: !readOnly && role === 'admin',
+    canManageTeam: !readOnly && role === 'admin',
   }
 }
