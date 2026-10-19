@@ -248,7 +248,7 @@ function build() {
         charges: [
           {
             id: 'm',
-            orderType: 'Main carriage',
+            vendorId: lane.vendorId,
             chargeType: 'Freight',
             quantity: 1,
             rateIncome: income - local,
@@ -256,7 +256,6 @@ function build() {
           },
           {
             id: 'l',
-            orderType: 'Local charges',
             chargeType: 'Local charges',
             quantity: 1,
             rateIncome: local,

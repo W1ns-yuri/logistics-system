@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
-import { addPayment } from '@/data/store'
+import { addPayment, updatePayment } from '@/data/store'
 import { t } from '@/i18n'
 import { invoiceTotals } from '@/lib/calculation'
 import { readReceipt } from '@/lib/files'
@@ -22,37 +22,44 @@ import {
   PAYMENT_METHODS,
   paymentMethodLabels,
   type Invoice,
+  type Payment,
   type PaymentMethod,
   type PaymentReceipt,
 } from '@/types/invoice'
 
-// Окно «Внести оплату»: сумма, дата, способ, скидка и чек (по желанию)
+// Окно «Внести оплату»: сумма, дата, способ, скидка и чек (по желанию).
+// С payment — то же окно для исправления уже внесённой оплаты.
 export function RecordPaymentDialog({
   invoice,
+  payment,
   onOpenChange,
 }: {
   invoice?: Invoice
+  payment?: Payment
   onOpenChange: (open: boolean) => void
 }) {
   return (
     <Dialog open={!!invoice} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
-        {invoice && <PaymentForm invoice={invoice} onDone={() => onOpenChange(false)} />}
+        {invoice && <PaymentForm invoice={invoice} payment={payment} onDone={() => onOpenChange(false)} />}
       </DialogContent>
     </Dialog>
   )
 }
 
-function PaymentForm({ invoice, onDone }: { invoice: Invoice; onDone: () => void }) {
+function PaymentForm({ invoice, payment, onDone }: { invoice: Invoice; payment?: Payment; onDone: () => void }) {
   const { total, balanceDue } = invoiceTotals(invoice)
-  const balance = Math.max(0, balanceDue)
+  // При исправлении сама эта оплата ещё «не внесена» — иначе остаток будет занижен
+  const balance = Math.max(0, balanceDue + (payment ? payment.amount + payment.discount : 0))
   const fileRef = useRef<HTMLInputElement>(null)
-  const [amount, setAmount] = useState(balance ? String(Math.round(balance * 100) / 100) : '')
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
-  const [method, setMethod] = useState<PaymentMethod>('bank_transfer')
-  const [discount, setDiscount] = useState('')
-  const [reference, setReference] = useState('')
-  const [receipt, setReceipt] = useState<PaymentReceipt>()
+  const [amount, setAmount] = useState(
+    payment ? String(payment.amount) : balance ? String(Math.round(balance * 100) / 100) : '',
+  )
+  const [date, setDate] = useState(() => payment?.date ?? new Date().toISOString().slice(0, 10))
+  const [method, setMethod] = useState<PaymentMethod>(payment?.method ?? 'bank_transfer')
+  const [discount, setDiscount] = useState(payment?.discount ? String(payment.discount) : '')
+  const [reference, setReference] = useState(payment?.reference ?? '')
+  const [receipt, setReceipt] = useState<PaymentReceipt | undefined>(payment?.receipt)
   const [error, setError] = useState<string>()
   const [warning, setWarning] = useState<string>()
 
@@ -61,14 +68,15 @@ function PaymentForm({ invoice, onDone }: { invoice: Invoice; onDone: () => void
     const value = Number(amount)
     const off = Number(discount) || 0
     if (!(value > 0) && !(off > 0)) return setError(t('Enter an amount greater than 0'))
-    const ok = addPayment(invoice.id, {
+    const data = {
       date,
       amount: value > 0 ? value : 0,
       discount: off,
       method,
       reference: reference.trim() || undefined,
       receipt,
-    })
+    }
+    const ok = payment ? updatePayment(invoice.id, payment.id, data) : addPayment(invoice.id, data)
     if (!ok) setWarning(t('Browser storage is full: the file was saved as a record only.'))
     onDone()
   }
@@ -76,8 +84,9 @@ function PaymentForm({ invoice, onDone }: { invoice: Invoice; onDone: () => void
   return (
     <form onSubmit={submit} noValidate className="space-y-4">
       <DialogHeader>
-        <DialogTitle>{t('Record payment')}</DialogTitle>
+        <DialogTitle>{payment ? t('Edit payment') : t('Record payment')}</DialogTitle>
         <DialogDescription>
+          {payment ? `${payment.number} · ` : ''}
           {invoice.number} · {invoice.billTo}
         </DialogDescription>
       </DialogHeader>

@@ -41,7 +41,6 @@ export function QuotationPreview({ quotation: q }: { quotation: Quotation }) {
           {q.validTo && <Term label="Valid to">{formatDate(q.validTo)}</Term>}
           <Term label="Mode">{t(transportModeLabels[q.mode])}</Term>
           {q.transitTime && <Term label="Transit time">{q.transitTime}</Term>}
-          {q.carrier && <Term label="Carrier">{q.carrier}</Term>}
         </dl>
       </div>
 
@@ -75,9 +74,6 @@ export function QuotationPreview({ quotation: q }: { quotation: Quotation }) {
               <td className="px-3 py-2.5 text-muted-foreground">{index + 1}</td>
               <td className="px-3 py-2.5">
                 <div>{charge.chargeType || charge.orderType}</div>
-                {charge.chargeType && charge.chargeType !== charge.orderType && (
-                  <div className="text-xs text-muted-foreground">{charge.orderType}</div>
-                )}
               </td>
               <td className="px-3 py-2.5 text-right tabular-nums">{charge.quantity}</td>
               <td className="px-3 py-2.5 text-right tabular-nums">{money(charge.rateIncome)}</td>

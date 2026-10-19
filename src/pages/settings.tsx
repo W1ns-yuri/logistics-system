@@ -114,11 +114,15 @@ export function SettingsPage() {
           </FormField>
           <div className="rounded-lg border bg-muted/40 px-4 py-2.5 text-sm">
             <span className="text-muted-foreground">{t('Next number looks like')} </span>
-            <span className="font-medium tabular-nums">{settings.documentPrefix || 'XX'}000001</span>
+            <span className="font-medium tabular-nums">
+              {settings.documentPrefix || 'XX'}000001 · SHP-{settings.documentPrefix || 'XX'}-000001
+            </span>
           </div>
         </div>
         <p className="mt-3 text-sm text-muted-foreground">
-          {t('Quotations and shipments share one counter. A shipment keeps the number of its quotation.')}
+          {t(
+            'Quotations and shipments are numbered separately, each from 1. A shipment shows which quotation it came from.',
+          )}
         </p>
       </SectionCard>
 

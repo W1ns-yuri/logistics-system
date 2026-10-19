@@ -5,7 +5,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { t } from '@/i18n'
 import { cn } from '@/lib/utils'
 
-export type ComboboxOption = { value: string; label: string; hint?: string }
+// keywords: дополнительные слова для поиска, на экране не показываются
+export type ComboboxOption = { value: string; label: string; hint?: string; keywords?: string }
 
 /*
  * Выпадающий список с поиском (как выбор клиента в программе, которую показал заказчик).
@@ -48,7 +49,7 @@ export function Combobox({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return options
-    return options.filter((o) => `${o.label} ${o.value} ${o.hint ?? ''}`.toLowerCase().includes(q))
+    return options.filter((o) => `${o.label} ${o.value} ${o.hint ?? ''} ${o.keywords ?? ''}`.toLowerCase().includes(q))
   }, [options, query])
 
   const custom =

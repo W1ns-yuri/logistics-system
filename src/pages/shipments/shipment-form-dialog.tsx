@@ -2,13 +2,14 @@ import { useState, type FormEvent } from 'react'
 
 import { CustomerPicker } from '@/components/customer-picker'
 import { FormField } from '@/components/form-field'
+import { VendorPicker } from '@/components/vendor-picker'
 import { shipmentStatuses } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
-import { createShipment, updateShipment, useVendors } from '@/data/store'
+import { createShipment, updateShipment } from '@/data/store'
 import { t } from '@/i18n'
 import {
   EQUIPMENT_TYPES,
@@ -98,7 +99,6 @@ function ShipmentForm({
   onDone: () => void
   onSaved?: (shipment: Shipment) => void
 }) {
-  const vendors = useVendors()
   const [form, setForm] = useState(() => toForm(shipment))
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({})
 
@@ -111,11 +111,6 @@ function ShipmentForm({
       setErrors((prev) => ({ ...prev, [key]: undefined }))
     },
   })
-
-  // Сначала показываем перевозчиков под выбранный вид транспорта
-  const sortedVendors = [...vendors].sort(
-    (a, b) => Number(b.modes.includes(form.mode)) - Number(a.modes.includes(form.mode)),
-  )
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -170,14 +165,12 @@ function ShipmentForm({
           />
         </FormField>
         <FormField label="Vendor (carrier)" htmlFor="shipment-vendorId">
-          <NativeSelect {...bind('vendorId')}>
-            <option value="">—</option>
-            {sortedVendors.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.name}
-              </option>
-            ))}
-          </NativeSelect>
+          <VendorPicker
+            id="shipment-vendorId"
+            value={form.vendorId}
+            mode={form.mode}
+            onChange={(vendorId) => setForm((prev) => ({ ...prev, vendorId }))}
+          />
         </FormField>
         <FormField
           label="Pick up location"

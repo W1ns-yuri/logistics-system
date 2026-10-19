@@ -5,7 +5,7 @@ import type { Customer, Vendor } from '@/types/directory'
 import type { Invoice, InvoiceStatus, Payment } from '@/types/invoice'
 import type { Currency } from '@/types/logistics'
 import type { Quotation } from '@/types/quotation'
-import type { Shipment, ShipmentDocument, ShipmentStatus } from '@/types/shipment'
+import type { Shipment, ShipmentDocument, ShipmentStatus, VendorPayment } from '@/types/shipment'
 import type { TeamMember } from '@/types/team'
 import { archive } from './archive'
 import { mockCustomers } from './customers'
@@ -35,14 +35,84 @@ type State = {
 // Меняем номер версии, когда меняется формат данных: старые сохранения тогда просто сбросятся
 const STORAGE_KEY = 'db-v3'
 
-const initialState = (): State => ({
-  quotations: [...mockQuotations, ...archive.quotations],
-  shipments: [...mockShipments, ...archive.shipments],
-  customers: mockCustomers,
-  vendors: mockVendors,
-  invoices: withPayments([...mockInvoices, ...archive.invoices], [...mockShipments, ...archive.shipments]),
-  team: mockTeam,
-})
+// У перевозок свой счётчик с первого номера (попросил заказчик): SHP-WF-000001.
+// Связь с котировкой видна в карточке перевозки.
+const SHIPMENT_NUMBER = /^SHP-([A-Z0-9]+)-(\d+)$/
+const shipmentNumber = (prefix: string, n: number) => `SHP-${prefix}-${String(n).padStart(6, '0')}`
+
+// Последний номер перевозки с этим префиксом
+function maxShipmentNumber(shipments: Shipment[], prefix: string) {
+  return shipments.reduce((acc, s) => {
+    const match = SHIPMENT_NUMBER.exec(s.number)
+    return match?.[1] === prefix ? Math.max(acc, Number(match[2])) : acc
+  }, 0)
+}
+
+// Как и у котировок, счёт идёт внутри своего префикса
+function nextShipmentNumber() {
+  const prefix = getSettings().documentPrefix || 'XX'
+  return shipmentNumber(prefix, maxShipmentNumber(state.shipments, prefix) + 1)
+}
+
+/*
+ * Раньше перевозка брала номер котировки (AT000151). Такие номера переводим в новый формат
+ * (SHP-AT-000001) по порядку дат заказа, префикс берём из старого номера. В инвойсах обновляем
+ * P.O.# и Project Name — чтобы ничего не разъехалось.
+ */
+// Перевозчик раньше был один на котировку (поле Carrier). Теперь он в каждой строке расчёта:
+// старым строкам без перевозчика подставляем того, кто был указан в котировке или в её перевозке.
+function chargesWithVendors(data: State): State {
+  const quotations = data.quotations.map((q) => {
+    if (q.charges.every((c) => 'vendorId' in c)) return q
+    const fallback =
+      data.vendors.find((v) => v.name === q.carrier)?.id ?? data.shipments.find((s) => s.quotationId === q.id)?.vendorId
+    return {
+      ...q,
+      charges: q.charges.map((c, i) => ('vendorId' in c ? c : { ...c, vendorId: i === 0 ? fallback : undefined })),
+    }
+  })
+  return { ...data, quotations }
+}
+
+function renumberShipments(data: State): State {
+  const old = data.shipments
+    .filter((s) => !SHIPMENT_NUMBER.test(s.number))
+    .sort((a, b) => a.orderDate.localeCompare(b.orderDate) || a.number.localeCompare(b.number))
+  if (!old.length) return data
+  const counters = new Map<string, number>()
+  const renamed = new Map(
+    old.map((s) => {
+      const prefix = /^([A-Z]+)\d+$/.exec(s.number)?.[1] ?? (getSettings().documentPrefix || 'XX')
+      const n = (counters.get(prefix) ?? maxShipmentNumber(data.shipments, prefix)) + 1
+      counters.set(prefix, n)
+      return [s.id, shipmentNumber(prefix, n)]
+    }),
+  )
+  const shipments = data.shipments.map((s) => (renamed.has(s.id) ? { ...s, number: renamed.get(s.id)! } : s))
+  const invoices = data.invoices.map((inv) => {
+    const before = data.shipments.find((s) => s.id === inv.shipmentId)
+    const after = inv.shipmentId ? renamed.get(inv.shipmentId) : undefined
+    if (!before || !after) return inv
+    return {
+      ...inv,
+      poNumber: inv.poNumber === before.number ? after : inv.poNumber,
+      projectName: inv.projectName?.replace(before.number, after),
+    }
+  })
+  return { ...data, shipments, invoices }
+}
+
+const normalize = (data: State) => renumberShipments(chargesWithVendors(data))
+
+const initialState = (): State =>
+  normalize({
+    quotations: [...mockQuotations, ...archive.quotations],
+    shipments: [...mockShipments, ...archive.shipments],
+    customers: mockCustomers,
+    vendors: mockVendors,
+    invoices: withPayments([...mockInvoices, ...archive.invoices], [...mockShipments, ...archive.shipments]),
+    team: mockTeam,
+  })
 
 /*
  * Демо-инвойсы хранят только сумму paid. Превращаем её в список оплат, а сохранения из прошлой
@@ -89,7 +159,7 @@ function load(): State {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
       const saved = { ...initialState(), ...JSON.parse(raw) } as State
-      return { ...saved, invoices: withPayments(saved.invoices, saved.shipments) }
+      return normalize({ ...saved, invoices: withPayments(saved.invoices, saved.shipments) })
     }
   } catch {
     // нет доступа к localStorage или там мусор — начинаем с демо-данных
@@ -129,11 +199,10 @@ export function resetDemoData() {
 
 /* ---------- Нумерация ---------- */
 
-// Номер = префикс компании + 6 цифр: WF000001. Котировки и шипменты делят один счётчик,
-// потому что шипмент получает номер своей котировки.
+// Номер котировки = префикс компании + 6 цифр: WF000001
 export function nextDocumentNumber() {
   const prefix = getSettings().documentPrefix || 'XX'
-  const used = [...state.quotations.map((q) => q.reference), ...state.shipments.map((s) => s.number)]
+  const used = state.quotations.map((q) => q.reference)
   const max = used
     .filter((ref) => ref.startsWith(prefix))
     .reduce((acc, ref) => Math.max(acc, Number(ref.slice(prefix.length)) || 0), 0)
@@ -181,14 +250,14 @@ export function deleteQuotation(id: string) {
 export function createShipmentFromQuotation(id: string) {
   const q = state.quotations.find((item) => item.id === id)
   if (!q) return
-  const numberTaken = state.shipments.some((s) => s.number === q.reference)
   const shipment: Shipment = {
     id: newId(),
-    number: numberTaken ? nextDocumentNumber() : q.reference,
+    number: nextShipmentNumber(),
     quotationId: q.id,
     mode: q.mode,
     customer: q.customer,
-    vendorId: state.vendors.find((v) => v.name === q.carrier)?.id,
+    // Основной перевозчик — из первой строки расчёта; остальные видны в оплатах подрядчикам
+    vendorId: q.charges.find((c) => c.vendorId)?.vendorId,
     collectionAddress: q.collectionAddress,
     deliveryAddress: q.deliveryAddress,
     orderDate: today(),
@@ -217,7 +286,7 @@ export function createShipment(data: Omit<Shipment, 'id' | 'number' | 'history' 
   const shipment: Shipment = {
     ...data,
     id: newId(),
-    number: nextDocumentNumber(),
+    number: nextShipmentNumber(),
     history: [{ status: data.status, at: now() }],
     documents: [],
   }
@@ -229,17 +298,57 @@ export function updateShipment(id: string, patch: Partial<Shipment>) {
   setState((s) => ({ ...s, shipments: s.shipments.map((item) => (item.id === id ? { ...item, ...patch } : item)) }))
 }
 
+/* ---------- Оплаты подрядчикам ---------- */
+
+function nextVendorPaymentNumber() {
+  return nextInPrefix(
+    'VP',
+    state.shipments.flatMap((s) => (s.vendorPayments ?? []).map((p) => p.number)),
+    3,
+  )
+}
+
+const mapVendorPayments = (shipmentId: string, update: (list: VendorPayment[]) => VendorPayment[]) =>
+  setState((s) => ({
+    ...s,
+    shipments: s.shipments.map((item) =>
+      item.id === shipmentId ? { ...item, vendorPayments: update(item.vendorPayments ?? []) } : item,
+    ),
+  }))
+
+// Как и у оплат клиента: если чек не влез в память браузера, оставляем запись без файла и возвращаем false
+export function saveVendorPayment(shipmentId: string, data: Omit<VendorPayment, 'id' | 'number'>, paymentId?: string) {
+  const id = paymentId ?? newId()
+  const saved = mapVendorPayments(shipmentId, (list) =>
+    paymentId
+      ? list.map((p) => (p.id === paymentId ? { ...p, ...data } : p))
+      : [...list, { ...data, id, number: nextVendorPaymentNumber() }],
+  )
+  if (!saved && data.receipt?.dataUrl) {
+    mapVendorPayments(shipmentId, (list) =>
+      list.map((p) => (p.id === id && p.receipt ? { ...p, receipt: { ...p.receipt, dataUrl: undefined } } : p)),
+    )
+    return false
+  }
+  return true
+}
+
+export function removeVendorPayment(shipmentId: string, paymentId: string) {
+  mapVendorPayments(shipmentId, (list) => list.filter((p) => p.id !== paymentId))
+}
+
 export function copyShipment(id: string) {
   const source = state.shipments.find((item) => item.id === id)
   if (!source) return
   const copy: Shipment = {
     ...source,
     id: newId(),
-    number: nextDocumentNumber(),
+    number: nextShipmentNumber(),
     orderDate: today(),
     status: 'pending',
     history: [{ status: 'pending', at: now(), note: `Copied from ${source.number}` }],
     documents: [],
+    vendorPayments: [],
   }
   setState((s) => ({ ...s, shipments: [copy, ...s.shipments] }))
   return copy
@@ -358,18 +467,33 @@ function recalc(invoice: Invoice): Invoice {
   return { ...next, status: invoiceStatus(next) }
 }
 
+// Следующий номер вида KIND-<префикс>-NNN. Как у перевозок, счёт идёт внутри своего префикса:
+// сменили префикс компании — новые документы начинаются с 1.
+function nextInPrefix(kind: string, numbers: string[], pad: number) {
+  const prefix = getSettings().documentPrefix || 'XX'
+  const max = numbers.reduce((acc, number) => {
+    const [k, p, n] = number.split('-')
+    return k === kind && p === prefix ? Math.max(acc, Number(n) || 0) : acc
+  }, 0)
+  return `${kind}-${prefix}-${String(max + 1).padStart(pad, '0')}`
+}
+
 // Номер инвойса: INV-<префикс>-000141
 function nextInvoiceNumber() {
-  const max = state.invoices.reduce((acc, inv) => Math.max(acc, Number(inv.number.split('-').pop()) || 0), 0)
-  return `INV-${getSettings().documentPrefix}-${String(max + 1).padStart(6, '0')}`
+  return nextInPrefix(
+    'INV',
+    state.invoices.map((inv) => inv.number),
+    6,
+  )
 }
 
 // Номер оплаты: CP-<префикс>-124 (как в приложении клиента). Счётчик общий для всех инвойсов.
 function nextPaymentNumber() {
-  const max = state.invoices
-    .flatMap((inv) => inv.payments)
-    .reduce((acc, p) => Math.max(acc, Number(p.number.split('-').pop()) || 0), 0)
-  return `CP-${getSettings().documentPrefix}-${String(max + 1).padStart(3, '0')}`
+  return nextInPrefix(
+    'CP',
+    state.invoices.flatMap((inv) => inv.payments.map((p) => p.number)),
+    3,
+  )
 }
 
 // «Project Name» как у клиента: дата заказа + номер, 2026.05.18-AHL-62
@@ -386,7 +510,6 @@ export function createInvoiceFromShipment(shipmentId: string, manual?: { amount:
     !manual && quotation?.charges.length
       ? quotation.charges.map((c) => ({
           item: c.chargeType,
-          description: c.orderType,
           quantity: c.quantity,
           rate: c.rateIncome,
         }))
