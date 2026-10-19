@@ -11,6 +11,7 @@ import { archive } from './archive'
 import { mockCustomers } from './customers'
 import { mockInvoices } from './invoices'
 import { mockQuotations } from './quotations'
+import { getSession } from './session'
 import { getSettings } from './settings'
 import { mockShipments } from './shipments'
 import { mockTeam } from './team'
@@ -30,7 +31,11 @@ type State = {
   vendors: Vendor[]
   invoices: Invoice[]
   team: TeamMember[]
+  // Города, которые добавили сами (их нет во встроенном списке)
+  cities: CustomCity[]
 }
+
+export type CustomCity = { name: string; country: string }
 
 // Меняем номер версии, когда меняется формат данных: старые сохранения тогда просто сбросятся
 const STORAGE_KEY = 'db-v3'
@@ -102,7 +107,25 @@ function renumberShipments(data: State): State {
   return { ...data, shipments, invoices }
 }
 
-const normalize = (data: State) => renumberShipments(chargesWithVendors(data))
+/*
+ * У демо-записей нет автора. Раздаём их между менеджером и сотрудником из демо-команды,
+ * чтобы было видно правило «меняет только автор». В рабочем пространстве новой компании
+ * демо-людей нет, и у всех её записей автор уже есть.
+ */
+const DEMO_OWNERS = ['manager@company.com', 'operator@company.com']
+function withOwners(data: State): State {
+  if (!DEMO_OWNERS.every((email) => data.team.some((m) => m.email === email))) return data
+  const owner = (id: string) => DEMO_OWNERS[[...id].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % 2]!
+  const quotations = data.quotations.map((q) => (q.createdBy ? q : { ...q, createdBy: owner(q.id) }))
+  const shipments = data.shipments.map((sh) => {
+    if (sh.createdBy) return sh
+    const quotation = quotations.find((q) => q.id === sh.quotationId)
+    return { ...sh, createdBy: quotation?.createdBy ?? owner(sh.id) }
+  })
+  return { ...data, quotations, shipments }
+}
+
+const normalize = (data: State) => withOwners(renumberShipments(chargesWithVendors(data)))
 
 const initialState = (): State =>
   normalize({
@@ -112,6 +135,7 @@ const initialState = (): State =>
     vendors: mockVendors,
     invoices: withPayments([...mockInvoices, ...archive.invoices], [...mockShipments, ...archive.shipments]),
     team: mockTeam,
+    cities: [],
   })
 
 /*
@@ -197,6 +221,19 @@ export function resetDemoData() {
   setState(() => initialState())
 }
 
+// Новая компания после регистрации: пустая база, в команде только её админ
+export function startEmptyWorkspace(admin: { name: string; email: string }) {
+  setState(() => ({
+    quotations: [],
+    shipments: [],
+    customers: [],
+    vendors: [],
+    invoices: [],
+    team: [{ id: crypto.randomUUID(), name: admin.name, email: admin.email, role: 'admin' }],
+    cities: [],
+  }))
+}
+
 /* ---------- Нумерация ---------- */
 
 // Номер котировки = префикс компании + 6 цифр: WF000001
@@ -212,6 +249,8 @@ export function nextDocumentNumber() {
 const today = () => new Date().toISOString().slice(0, 10)
 const now = () => new Date().toISOString()
 const newId = () => crypto.randomUUID()
+// Автор новой записи — тот, кто сейчас вошёл
+const author = () => getSession()?.email
 
 /* ---------- Quotations ---------- */
 
@@ -219,7 +258,13 @@ export const useQuotations = () => useStore((s) => s.quotations)
 export const useQuotation = (id?: string) => useStore((s) => s.quotations.find((q) => q.id === id))
 
 export function createQuotation(data: Omit<Quotation, 'id' | 'reference' | 'createdAt'>) {
-  const quotation: Quotation = { ...data, id: newId(), reference: nextDocumentNumber(), createdAt: today() }
+  const quotation: Quotation = {
+    ...data,
+    id: newId(),
+    reference: nextDocumentNumber(),
+    createdAt: today(),
+    createdBy: author(),
+  }
   setState((s) => ({ ...s, quotations: [quotation, ...s.quotations] }))
   return quotation
 }
@@ -237,6 +282,7 @@ export function copyQuotation(id: string) {
     reference: nextDocumentNumber(),
     status: 'in_progress',
     createdAt: today(),
+    createdBy: author(),
   }
   setState((s) => ({ ...s, quotations: [copy, ...s.quotations] }))
   return copy
@@ -254,6 +300,7 @@ export function createShipmentFromQuotation(id: string) {
     id: newId(),
     number: nextShipmentNumber(),
     quotationId: q.id,
+    createdBy: author(),
     mode: q.mode,
     customer: q.customer,
     // Основной перевозчик — из первой строки расчёта; остальные видны в оплатах подрядчикам
@@ -287,6 +334,7 @@ export function createShipment(data: Omit<Shipment, 'id' | 'number' | 'history' 
     ...data,
     id: newId(),
     number: nextShipmentNumber(),
+    createdBy: author(),
     history: [{ status: data.status, at: now() }],
     documents: [],
   }
@@ -344,6 +392,7 @@ export function copyShipment(id: string) {
     ...source,
     id: newId(),
     number: nextShipmentNumber(),
+    createdBy: author(),
     orderDate: today(),
     status: 'pending',
     history: [{ status: 'pending', at: now(), note: `Copied from ${source.number}` }],
@@ -602,9 +651,23 @@ export function shipmentPayment(shipmentId: string, invoices: Invoice[]) {
     )
 }
 
+/* ---------- Cities ---------- */
+
+export const useCustomCities = () => useStore((s) => s.cities)
+
+export function addCity(city: CustomCity) {
+  const name = city.name.trim()
+  if (!name || state.cities.some((c) => c.name.toLowerCase() === name.toLowerCase())) return
+  setState((s) => ({ ...s, cities: [...s.cities, { name, country: city.country }] }))
+}
+
 /* ---------- Team ---------- */
 
 export const useTeam = () => useStore((s) => s.team)
+
+// Имя автора записи по email; если человека уже нет в команде — сам email
+export const useMemberName = (email?: string) =>
+  useStore((s) => (email ? (s.team.find((m) => m.email.toLowerCase() === email.toLowerCase())?.name ?? email) : ''))
 
 export function addTeamMember(data: Omit<TeamMember, 'id'>) {
   setState((s) => ({ ...s, team: [...s.team, { ...data, id: newId() }] }))

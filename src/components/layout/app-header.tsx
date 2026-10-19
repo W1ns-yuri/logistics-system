@@ -29,11 +29,11 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { findNavItem } from '@/config/navigation'
-import { signOut, switchRole, usePermissions, useSession } from '@/data/auth'
+import { signOut, usePermissions, useSession } from '@/data/auth'
 import { initials, updateSettings, useSettings } from '@/data/settings'
 import { useTheme } from '@/hooks/use-theme'
 import { LANGUAGES, t, type Language } from '@/i18n'
-import { ROLES, roleLabels, type Role } from '@/types/team'
+import { roleLabels } from '@/types/team'
 import { NotificationsMenu } from './notifications-menu'
 
 export function AppHeader() {
@@ -150,19 +150,11 @@ export function AppHeader() {
             <DropdownMenuLabel>
               <div className="font-medium">{userName}</div>
               <div className="text-xs font-normal text-muted-foreground">{session?.email}</div>
+              {/* Роль только показываем: менять роли может админ в Settings → Team, и не себе */}
+              {session && (
+                <div className="mt-1 text-xs font-normal text-muted-foreground">{t(roleLabels[session.role])}</div>
+              )}
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {/* Для демо: посмотреть систему глазами другой роли */}
-            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-              {t('View as role')}
-            </DropdownMenuLabel>
-            <DropdownMenuRadioGroup value={session?.role} onValueChange={(value) => switchRole(value as Role)}>
-              {ROLES.map((role) => (
-                <DropdownMenuRadioItem key={role} value={role}>
-                  {t(roleLabels[role])}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link to="/settings">

@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Database, Monitor, Moon, RotateCcw, Sun, Trash2, UserPlus, Wand2 } from 'lucide-react'
 
 import { ConfirmDelete } from '@/components/confirm-delete'
+import { DaysLeft, LicenseStatusBadge } from '@/components/license'
+import { InfoField } from '@/components/info-field'
 import { FormField } from '@/components/form-field'
 import { PageHeader } from '@/components/page-header'
 import { SectionCard } from '@/components/section-card'
@@ -11,9 +13,11 @@ import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Switch } from '@/components/ui/switch'
 import { usePermissions, useSession } from '@/data/auth'
+import { daysLeft, licenseStatus, planLabels, seatLimit, switchToDemoCompany, useCurrentCompany } from '@/data/platform'
 import { prefixFromName, resetSettings, updateSettings, useSettings, type Settings, type Theme } from '@/data/settings'
 import { addTeamMember, removeTeamMember, resetDemoData, updateTeamMember, useTeam } from '@/data/store'
 import { LANGUAGES, t, type Language } from '@/i18n'
+import { formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { CURRENCIES, type Currency } from '@/types/logistics'
 import { ROLES, roleDescriptions, roleLabels, type Role } from '@/types/team'
@@ -27,7 +31,7 @@ const THEMES: { value: Theme; label: string; icon: typeof Sun }[] = [
 // Настройки сохраняются сразу при вводе — кнопки «Save» нет, изменения видно мгновенно
 export function SettingsPage() {
   const settings = useSettings()
-  const { canManageTeam } = usePermissions()
+  const { canManageTeam, role } = usePermissions()
   const [resetOpen, setResetOpen] = useState(false)
 
   // Помощник для текстовых полей: <Input {...text('companyName')} />
@@ -86,7 +90,13 @@ export function SettingsPage() {
             <Input type="email" {...text('companyEmail')} />
           </FormField>
           <FormField label="Phone" htmlFor="companyPhone">
-            <Input {...text('companyPhone')} />
+            <Input {...text('companyPhone')} type="tel" />
+          </FormField>
+          <FormField label="Tax ID" htmlFor="companyTaxId">
+            <Input {...text('companyTaxId')} maxLength={30} />
+          </FormField>
+          <FormField label="Website" htmlFor="companyWebsite">
+            <Input {...text('companyWebsite')} maxLength={100} placeholder="winfin.tm" />
           </FormField>
         </div>
       </SectionCard>
@@ -154,6 +164,7 @@ export function SettingsPage() {
         </div>
       </SectionCard>
 
+      {role === 'admin' && <SubscriptionSection />}
       {canManageTeam && <TeamSection />}
 
       <SectionCard title="Appearance">
@@ -219,9 +230,42 @@ export function SettingsPage() {
         onOpenChange={setResetOpen}
         title={t('Reset demo data?')}
         description="Everything you created or changed will be replaced with the sample data."
-        onConfirm={resetDemoData}
+        onConfirm={() => {
+          resetDemoData()
+          switchToDemoCompany()
+        }}
       />
     </div>
+  )
+}
+
+// Лицензия компании: тариф, срок, места. Продлевает владелец платформы
+function SubscriptionSection() {
+  const company = useCurrentCompany()
+  const team = useTeam()
+  if (!company) return null
+  const limit = seatLimit(company)
+  return (
+    <SectionCard
+      title="Subscription"
+      className="scroll-mt-6"
+      action={<LicenseStatusBadge status={licenseStatus(company)} />}
+    >
+      <div id="subscription" className="grid gap-4 sm:grid-cols-3">
+        <InfoField label="Plan">{t(planLabels[company.plan])}</InfoField>
+        <InfoField label="Paid until">
+          {formatDate(company.paidUntil)} · <DaysLeft days={daysLeft(company)} />
+        </InfoField>
+        <InfoField label="Seats">
+          <span className="tabular-nums">
+            {team.length} / {limit ?? '∞'}
+          </span>
+        </InfoField>
+      </div>
+      <p className="mt-4 text-sm text-muted-foreground">
+        {t('To renew or change the plan, contact us: {email}', { email: 'support@logistics.app' })}
+      </p>
+    </SectionCard>
   )
 }
 
@@ -229,16 +273,23 @@ export function SettingsPage() {
 function TeamSection() {
   const team = useTeam()
   const session = useSession()
+  const company = useCurrentCompany()
   const [addOpen, setAddOpen] = useState(false)
+  // Лимит мест по тарифу: команда заполнена — новых не добавить
+  const limit = company ? seatLimit(company) : null
+  const full = limit !== null && team.length >= limit
 
   return (
     <SectionCard
       title="Team and roles"
       action={
-        <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
-          <UserPlus />
-          {t('Add person')}
-        </Button>
+        <div className="flex items-center gap-3">
+          {full && <span className="text-xs text-muted-foreground">{t('All {n} seats are taken', { n: limit })}</span>}
+          <Button size="sm" variant="outline" disabled={full} onClick={() => setAddOpen(true)}>
+            <UserPlus />
+            {t('Add person')}
+          </Button>
+        </div>
       }
     >
       <div className="divide-y">

@@ -3,6 +3,7 @@ import { Check, ChevronsUpDown, Plus, Search } from 'lucide-react'
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { t } from '@/i18n'
+import { cleanValue } from '@/lib/input-rules'
 import { cn } from '@/lib/utils'
 
 // keywords: дополнительные слова для поиска, на экране не показываются
@@ -93,9 +94,10 @@ export function Combobox({
             autoFocus
             value={query}
             placeholder={t('Search')}
+            maxLength={100}
             className="h-9 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             onChange={(e) => {
-              setQuery(e.target.value)
+              setQuery(cleanValue('text', e.target.value))
               setActive(0)
             }}
             onKeyDown={(e) => {

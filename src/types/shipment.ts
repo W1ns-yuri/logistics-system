@@ -52,6 +52,7 @@ export type Shipment = {
   id: string
   number: string // тот же номер, что у котировки, из которой создан (как на слайде 5)
   quotationId?: string
+  createdBy?: string // email того, кто создал: только он (и админ) может менять
   mode: TransportMode
   customer: string
   vendorId?: string // кто реально везёт

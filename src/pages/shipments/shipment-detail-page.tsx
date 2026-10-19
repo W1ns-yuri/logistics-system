@@ -8,12 +8,13 @@ import { ShipmentStatusBadge, shipmentStatuses } from '@/components/status-badge
 import { TransportModeLabel } from '@/components/transport-mode'
 import { Button } from '@/components/ui/button'
 import { NativeSelect } from '@/components/ui/native-select'
-import { usePermissions } from '@/data/auth'
+import { useCanModify, usePermissions } from '@/data/auth'
 import {
   addShipmentDocument,
   removeShipmentDocument,
   setShipmentStatus,
   useQuotation,
+  useMemberName,
   useShipment,
   useVendors,
 } from '@/data/store'
@@ -39,6 +40,9 @@ export function ShipmentDetailPage() {
   const quotation = useQuotation(shipment?.quotationId)
   const vendors = useVendors()
   const { canEditOrders, canSeePayments } = usePermissions()
+  // Чужую перевозку видно целиком, но менять её может только автор или админ
+  const canModify = useCanModify(shipment)
+  const ownerName = useMemberName(shipment?.createdBy)
   const [editOpen, setEditOpen] = useState(false)
 
   if (!shipment) return <NotFoundPage />
@@ -66,10 +70,16 @@ export function ShipmentDetailPage() {
             </div>
             <div className="mt-1 text-sm text-muted-foreground">
               {shipment.customer} · {shipment.collectionAddress} → {shipment.deliveryAddress}
+              {ownerName && <> · {t('Created by {name}', { name: ownerName })}</>}
             </div>
           </div>
         </div>
-        {canEditOrders && (
+        {canEditOrders && !canModify && (
+          <span className="rounded-md bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+            {t('View only: {name} owns this record', { name: ownerName })}
+          </span>
+        )}
+        {canModify && (
           <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
               <Pencil />
@@ -137,7 +147,7 @@ export function ShipmentDetailPage() {
               )}
             </div>
           </SectionCard>
-          <DocumentsSection shipment={shipment} canEdit={canEditOrders} />
+          <DocumentsSection shipment={shipment} canEdit={canModify} />
           {canSeePayments && (
             <>
               <CustomerPaymentsSection shipment={shipment} />
@@ -146,7 +156,7 @@ export function ShipmentDetailPage() {
           )}
         </div>
 
-        <TrackingSection shipment={shipment} canEdit={canEditOrders} />
+        <TrackingSection shipment={shipment} canEdit={canModify} />
       </div>
 
       <ShipmentFormDialog open={editOpen} onOpenChange={setEditOpen} shipment={shipment} />

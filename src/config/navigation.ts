@@ -17,6 +17,8 @@ export type NavItem = {
   icon: LucideIcon
   // Раздел с оплатами: сотрудник (employee) его не видит
   payments?: boolean
+  // Подсвечивать только при точном совпадении адреса (для главной страницы раздела)
+  end?: boolean
 }
 
 export type NavGroup = {

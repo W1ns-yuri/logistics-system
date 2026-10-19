@@ -27,6 +27,10 @@ export function InvoicePreview({ invoice }: { invoice: Invoice }) {
           <div className="text-muted-foreground">{company.companyAddress}</div>
           <div className="text-muted-foreground">{company.companyPhone}</div>
           <div className="text-muted-foreground">{company.companyEmail}</div>
+          {company.companyWebsite && <div className="text-muted-foreground">{company.companyWebsite}</div>}
+          {company.companyTaxId && (
+            <div className="text-muted-foreground">{t('Tax ID: {id}', { id: company.companyTaxId })}</div>
+          )}
         </div>
       </div>
 

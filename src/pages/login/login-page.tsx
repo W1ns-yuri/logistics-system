@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Container, Eye, EyeOff } from 'lucide-react'
-import { Navigate, useLocation, useNavigate } from 'react-router'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,6 +13,12 @@ import { cn } from '@/lib/utils'
 const CURRENT_YEAR = new Date().getFullYear()
 // Сколько «идёт запрос» при входе, мс. Столько же едет полоса сверху карточки
 const SIGN_IN_DELAY = 900
+
+const DEMO_ACCOUNTS = [
+  { email: 'manager@company.com', label: 'Admin' },
+  { email: 'operator@company.com', label: 'Employee' },
+  { email: 'accountant@company.com', label: 'Accountant' },
+]
 
 export function LoginPage() {
   const session = useSession()
@@ -116,8 +122,28 @@ export function LoginPage() {
           </form>
         </div>
 
-        <div className="border-t bg-muted/40 px-8 py-3 text-xs text-muted-foreground">
-          {t('Demo access: any email and password will work.')}
+        <div className="space-y-1 border-t bg-muted/40 px-8 py-3 text-sm text-muted-foreground">
+          <div>
+            {t('New company?')}{' '}
+            <Link to="/signup" className="font-medium text-primary hover:underline">
+              {t('Create an account')}
+            </Link>
+          </div>
+          <div className="text-xs">{t('Demo access: any email and password will work.')}</div>
+          {/* Демо-команда: войти под другой ролью, чтобы посмотреть, что она видит */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+            <span>{t('Demo accounts:')}</span>
+            {DEMO_ACCOUNTS.map((account) => (
+              <button
+                key={account.email}
+                type="button"
+                onClick={() => setEmail(account.email)}
+                className="font-medium text-primary hover:underline"
+              >
+                {t(account.label)}
+              </button>
+            ))}
+          </div>
         </div>
       </main>
 

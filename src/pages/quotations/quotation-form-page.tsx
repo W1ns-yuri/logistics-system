@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, Navigate, useNavigate, useParams } from 'react-router'
 
+import { CityPicker } from '@/components/city-picker'
 import { CustomerPicker } from '@/components/customer-picker'
 import { FormField } from '@/components/form-field'
 import { VendorPicker } from '@/components/vendor-picker'
@@ -11,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import { quotationStatuses } from '@/components/status-badge'
+import { useCanModify } from '@/data/auth'
 import { useSettings } from '@/data/settings'
 import { createQuotation, updateQuotation, useQuotation, useVendors } from '@/data/store'
 import type { Customer } from '@/types/directory'
@@ -136,9 +138,12 @@ export function QuotationFormPage() {
   const { id } = useParams()
   const existing = useQuotation(id)
   const isEdit = !!id
+  const canModify = useCanModify(existing)
 
   // Если в адресе id несуществующей котировки — показываем 404
   if (isEdit && !existing) return <NotFoundPage />
+  // Чужую котировку открыли по ссылке на редактирование — показываем её только для просмотра
+  if (isEdit && !canModify) return <Navigate to={`/quotations/${id}`} replace />
   // key сбрасывает форму, если перешли с одной котировки на другую
   return <QuotationForm key={id ?? 'new'} existing={existing} />
 }
@@ -319,10 +324,20 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
         <SectionCard title="Route">
           <div className="grid grid-cols-2 gap-4">
             <FormField label="Pick up location" htmlFor="collectionAddress" required error={errors.collectionAddress}>
-              <Input {...bind('collectionAddress')} placeholder="Shanghai" />
+              <CityPicker
+                id="collectionAddress"
+                value={form.collectionAddress}
+                invalid={!!errors.collectionAddress}
+                onChange={(city) => set('collectionAddress', city)}
+              />
             </FormField>
             <FormField label="Delivery location" htmlFor="deliveryAddress" required error={errors.deliveryAddress}>
-              <Input {...bind('deliveryAddress')} placeholder="Ashgabat" />
+              <CityPicker
+                id="deliveryAddress"
+                value={form.deliveryAddress}
+                invalid={!!errors.deliveryAddress}
+                onChange={(city) => set('deliveryAddress', city)}
+              />
             </FormField>
             <FormField label="Port of departure" htmlFor="portOfDeparture">
               <Input {...bind('portOfDeparture')} />

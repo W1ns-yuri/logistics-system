@@ -6,9 +6,9 @@ import { DataTable } from '@/components/data-table/data-table'
 import { DocumentToolbar } from '@/components/document-toolbar'
 import { PageHeader } from '@/components/page-header'
 import { shipmentStatuses } from '@/components/status-badge'
-import { usePermissions } from '@/data/auth'
+import { useCanModify, usePermissions } from '@/data/auth'
 import { useFormMode } from '@/hooks/use-form-mode'
-import { copyShipment, deleteShipment, useInvoices, useShipments } from '@/data/store'
+import { copyShipment, deleteShipment, useInvoices, useMemberName, useShipments } from '@/data/store'
 import { t } from '@/i18n'
 import { TRANSPORT_MODES, transportModeLabels } from '@/types/logistics'
 import { SHIPMENT_STATUSES, type Shipment } from '@/types/shipment'
@@ -31,6 +31,8 @@ export function ShipmentsPage() {
   const { mode: formMode, setMode: setFormMode, close: closeForm } = useFormMode()
 
   const selected = shipments.find((s) => s.id === selectedId)
+  const canModify = useCanModify(selected)
+  const ownerName = useMemberName(selected?.createdBy)
   const open = (shipment: Shipment) => navigate(`/shipments/${shipment.id}`)
   const columns = useMemo(
     () => getShipmentColumns({ invoices, showPayment: canSeePayments }),
@@ -45,6 +47,8 @@ export function ShipmentsPage() {
         actions={
           <DocumentToolbar
             hasSelection={!!selected}
+            canModify={canModify}
+            ownerName={ownerName}
             onNew={() => setFormMode('new')}
             onOpen={() => selected && open(selected)}
             onEdit={() => setFormMode('edit')}
