@@ -301,10 +301,11 @@ export function updateShipment(id: string, patch: Partial<Shipment>) {
 /* ---------- Оплаты подрядчикам ---------- */
 
 function nextVendorPaymentNumber() {
-  const max = state.shipments
-    .flatMap((s) => s.vendorPayments ?? [])
-    .reduce((acc, p) => Math.max(acc, Number(p.number.split('-').pop()) || 0), 0)
-  return `VP-${getSettings().documentPrefix || 'XX'}-${String(max + 1).padStart(3, '0')}`
+  return nextInPrefix(
+    'VP',
+    state.shipments.flatMap((s) => (s.vendorPayments ?? []).map((p) => p.number)),
+    3,
+  )
 }
 
 const mapVendorPayments = (shipmentId: string, update: (list: VendorPayment[]) => VendorPayment[]) =>
@@ -466,18 +467,33 @@ function recalc(invoice: Invoice): Invoice {
   return { ...next, status: invoiceStatus(next) }
 }
 
+// Следующий номер вида KIND-<префикс>-NNN. Как у перевозок, счёт идёт внутри своего префикса:
+// сменили префикс компании — новые документы начинаются с 1.
+function nextInPrefix(kind: string, numbers: string[], pad: number) {
+  const prefix = getSettings().documentPrefix || 'XX'
+  const max = numbers.reduce((acc, number) => {
+    const [k, p, n] = number.split('-')
+    return k === kind && p === prefix ? Math.max(acc, Number(n) || 0) : acc
+  }, 0)
+  return `${kind}-${prefix}-${String(max + 1).padStart(pad, '0')}`
+}
+
 // Номер инвойса: INV-<префикс>-000141
 function nextInvoiceNumber() {
-  const max = state.invoices.reduce((acc, inv) => Math.max(acc, Number(inv.number.split('-').pop()) || 0), 0)
-  return `INV-${getSettings().documentPrefix}-${String(max + 1).padStart(6, '0')}`
+  return nextInPrefix(
+    'INV',
+    state.invoices.map((inv) => inv.number),
+    6,
+  )
 }
 
 // Номер оплаты: CP-<префикс>-124 (как в приложении клиента). Счётчик общий для всех инвойсов.
 function nextPaymentNumber() {
-  const max = state.invoices
-    .flatMap((inv) => inv.payments)
-    .reduce((acc, p) => Math.max(acc, Number(p.number.split('-').pop()) || 0), 0)
-  return `CP-${getSettings().documentPrefix}-${String(max + 1).padStart(3, '0')}`
+  return nextInPrefix(
+    'CP',
+    state.invoices.flatMap((inv) => inv.payments.map((p) => p.number)),
+    3,
+  )
 }
 
 // «Project Name» как у клиента: дата заказа + номер, 2026.05.18-AHL-62

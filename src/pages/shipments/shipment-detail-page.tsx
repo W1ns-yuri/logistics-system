@@ -43,7 +43,11 @@ export function ShipmentDetailPage() {
 
   if (!shipment) return <NotFoundPage />
 
-  const vendor = vendors.find((v) => v.id === shipment.vendorId)
+  // В одной перевозке может быть несколько перевозчиков: берём всех из строк расчёта котировки
+  const carrierIds = [
+    ...new Set([shipment.vendorId, ...(quotation?.charges ?? []).map((c) => c.vendorId)].filter(Boolean)),
+  ]
+  const carriers = carrierIds.map((id) => vendors.find((v) => v.id === id)?.name).filter(Boolean)
   const isCancelled = shipment.status === 'cancelled'
   const currentIndex = SHIPMENT_STATUSES.indexOf(shipment.status as (typeof SHIPMENT_STATUSES)[number])
   const nextStatus = isCancelled ? undefined : SHIPMENT_STATUSES[currentIndex + 1]
@@ -116,7 +120,7 @@ export function ShipmentDetailPage() {
               </InfoField>
               <InfoField label="Packages">{shipment.cargoDescription || '—'}</InfoField>
               <InfoField label="Weight">{formatWeight(shipment.weightKg)}</InfoField>
-              <InfoField label="Vendor (carrier)">{vendor?.name ?? '—'}</InfoField>
+              <InfoField label="Vendor (carrier)">{carriers.join(', ') || '—'}</InfoField>
               <InfoField label="Quotation">
                 {quotation ? (
                   <Link to={`/quotations/${quotation.id}`} className="font-medium text-primary hover:underline">

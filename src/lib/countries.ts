@@ -16,11 +16,17 @@ const en = names('en')
 const byName = new Map<string, string>(CODES.map((code) => [en.of(code) ?? code, code]))
 for (const [alias, code] of Object.entries(ALIASES)) byName.set(alias, code)
 
+const ru = names('ru')
+const aliasesOf = (code: string) => Object.keys(ALIASES).filter((alias) => ALIASES[alias] === code)
+
 export function countryOptions() {
   const local = names(getSettings().language)
-  return CODES.map((code) => ({ value: en.of(code) ?? code, label: local.of(code) ?? code })).sort((a, b) =>
-    a.label.localeCompare(b.label),
-  )
+  // Ищем и по-русски, и по-английски, и по старым названиям (Turkey → Türkiye)
+  return CODES.map((code) => ({
+    value: en.of(code) ?? code,
+    label: local.of(code) ?? code,
+    keywords: [ru.of(code), code, ...aliasesOf(code)].join(' '),
+  })).sort((a, b) => a.label.localeCompare(b.label))
 }
 
 export function countryLabel(name: string) {
