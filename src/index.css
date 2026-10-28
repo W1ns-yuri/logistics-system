@@ -151,3 +151,13 @@
     inset: 0 0 auto 0;
   }
 }
+
+/* Карта на странице входа медленно приближается и отъезжает */
+@keyframes auth-drift {
+  from {
+    transform: scale(1) translate(0, 0);
+  }
+  to {
+    transform: scale(1.06) translate(-1.5%, -1%);
+  }
+}

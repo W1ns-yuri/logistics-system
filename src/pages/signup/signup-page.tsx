@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { ArrowLeft, ArrowRight, Check, Container } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check } from 'lucide-react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router'
 
+import { AuthLayout } from '@/components/auth-layout'
 import { Combobox } from '@/components/combobox'
 import { FormField } from '@/components/form-field'
 import { TransportModeIcon } from '@/components/transport-mode'
@@ -223,13 +224,10 @@ export function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center bg-muted/60 px-4 py-10">
-      <main className="w-full max-w-[560px] rounded-xl border bg-card shadow-sm">
-        <div className="px-6 pt-8 pb-7 sm:px-8">
-          <div className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <Container className="size-4" />
-          </div>
-          <h1 className="mt-6 text-xl font-semibold tracking-tight">{t('Create a company account')}</h1>
+    <AuthLayout tab="signup">
+      <div>
+        <div className="px-6 pt-7 pb-7 sm:px-8">
+          <h1 className="text-2xl font-semibold tracking-tight">{t('Create a company account')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {t('{n}-day free trial. No card needed. You become the admin and invite your team later.', {
               n: TRIAL_DAYS,
@@ -415,8 +413,8 @@ export function SignupPage() {
             {t('Sign in')}
           </Link>
         </div>
-      </main>
-    </div>
+      </div>
+    </AuthLayout>
   )
 }
 

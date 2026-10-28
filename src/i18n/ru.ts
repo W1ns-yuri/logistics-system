@@ -710,4 +710,13 @@ export const ru: Record<string, string> = {
   '{name} already exists in Customers': '{name} уже есть в клиентах',
   '{name} already exists in Vendors': '{name} уже есть в подрядчиках',
   'Add invoice': 'Добавить инвойс',
+  'Sign in to {name}': 'Вход в {name}',
+  'Enter your work email to open the workspace.': 'Введите рабочий email, чтобы открыть рабочее пространство.',
+  'Demo access': 'Демо-доступ',
+  'No password needed. Pick a role to try the system.': 'Пароль не нужен. Выберите роль, чтобы попробовать систему.',
+  'Forwarding suite': 'Система для экспедиторов',
+  'The smart workspace for modern forwarding.': 'Умное рабочее место для современной экспедиции.',
+  'Track shipments, manage quotations, and analyze revenue in one secure platform.':
+    'Перевозки, котировки и выручка в одной защищённой системе.',
+  Live: 'Сейчас',
 }
