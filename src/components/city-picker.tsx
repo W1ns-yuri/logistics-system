@@ -18,7 +18,7 @@ export function CityPicker({
   value,
   onChange,
   invalid,
-  placeholder = 'Select city',
+  placeholder = 'City',
 }: {
   id?: string
   value: string
