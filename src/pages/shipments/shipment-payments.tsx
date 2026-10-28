@@ -41,7 +41,7 @@ import {
 } from '@/data/store'
 import { t } from '@/i18n'
 import { chargeTotals, invoiceTotals, quotationTotals } from '@/lib/calculation'
-import { readReceipt } from '@/lib/files'
+import { acceptFor, fileError, readReceipt, RECEIPT_TYPES } from '@/lib/files'
 import { formatDate, formatMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { InvoiceFormDialog } from '@/pages/payments/invoice-form-dialog'
@@ -81,10 +81,13 @@ export function CustomerPaymentsSection({ shipment }: { shipment: Shipment }) {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => (shipment.quotationId ? createInvoiceFromShipment(shipment.id) : setManualOpen(true))}
+            // Первый счёт берём из котировки, следующие только вручную, чтобы не выставить ту же сумму дважды
+            onClick={() =>
+              shipment.quotationId && !invoices.length ? createInvoiceFromShipment(shipment.id) : setManualOpen(true)
+            }
           >
             <Plus />
-            {t('Create invoice')}
+            {invoices.length ? t('Add invoice') : t('Create invoice')}
           </Button>
         )
       }
@@ -559,10 +562,14 @@ function VendorPaymentForm({
             ref={fileRef}
             type="file"
             hidden
-            accept="image/*,application/pdf"
+            accept={acceptFor(RECEIPT_TYPES)}
             onChange={async (e) => {
               const file = e.target.files?.[0]
-              if (file) setReceipt(await readReceipt(file))
+              e.target.value = ''
+              if (!file) return
+              const problem = await fileError(file, RECEIPT_TYPES)
+              setWarning(problem)
+              if (!problem) setReceipt(await readReceipt(file))
             }}
           />
         </FormField>

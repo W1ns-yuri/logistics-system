@@ -72,3 +72,10 @@ export function citySuggestions(country: string, extra: string[] = []) {
   const base = code ? (CITIES[code] ?? []) : []
   return [...new Set([...base, ...extra])].filter(Boolean)
 }
+
+// Все города из подсказок с их страной (английское название, как храним): для выбора города в маршруте
+export function allCities() {
+  return Object.entries(CITIES).flatMap(([code, cities]) =>
+    cities.map((city) => ({ city, country: en.of(code) ?? code })),
+  )
+}

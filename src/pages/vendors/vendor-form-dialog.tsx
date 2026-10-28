@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
-import { createVendor, updateVendor } from '@/data/store'
+import { createVendor, updateVendor, useVendors } from '@/data/store'
 import { t } from '@/i18n'
 import { countryOptions } from '@/lib/countries'
+import { isValidEmail, isValidPhone } from '@/lib/input-rules'
 import { cn } from '@/lib/utils'
 import { VENDOR_TYPES, vendorTypeLabels, type Vendor, type VendorType } from '@/types/directory'
 import { TRANSPORT_MODES, transportModeLabels, type TransportMode } from '@/types/logistics'
@@ -66,6 +67,7 @@ function VendorForm({
 }) {
   const [form, setForm] = useState<FormState>(() => (vendor ? { ...vendor } : empty))
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({})
+  const allVendors = useVendors()
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -94,8 +96,14 @@ function VendorForm({
     event.stopPropagation()
     const next: typeof errors = {}
     if (!form.name.trim()) next.name = t('Required field')
+    const sameName = allVendors.find(
+      (v) => v.id !== vendor?.id && v.name.trim().toLowerCase() === form.name.trim().toLowerCase(),
+    )
+    if (form.name.trim() && sameName) next.name = t('{name} already exists in Vendors', { name: sameName.name })
     if (!form.country.trim()) next.country = t('Required field')
     if (!form.modes.length) next.modes = t('Pick at least one mode')
+    if (form.phone.trim() && !isValidPhone(form.phone)) next.phone = t('Enter a valid phone number')
+    if (form.email.trim() && !isValidEmail(form.email)) next.email = t('Enter a valid email')
     setErrors(next)
     if (Object.keys(next).length) return
     const data: FormState = {
@@ -168,10 +176,10 @@ function VendorForm({
         <FormField label="Contact person" htmlFor="vendor-contactPerson">
           <Input {...text('contactPerson')} />
         </FormField>
-        <FormField label="Phone" htmlFor="vendor-phone">
-          <Input {...text('phone')} />
+        <FormField label="Phone" htmlFor="vendor-phone" error={errors.phone}>
+          <Input {...text('phone')} type="tel" placeholder="+993 12 345678" />
         </FormField>
-        <FormField label="Email" htmlFor="vendor-email" className="sm:col-span-2">
+        <FormField label="Email" htmlFor="vendor-email" className="sm:col-span-2" error={errors.email}>
           <Input {...text('email')} type="email" />
         </FormField>
       </div>

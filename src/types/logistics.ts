@@ -25,6 +25,17 @@ export const EQUIPMENT_TYPES = [
 ] as const
 export type EquipmentType = (typeof EQUIPMENT_TYPES)[number]
 
+// Какой тип подходит к виду транспорта: самолёт не возит FTL, а фура не возит LCL
+export const equipmentByMode: Record<TransportMode, EquipmentType[]> = {
+  air: ['Air'],
+  sea: ['FCL', 'LCL', '20 GP', '40 DV', '40 HQ', '40 OT', '40 RF'],
+  road: ['FTL', 'LTL', 'Lowbed', 'Flatbed', '20 GP', '40 DV', '40 HQ'],
+  rail: ['FCL', '20 GP', '40 DV', '40 HQ', '40 OT', '40 RF'],
+}
+
+// Порты нужны морю, авиа и ж/д, а авто — только если перевозка идёт до порта или из порта
+export const needsPorts = (mode: TransportMode, movement: Movement) => mode !== 'road' || movement.includes('port')
+
 // Валюты по словам заказчика: доллары, туркменские манаты и евро
 export const CURRENCIES = ['USD', 'TMT', 'EUR'] as const
 export type Currency = (typeof CURRENCIES)[number]

@@ -12,9 +12,10 @@ import {
   createShipmentFromQuotation,
   deleteQuotation,
   updateQuotation,
+  useMemberName,
   useQuotation,
 } from '@/data/store'
-import { usePermissions } from '@/data/auth'
+import { useCanModify, usePermissions } from '@/data/auth'
 import { t } from '@/i18n'
 import { formatDate } from '@/lib/format'
 import { NotFoundPage } from '@/pages/not-found'
@@ -30,6 +31,8 @@ export function QuotationDetailPage() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [tab, setTab] = useState('general')
   const { canEditOrders } = usePermissions()
+  const canModify = useCanModify(quotation)
+  const ownerName = useMemberName(quotation?.createdBy)
 
   if (!quotation) return <NotFoundPage />
 
@@ -37,7 +40,7 @@ export function QuotationDetailPage() {
   // отправленной клиенту → «Завершена» (так попросил заказчик).
   const print = () => {
     setTab('pdf')
-    if (quotation.status === 'in_progress') updateQuotation(quotation.id, { status: 'completed' })
+    if (canModify && quotation.status === 'in_progress') updateQuotation(quotation.id, { status: 'completed' })
     setTimeout(() => window.print(), 50)
   }
 
@@ -65,7 +68,11 @@ export function QuotationDetailPage() {
                 {quotation.collectionAddress} → {quotation.deliveryAddress}
               </span>
               <span>·</span>
-              <span>{t('Created {date}', { date: formatDate(quotation.createdAt) })}</span>
+              <span>
+                {ownerName
+                  ? t('Created {date} by {name}', { date: formatDate(quotation.createdAt), name: ownerName })
+                  : t('Created {date}', { date: formatDate(quotation.createdAt) })}
+              </span>
               {quotation.validTo && (
                 <>
                   <span>·</span>
@@ -81,23 +88,32 @@ export function QuotationDetailPage() {
             <Printer />
             {t('Print / PDF')}
           </Button>
+          {canEditOrders && !canModify && (
+            <span className="rounded-md bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+              {t('View only: {name} owns this record', { name: ownerName })}
+            </span>
+          )}
+          {canModify && (
+            <Button size="sm" variant="outline" onClick={() => navigate(`/quotations/${quotation.id}/edit`)}>
+              <Pencil />
+              {t('Edit')}
+            </Button>
+          )}
           {canEditOrders && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const copy = copyQuotation(quotation.id)
+                if (copy) navigate(`/quotations/${copy.id}`)
+              }}
+            >
+              <Copy />
+              {t('Copy')}
+            </Button>
+          )}
+          {canModify && (
             <>
-              <Button size="sm" variant="outline" onClick={() => navigate(`/quotations/${quotation.id}/edit`)}>
-                <Pencil />
-                {t('Edit')}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  const copy = copyQuotation(quotation.id)
-                  if (copy) navigate(`/quotations/${copy.id}`)
-                }}
-              >
-                <Copy />
-                {t('Copy')}
-              </Button>
               <Button
                 size="sm"
                 variant="outline"

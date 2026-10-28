@@ -13,11 +13,15 @@ type DocumentToolbarProps = {
   onCreateShipment?: () => void
   onDelete?: () => void
   createShipmentDisabled?: boolean
+  // Можно ли менять выбранную запись: чужую котировку или перевозку видно, но менять нельзя
+  canModify?: boolean
+  ownerName?: string
 }
 
 // Тулбар из презентации: New / Open / Copy / Create shipment / Delete (+ Edit).
 // Кнопки работают с выбранной строкой таблицы, поэтому без выбора они неактивны.
 // Если роли нельзя менять заказы (бухгалтер), кнопки изменения скрыты.
+// Чужую запись можно открыть и скопировать, но не изменить и не удалить.
 export function DocumentToolbar({
   hasSelection,
   onNew,
@@ -27,8 +31,14 @@ export function DocumentToolbar({
   onCreateShipment,
   onDelete,
   createShipmentDisabled,
+  canModify = true,
+  ownerName,
 }: DocumentToolbarProps) {
   const { canEditOrders } = usePermissions()
+  const locked = hasSelection && !canModify
+  const lockedTitle = locked
+    ? t('Only {name} or an admin can change this record', { name: ownerName ?? '' })
+    : undefined
 
   return (
     <>
@@ -43,7 +53,7 @@ export function DocumentToolbar({
         {t('Open')}
       </Button>
       {canEditOrders && onEdit && (
-        <Button size="sm" variant="outline" disabled={!hasSelection} onClick={onEdit}>
+        <Button size="sm" variant="outline" disabled={!hasSelection || locked} title={lockedTitle} onClick={onEdit}>
           <Pencil />
           {t('Edit')}
         </Button>
@@ -64,7 +74,8 @@ export function DocumentToolbar({
         <Button
           size="sm"
           variant="outline"
-          disabled={!hasSelection || createShipmentDisabled}
+          disabled={!hasSelection || createShipmentDisabled || locked}
+          title={lockedTitle}
           onClick={onCreateShipment}
         >
           <Truck />
@@ -75,7 +86,8 @@ export function DocumentToolbar({
         <Button
           size="sm"
           variant="outline"
-          disabled={!hasSelection}
+          disabled={!hasSelection || locked}
+          title={lockedTitle}
           onClick={onDelete}
           className="text-destructive hover:text-destructive"
         >

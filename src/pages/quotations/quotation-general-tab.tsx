@@ -3,7 +3,7 @@ import { SectionCard } from '@/components/section-card'
 import { TransportModeLabel } from '@/components/transport-mode'
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatWeight } from '@/lib/format'
-import { movementLabels } from '@/types/logistics'
+import { movementLabels, needsPorts } from '@/types/logistics'
 import type { Quotation } from '@/types/quotation'
 import { t } from '@/i18n'
 
@@ -30,8 +30,12 @@ export function QuotationGeneralTab({ quotation: q }: { quotation: Quotation }) 
         <div className="grid grid-cols-2 gap-4">
           <InfoField label="Pick up location">{q.collectionAddress}</InfoField>
           <InfoField label="Delivery location">{q.deliveryAddress}</InfoField>
-          <InfoField label="Port of departure">{q.portOfDeparture}</InfoField>
-          <InfoField label="Port of delivery">{q.portOfDelivery}</InfoField>
+          {(needsPorts(q.mode, q.movement) || q.portOfDeparture || q.portOfDelivery) && (
+            <>
+              <InfoField label="Port of departure">{q.portOfDeparture}</InfoField>
+              <InfoField label="Port of delivery">{q.portOfDelivery}</InfoField>
+            </>
+          )}
           <InfoField label="Incoterms">{q.incoterm}</InfoField>
           <InfoField label="Movement">{t(movementLabels[q.movement])}</InfoField>
         </div>
@@ -47,9 +51,11 @@ export function QuotationGeneralTab({ quotation: q }: { quotation: Quotation }) 
           <InfoField label="Nature of goods">{q.natureOfGoods}</InfoField>
           <InfoField label="Gross weight">{formatWeight(q.weightKg)}</InfoField>
           <InfoField label="Volume">{q.volumeM3 != null ? `${q.volumeM3} m³` : ''}</InfoField>
-          <InfoField label="Chargeable weight (CWT)">
-            {q.chargeableWeightKg ? formatWeight(q.chargeableWeightKg) : '—'}
-          </InfoField>
+          {(q.mode === 'air' || !!q.chargeableWeightKg) && (
+            <InfoField label="Chargeable weight (CWT)">
+              {q.chargeableWeightKg ? formatWeight(q.chargeableWeightKg) : '—'}
+            </InfoField>
+          )}
         </div>
       </SectionCard>
 

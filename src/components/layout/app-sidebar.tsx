@@ -1,8 +1,8 @@
-import { ChevronsLeft, Container } from 'lucide-react'
+import { ChevronsLeft, Container, type LucideIcon } from 'lucide-react'
 import { matchPath, NavLink, useLocation } from 'react-router'
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { navigation, settingsItem, supportItem, type NavItem } from '@/config/navigation'
+import { navigation, settingsItem, supportItem, type NavGroup, type NavItem } from '@/config/navigation'
 import { usePermissions } from '@/data/auth'
 import { useSettings } from '@/data/settings'
 import { cn } from '@/lib/utils'
@@ -11,15 +11,21 @@ import { t } from '@/i18n'
 type AppSidebarProps = {
   collapsed: boolean
   onToggle: () => void
+  // Админка платформы передаёт своё меню и шапку; рабочее приложение берёт их из настроек
+  nav?: { groups: NavGroup[]; footer: NavItem[]; title: string; subtitle: string; icon: LucideIcon }
 }
 
-export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
+export function AppSidebar({ collapsed, onToggle, nav }: AppSidebarProps) {
   const { companyName, companyTagline } = useSettings()
   const { canSeePayments } = usePermissions()
   // Сотрудник не видит разделы с деньгами
-  const groups = navigation
+  const groups = (nav?.groups ?? navigation)
     .map((group) => ({ ...group, items: group.items.filter((item) => canSeePayments || !item.payments) }))
     .filter((group) => group.items.length > 0)
+  const footer = nav?.footer ?? [settingsItem, supportItem]
+  const Logo = nav?.icon ?? Container
+  const title = nav ? t(nav.title) : companyName
+  const subtitle = nav ? t(nav.subtitle) : companyTagline
 
   return (
     <aside
@@ -36,12 +42,12 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         )}
       >
         <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-          <Container className="size-4" />
+          <Logo className="size-4" />
         </div>
         {!collapsed && (
           <div className="min-w-0 leading-tight">
-            <div className="truncate text-sm font-semibold text-sidebar-accent-foreground">{companyName}</div>
-            <div className="truncate text-xs text-sidebar-foreground/60">{companyTagline}</div>
+            <div className="truncate text-sm font-semibold text-sidebar-accent-foreground">{title}</div>
+            <div className="truncate text-xs text-sidebar-foreground/60">{subtitle}</div>
           </div>
         )}
       </div>
@@ -68,8 +74,9 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
       </nav>
 
       <div className="space-y-0.5 border-t border-sidebar-border px-3 py-3">
-        <SidebarLink item={settingsItem} collapsed={collapsed} />
-        <SidebarLink item={supportItem} collapsed={collapsed} />
+        {footer.map((item) => (
+          <SidebarLink key={item.path} item={item} collapsed={collapsed} />
+        ))}
         <button
           type="button"
           onClick={onToggle}
@@ -93,12 +100,13 @@ function SidebarLink({ item, collapsed }: { item: NavItem; collapsed: boolean })
 
   // Активность считаем сами, а не через className-функцию NavLink:
   // Tooltip (Radix Slot) склеивает className как строку и ломает функцию — из-за этого «плыли» иконки
-  const isActive = matchPath({ path: item.path, end: item.path === '/' }, pathname) !== null
+  const end = item.end ?? item.path === '/'
+  const isActive = matchPath({ path: item.path, end }, pathname) !== null
 
   const link = (
     <NavLink
       to={item.path}
-      end={item.path === '/'}
+      end={end}
       className={cn(
         'flex h-9 items-center gap-3 rounded-md text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
         // Свёрнуто: квадратная кнопка 40px строго по центру, развёрнуто: на всю ширину

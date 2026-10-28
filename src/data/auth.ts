@@ -1,83 +1,64 @@
 import { useSyncExternalStore } from 'react'
 
-import type { Role } from '@/types/team'
+import { licenseStatus, touchCurrentCompany, useCurrentCompany } from './platform'
+import { getSession, saveSession, subscribeSession } from './session'
 import { findMemberByEmail } from './store'
+
+export type { Session } from './session'
 
 /*
  * Демо-вход: принимает любой email и пароль.
  * Если email есть в команде (Settings → Team), берём имя и роль оттуда, иначе входим как админ.
- * Сессия хранится в localStorage, чтобы не входить заново после обновления страницы.
  * Когда будет бэкенд, здесь появится настоящий запрос к API и токен.
  */
 
-const STORAGE_KEY = 'session'
-
-export type Session = { email: string; name: string; role: Role; signedInAt: string }
-
-function load(): Session | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    const parsed = raw ? (JSON.parse(raw) as Partial<Session>) : null
-    // Старые сессии без роли считаем админскими
-    return parsed?.email ? ({ name: parsed.email, role: 'admin', signedInAt: '', ...parsed } as Session) : null
-  } catch {
-    return null
-  }
-}
-
-let session = load()
-const listeners = new Set<() => void>()
-
-function subscribe(listener: () => void) {
-  listeners.add(listener)
-  return () => listeners.delete(listener)
-}
-
-function save(next: Session | null) {
-  session = next
-  try {
-    if (next) localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-    else localStorage.removeItem(STORAGE_KEY)
-  } catch {
-    // без localStorage сессия просто живёт до перезагрузки
-  }
-  listeners.forEach((listener) => listener())
-}
-
 export function useSession() {
-  return useSyncExternalStore(subscribe, () => session)
+  return useSyncExternalStore(subscribeSession, getSession)
 }
 
 export function signIn(email: string) {
   const member = findMemberByEmail(email)
-  save({
+  saveSession({
     email,
     name: member?.name ?? email.split('@')[0],
     role: member?.role ?? 'admin',
     signedInAt: new Date().toISOString(),
   })
-}
-
-// Для демо: посмотреть систему глазами другой роли
-export function switchRole(role: Role) {
-  if (session) save({ ...session, role })
+  touchCurrentCompany()
 }
 
 export function signOut() {
-  save(null)
+  saveSession(null)
 }
 
 // Что разрешено текущей роли. Одно место, чтобы не разбрасывать проверки по страницам.
 export function usePermissions() {
   const role = useSession()?.role ?? 'employee'
+  const company = useCurrentCompany()
+  // Лицензия истекла — только просмотр: данные видны, менять ничего нельзя
+  const readOnly = !!company && licenseStatus(company) === 'expired'
   return {
     role,
+    readOnly,
     canSeePayments: role !== 'employee',
-    canEditOrders: role !== 'accountant',
+    canEditOrders: !readOnly && role !== 'accountant',
     // Внести оплату и приложить чек: админ и бухгалтер
-    canEditPayments: role !== 'employee',
+    canEditPayments: !readOnly && role !== 'employee',
     // Создать, изменить, удалить инвойс или оплату: только админ (менеджер)
-    canEditInvoices: role === 'admin',
-    canManageTeam: role === 'admin',
+    canEditInvoices: !readOnly && role === 'admin',
+    canManageTeam: !readOnly && role === 'admin',
   }
+}
+
+/*
+ * Котировку или перевозку меняет только тот, кто её создал. Остальные её видят, но не трогают.
+ * Админ (менеджер) может всё: если сотрудник ушёл или заболел, его заказы не должны зависнуть.
+ * Записи без автора (старые) может менять любой, у кого есть право менять заказы.
+ */
+export function useCanModify(record?: { createdBy?: string }) {
+  const session = useSession()
+  const { canEditOrders, role } = usePermissions()
+  if (!record || !canEditOrders) return false
+  if (role === 'admin' || !record.createdBy) return true
+  return record.createdBy.toLowerCase() === session?.email.toLowerCase()
 }

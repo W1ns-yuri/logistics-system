@@ -8,10 +8,17 @@ import { HomePage } from '@/pages/home'
 import { LoginPage } from '@/pages/login/login-page'
 import { NotFoundPage } from '@/pages/not-found'
 import { PaymentsPage } from '@/pages/payments/payments-page'
+import { CompaniesPage } from '@/pages/platform/companies-page'
+import { CompanyPage } from '@/pages/platform/company-page'
+import { PlatformDashboardPage } from '@/pages/platform/dashboard-page'
+import { LicensePaymentsPage } from '@/pages/platform/license-payments-page'
+import { PlansPage } from '@/pages/platform/plans-page'
+import { PlatformLayout } from '@/pages/platform/platform-layout'
 import { QuotationDetailPage } from '@/pages/quotations/quotation-detail-page'
 import { QuotationFormPage } from '@/pages/quotations/quotation-form-page'
 import { QuotationsPage } from '@/pages/quotations/quotations-page'
 import { SettingsPage } from '@/pages/settings'
+import { SignupPage } from '@/pages/signup/signup-page'
 import { ShipmentDetailPage } from '@/pages/shipments/shipment-detail-page'
 import { ShipmentsPage } from '@/pages/shipments/shipments-page'
 import { SupportPage } from '@/pages/support'
@@ -20,6 +27,19 @@ import { VendorsPage } from '@/pages/vendors/vendors-page'
 // Все страницы — дети AppLayout, поэтому меню и шапка остаются на месте при переходах
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
+  { path: '/signup', element: <SignupPage /> },
+  // Админка владельца платформы: свой вход и свой каркас
+  {
+    path: '/platform',
+    element: <PlatformLayout />,
+    children: [
+      { index: true, element: <PlatformDashboardPage /> },
+      { path: 'companies', element: <CompaniesPage /> },
+      { path: 'companies/:id', element: <CompanyPage /> },
+      { path: 'payments', element: <LicensePaymentsPage /> },
+      { path: 'plans', element: <PlansPage /> },
+    ],
+  },
   {
     path: '/',
     element: (

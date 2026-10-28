@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 
+import { CityPicker } from '@/components/city-picker'
 import { CustomerPicker } from '@/components/customer-picker'
 import { FormField } from '@/components/form-field'
 import { VendorPicker } from '@/components/vendor-picker'
@@ -12,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { createShipment, updateShipment } from '@/data/store'
 import { t } from '@/i18n'
 import {
-  EQUIPMENT_TYPES,
+  equipmentByMode,
   TRANSPORT_MODES,
   transportModeLabels,
   type EquipmentType,
@@ -116,6 +117,16 @@ function ShipmentForm({
     event.preventDefault()
     const nextErrors: typeof errors = {}
     for (const key of requiredFields) if (!form[key].trim()) nextErrors[key] = t('Required field')
+    // Прибытие не может быть раньше отправки, а отправка — раньше заказа
+    if (form.etd && form.eta && form.eta < form.etd) nextErrors.eta = t('ETA cannot be before ETD')
+    if (form.etd && form.orderDate && form.etd < form.orderDate)
+      nextErrors.etd = t('ETD cannot be before the order date')
+    if (form.weightKg && !(Number(form.weightKg) > 0)) nextErrors.weightKg = t('Must be above 0')
+    if (
+      form.transportQuantity &&
+      !(Number.isInteger(Number(form.transportQuantity)) && Number(form.transportQuantity) > 0)
+    )
+      nextErrors.transportQuantity = t('Whole number above 0')
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length) return
 
@@ -178,10 +189,26 @@ function ShipmentForm({
           required
           error={errors.collectionAddress}
         >
-          <Input {...bind('collectionAddress')} />
+          <CityPicker
+            id="shipment-collectionAddress"
+            value={form.collectionAddress}
+            invalid={!!errors.collectionAddress}
+            onChange={(city) => {
+              setForm((prev) => ({ ...prev, collectionAddress: city }))
+              setErrors((prev) => ({ ...prev, collectionAddress: undefined }))
+            }}
+          />
         </FormField>
         <FormField label="Delivery location" htmlFor="shipment-deliveryAddress" required error={errors.deliveryAddress}>
-          <Input {...bind('deliveryAddress')} />
+          <CityPicker
+            id="shipment-deliveryAddress"
+            value={form.deliveryAddress}
+            invalid={!!errors.deliveryAddress}
+            onChange={(city) => {
+              setForm((prev) => ({ ...prev, deliveryAddress: city }))
+              setErrors((prev) => ({ ...prev, deliveryAddress: undefined }))
+            }}
+          />
         </FormField>
       </div>
 
@@ -189,14 +216,25 @@ function ShipmentForm({
         <FormField label="Order date" htmlFor="shipment-orderDate" required error={errors.orderDate}>
           <Input {...bind('orderDate')} type="date" />
         </FormField>
-        <FormField label="ETD" htmlFor="shipment-etd">
+        <FormField label="ETD" htmlFor="shipment-etd" error={errors.etd}>
           <Input {...bind('etd')} type="date" />
         </FormField>
-        <FormField label="ETA" htmlFor="shipment-eta">
+        <FormField label="ETA" htmlFor="shipment-eta" error={errors.eta}>
           <Input {...bind('eta')} type="date" />
         </FormField>
         <FormField label="Mode" htmlFor="shipment-mode" required>
-          <NativeSelect {...bind('mode')}>
+          <NativeSelect
+            {...bind('mode')}
+            onChange={(e) => {
+              // Тип подбираем под вид транспорта, как в котировке
+              const mode = e.target.value as TransportMode
+              setForm((prev) => ({
+                ...prev,
+                mode,
+                equipment: equipmentByMode[mode].includes(prev.equipment) ? prev.equipment : equipmentByMode[mode][0]!,
+              }))
+            }}
+          >
             {TRANSPORT_MODES.map((value) => (
               <option key={value} value={value}>
                 {t(transportModeLabels[value])}
@@ -206,7 +244,7 @@ function ShipmentForm({
         </FormField>
         <FormField label="Type" htmlFor="shipment-equipment" required>
           <NativeSelect {...bind('equipment')}>
-            {EQUIPMENT_TYPES.map((value) => (
+            {[...new Set([...equipmentByMode[form.mode], form.equipment])].map((value) => (
               <option key={value}>{value}</option>
             ))}
           </NativeSelect>

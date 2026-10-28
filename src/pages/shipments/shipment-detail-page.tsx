@@ -2,22 +2,25 @@ import { ArrowLeft, Check, ChevronRight, CircleX, Download, FileText, Paperclip,
 import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
+import { ConfirmDelete } from '@/components/confirm-delete'
 import { InfoField } from '@/components/info-field'
 import { SectionCard } from '@/components/section-card'
 import { ShipmentStatusBadge, shipmentStatuses } from '@/components/status-badge'
 import { TransportModeLabel } from '@/components/transport-mode'
 import { Button } from '@/components/ui/button'
 import { NativeSelect } from '@/components/ui/native-select'
-import { usePermissions } from '@/data/auth'
+import { useCanModify, usePermissions } from '@/data/auth'
 import {
   addShipmentDocument,
   removeShipmentDocument,
   setShipmentStatus,
   useQuotation,
+  useMemberName,
   useShipment,
   useVendors,
 } from '@/data/store'
 import { t } from '@/i18n'
+import { acceptFor, DOCUMENT_FILE_TYPES, fileError, formatSize, MAX_STORED_FILE } from '@/lib/files'
 import { formatDate, formatDateTime, formatWeight } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { NotFoundPage } from '@/pages/not-found'
@@ -39,7 +42,11 @@ export function ShipmentDetailPage() {
   const quotation = useQuotation(shipment?.quotationId)
   const vendors = useVendors()
   const { canEditOrders, canSeePayments } = usePermissions()
+  // Чужую перевозку видно целиком, но менять её может только автор или админ
+  const canModify = useCanModify(shipment)
+  const ownerName = useMemberName(shipment?.createdBy)
   const [editOpen, setEditOpen] = useState(false)
+  const [cancelOpen, setCancelOpen] = useState(false)
 
   if (!shipment) return <NotFoundPage />
 
@@ -66,10 +73,16 @@ export function ShipmentDetailPage() {
             </div>
             <div className="mt-1 text-sm text-muted-foreground">
               {shipment.customer} · {shipment.collectionAddress} → {shipment.deliveryAddress}
+              {ownerName && <> · {t('Created by {name}', { name: ownerName })}</>}
             </div>
           </div>
         </div>
-        {canEditOrders && (
+        {canEditOrders && !canModify && (
+          <span className="rounded-md bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+            {t('View only: {name} owns this record', { name: ownerName })}
+          </span>
+        )}
+        {canModify && (
           <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
               <Pencil />
@@ -79,7 +92,7 @@ export function ShipmentDetailPage() {
               size="sm"
               variant="outline"
               disabled={isCancelled || shipment.status === 'completed'}
-              onClick={() => setShipmentStatus(shipment.id, 'cancelled')}
+              onClick={() => setCancelOpen(true)}
               className="text-destructive hover:text-destructive"
             >
               <CircleX />
@@ -137,7 +150,7 @@ export function ShipmentDetailPage() {
               )}
             </div>
           </SectionCard>
-          <DocumentsSection shipment={shipment} canEdit={canEditOrders} />
+          <DocumentsSection shipment={shipment} canEdit={canModify} />
           {canSeePayments && (
             <>
               <CustomerPaymentsSection shipment={shipment} />
@@ -146,10 +159,19 @@ export function ShipmentDetailPage() {
           )}
         </div>
 
-        <TrackingSection shipment={shipment} canEdit={canEditOrders} />
+        <TrackingSection shipment={shipment} canEdit={canModify} />
       </div>
 
       <ShipmentFormDialog open={editOpen} onOpenChange={setEditOpen} shipment={shipment} />
+      {/* Отмена — серьёзное действие: случайный клик не должен отменить перевозку */}
+      <ConfirmDelete
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        title={t('Cancel shipment {number}?', { number: shipment.number })}
+        description="The shipment stays in the list with the Cancelled status. You can bring it back by choosing another status."
+        confirmLabel="Cancel shipment"
+        onConfirm={() => setShipmentStatus(shipment.id, 'cancelled')}
+      />
     </div>
   )
 }
@@ -230,15 +252,6 @@ function TrackingSection({ shipment, canEdit }: { shipment: Shipment; canEdit: b
   )
 }
 
-// Больше ~1.5 МБ браузер не потянет хранить — такие файлы сохраняем только как запись
-const MAX_STORED_FILE = 1.5 * 1024 * 1024
-
-function formatSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
-}
-
 // Документы прикладывать не обязательно: инвойс, упаковочный лист, CMR, AWB, B/L, сертификаты
 function DocumentsSection({ shipment, canEdit }: { shipment: Shipment; canEdit: boolean }) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -246,9 +259,18 @@ function DocumentsSection({ shipment, canEdit }: { shipment: Shipment; canEdit: 
   const [warning, setWarning] = useState<string>()
   const documents = shipment.documents ?? []
 
-  const upload = (files: FileList | null) => {
+  const upload = async (list: FileList | null) => {
+    const files = Array.from(list ?? [])
+    if (inputRef.current) inputRef.current.value = ''
     setWarning(undefined)
-    for (const file of Array.from(files ?? [])) {
+    const problems: string[] = []
+    for (const file of files) {
+      // Неподходящий файл не сохраняем, а говорим почему
+      const problem = await fileError(file, DOCUMENT_FILE_TYPES)
+      if (problem) {
+        problems.push(problem)
+        continue
+      }
       const base = { type, name: file.name, size: file.size }
       if (file.size > MAX_STORED_FILE) {
         addShipmentDocument(shipment.id, base)
@@ -262,7 +284,7 @@ function DocumentsSection({ shipment, canEdit }: { shipment: Shipment; canEdit: 
       }
       reader.readAsDataURL(file)
     }
-    if (inputRef.current) inputRef.current.value = ''
+    if (problems.length) setWarning(problems.join('\n'))
   }
 
   return (
@@ -287,7 +309,14 @@ function DocumentsSection({ shipment, canEdit }: { shipment: Shipment; canEdit: 
               <Paperclip />
               {t('Attach')}
             </Button>
-            <input ref={inputRef} type="file" multiple hidden onChange={(e) => upload(e.target.files)} />
+            <input
+              ref={inputRef}
+              type="file"
+              multiple
+              hidden
+              accept={acceptFor(DOCUMENT_FILE_TYPES)}
+              onChange={(e) => upload(e.target.files)}
+            />
           </div>
         )
       }
@@ -331,7 +360,10 @@ function DocumentsSection({ shipment, canEdit }: { shipment: Shipment; canEdit: 
           ))}
         </ul>
       )}
-      {warning && <p className="mt-3 text-xs text-amber-600 dark:text-amber-400">{warning}</p>}
+      {warning && <p className="mt-3 text-xs whitespace-pre-line text-amber-600 dark:text-amber-400">{warning}</p>}
+      {canEdit && (
+        <p className="mt-3 text-xs text-muted-foreground">{t('PDF, JPG, PNG, WEBP, Word or Excel, up to 10 MB.')}</p>
+      )}
     </SectionCard>
   )
 }

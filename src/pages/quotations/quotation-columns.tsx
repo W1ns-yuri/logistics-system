@@ -2,6 +2,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 
 import { QuotationStatusBadge } from '@/components/status-badge'
 import { TransportModeLabel } from '@/components/transport-mode'
+import { useMemberName } from '@/data/store'
 import { formatDate, formatWeight } from '@/lib/format'
 import type { Quotation } from '@/types/quotation'
 
@@ -50,6 +51,12 @@ export const quotationColumns: ColumnDef<Quotation, unknown>[] = [
     cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{formatDate(row.original.createdAt)}</span>,
   },
   {
+    accessorKey: 'createdBy',
+    header: 'Created by',
+    meta: { label: 'Created by' },
+    cell: ({ row }) => <OwnerName email={row.original.createdBy} />,
+  },
+  {
     accessorKey: 'status',
     header: 'Status',
     meta: { label: 'Status' },
@@ -57,3 +64,9 @@ export const quotationColumns: ColumnDef<Quotation, unknown>[] = [
     cell: ({ row }) => <QuotationStatusBadge status={row.original.status} />,
   },
 ]
+
+// Автор котировки: имя из команды. Только автор (и админ) может её менять
+function OwnerName({ email }: { email?: string }) {
+  const name = useMemberName(email)
+  return <span className="text-muted-foreground">{name || '—'}</span>
+}

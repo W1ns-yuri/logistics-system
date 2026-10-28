@@ -16,7 +16,7 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { addPayment, updatePayment } from '@/data/store'
 import { t } from '@/i18n'
 import { invoiceTotals } from '@/lib/calculation'
-import { readReceipt } from '@/lib/files'
+import { acceptFor, fileError, readReceipt, RECEIPT_TYPES } from '@/lib/files'
 import { formatMoney } from '@/lib/format'
 import {
   PAYMENT_METHODS,
@@ -68,6 +68,9 @@ function PaymentForm({ invoice, payment, onDone }: { invoice: Invoice; payment?:
     const value = Number(amount)
     const off = Number(discount) || 0
     if (!(value > 0) && !(off > 0)) return setError(t('Enter an amount greater than 0'))
+    // Больше остатка внести нельзя: скорее всего это опечатка (лишний ноль)
+    if (value + off > balance + 0.005)
+      return setError(t('More than the balance due: {amount}', { amount: formatMoney(balance, invoice.currency) }))
     const data = {
       date,
       amount: value > 0 ? value : 0,
@@ -185,10 +188,14 @@ function PaymentForm({ invoice, payment, onDone }: { invoice: Invoice; payment?:
             ref={fileRef}
             type="file"
             hidden
-            accept="image/*,application/pdf"
+            accept={acceptFor(RECEIPT_TYPES)}
             onChange={async (e) => {
               const file = e.target.files?.[0]
-              if (file) setReceipt(await readReceipt(file))
+              e.target.value = ''
+              if (!file) return
+              const problem = await fileError(file, RECEIPT_TYPES)
+              setWarning(problem)
+              if (!problem) setReceipt(await readReceipt(file))
             }}
           />
         </FormField>

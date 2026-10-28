@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { markAllRead, markRead, useReadIds, visibleNotifications, type NotificationKind } from '@/data/notifications'
+import { useCurrentCompany } from '@/data/platform'
 import { useSettings } from '@/data/settings'
 import { formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -18,7 +19,9 @@ const kindIcon: Record<NotificationKind, { icon: typeof Bell; className: string 
 export function NotificationsMenu() {
   const settings = useSettings()
   const readIds = useReadIds()
-  const items = visibleNotifications(settings)
+  // Примерные уведомления только в демо: у новой компании их ещё быть не может
+  const isDemo = useCurrentCompany()?.id === 'demo'
+  const items = isDemo ? visibleNotifications(settings) : []
   const unread = items.filter((n) => !readIds.has(n.id)).length
 
   return (

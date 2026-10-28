@@ -6,7 +6,8 @@ import { DataTable } from '@/components/data-table/data-table'
 import { DocumentToolbar } from '@/components/document-toolbar'
 import { PageHeader } from '@/components/page-header'
 import { quotationStatuses } from '@/components/status-badge'
-import { copyQuotation, createShipmentFromQuotation, deleteQuotation, useQuotations } from '@/data/store'
+import { useCanModify } from '@/data/auth'
+import { copyQuotation, createShipmentFromQuotation, deleteQuotation, useMemberName, useQuotations } from '@/data/store'
 import { TRANSPORT_MODES, transportModeLabels } from '@/types/logistics'
 import { QUOTATION_STATUSES, type Quotation } from '@/types/quotation'
 import { quotationColumns } from './quotation-columns'
@@ -24,6 +25,8 @@ export function QuotationsPage() {
 
   // Если выбранную котировку удалили, selected станет undefined — кнопки сами выключатся
   const selected = quotations.find((q) => q.id === selectedId)
+  const canModify = useCanModify(selected)
+  const ownerName = useMemberName(selected?.createdBy)
 
   const open = (quotation: Quotation) => navigate(`/quotations/${quotation.id}`)
 
@@ -35,6 +38,8 @@ export function QuotationsPage() {
         actions={
           <DocumentToolbar
             hasSelection={!!selected}
+            canModify={canModify}
+            ownerName={ownerName}
             onNew={() => navigate('/quotations/new')}
             onEdit={() => selected && navigate(`/quotations/${selected.id}/edit`)}
             onOpen={() => selected && open(selected)}
