@@ -688,4 +688,26 @@ export const ru: Record<string, string> = {
   'Start free trial': 'Начать бесплатный период',
   'Sign-up steps': 'Шаги регистрации',
   'Please accept the terms to continue': 'Чтобы продолжить, примите условия',
+  '{name}: this file type is not allowed. Allowed: {types}':
+    '{name}: такой тип файла нельзя прикрепить. Можно: {types}',
+  '{name}: the file is empty': '{name}: файл пустой',
+  '{name}: larger than 10 MB': '{name}: больше 10 МБ',
+  '{name}: the content does not match the file type': '{name}: содержимое не совпадает с типом файла',
+  'PDF, JPG, PNG, WEBP, Word or Excel, up to 10 MB.': 'PDF, JPG, PNG, WEBP, Word или Excel, до 10 МБ.',
+  'A company with this email is already registered. Sign in instead.':
+    'Компания с этим email уже зарегистрирована. Войдите в систему.',
+  'Whole number above 0': 'Целое число больше 0',
+  'Cannot be negative': 'Не может быть меньше 0',
+  'ETA cannot be before ETD': 'Прибытие не может быть раньше отправки',
+  'ETD cannot be before the order date': 'Отправка не может быть раньше даты заказа',
+  'More than the balance due: {amount}': 'Больше остатка к оплате: {amount}',
+  'Cancel shipment {number}?': 'Отменить перевозку {number}?',
+  'The shipment stays in the list with the Cancelled status. You can bring it back by choosing another status.':
+    'Перевозка останется в списке со статусом «Отменена». Вернуть её можно, выбрав другой статус.',
+  'Leave without saving?': 'Уйти без сохранения?',
+  'Everything you entered in this quotation will be lost.': 'Всё, что вы ввели в этой котировке, пропадёт.',
+  Leave: 'Уйти',
+  '{name} already exists in Customers': '{name} уже есть в клиентах',
+  '{name} already exists in Vendors': '{name} уже есть в подрядчиках',
+  'Add invoice': 'Добавить инвойс',
 }

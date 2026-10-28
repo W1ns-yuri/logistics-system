@@ -104,9 +104,53 @@ export function initials(name: string) {
   )
 }
 
-// Префикс номера из названия компании: "Win Fin" → "WF", "Logistics" → "LO"
+// Кириллицу в номерах не используем (номера уходят в документы за границу): переводим в латиницу
+const TRANSLIT: Record<string, string> = {
+  а: 'a',
+  б: 'b',
+  в: 'v',
+  г: 'g',
+  д: 'd',
+  е: 'e',
+  ё: 'e',
+  ж: 'zh',
+  з: 'z',
+  и: 'i',
+  й: 'y',
+  к: 'k',
+  л: 'l',
+  м: 'm',
+  н: 'n',
+  о: 'o',
+  п: 'p',
+  р: 'r',
+  с: 's',
+  т: 't',
+  у: 'u',
+  ф: 'f',
+  х: 'h',
+  ц: 'ts',
+  ч: 'ch',
+  ш: 'sh',
+  щ: 'sh',
+  ы: 'y',
+  э: 'e',
+  ю: 'yu',
+  я: 'ya',
+  ä: 'a',
+  ç: 'c',
+  ň: 'n',
+  ö: 'o',
+  ş: 's',
+  ü: 'u',
+  ý: 'y',
+  ž: 'z',
+}
+const latin = (text: string) => [...text.toLowerCase()].map((ch) => TRANSLIT[ch] ?? ch).join('')
+
+// Префикс номера из названия компании: "Win Fin" → "WF", "Logistics" → "LO", "Ак Йол" → "AY"
 export function prefixFromName(name: string) {
-  const [first = 'XX', second] = name.match(/[A-Za-zА-Яа-яЁё]+/g) ?? []
+  const [first = 'XX', second] = latin(name).match(/[a-z]+/g) ?? []
   const letters = second ? first.charAt(0) + second.charAt(0) : first.slice(0, 2)
-  return letters.toUpperCase()
+  return letters.toUpperCase().padEnd(2, 'X')
 }

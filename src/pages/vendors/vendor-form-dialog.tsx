@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
-import { createVendor, updateVendor } from '@/data/store'
+import { createVendor, updateVendor, useVendors } from '@/data/store'
 import { t } from '@/i18n'
 import { countryOptions } from '@/lib/countries'
 import { isValidEmail, isValidPhone } from '@/lib/input-rules'
@@ -67,6 +67,7 @@ function VendorForm({
 }) {
   const [form, setForm] = useState<FormState>(() => (vendor ? { ...vendor } : empty))
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({})
+  const allVendors = useVendors()
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -95,6 +96,10 @@ function VendorForm({
     event.stopPropagation()
     const next: typeof errors = {}
     if (!form.name.trim()) next.name = t('Required field')
+    const sameName = allVendors.find(
+      (v) => v.id !== vendor?.id && v.name.trim().toLowerCase() === form.name.trim().toLowerCase(),
+    )
+    if (form.name.trim() && sameName) next.name = t('{name} already exists in Vendors', { name: sameName.name })
     if (!form.country.trim()) next.country = t('Required field')
     if (!form.modes.length) next.modes = t('Pick at least one mode')
     if (form.phone.trim() && !isValidPhone(form.phone)) next.phone = t('Enter a valid phone number')

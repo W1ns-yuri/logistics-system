@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react'
-import { Link, Navigate, useNavigate, useParams } from 'react-router'
+import { Link, Navigate, useBlocker, useNavigate, useParams } from 'react-router'
 
 import { CityPicker } from '@/components/city-picker'
+import { ConfirmDelete } from '@/components/confirm-delete'
 import { CustomerPicker } from '@/components/customer-picker'
 import { FormField } from '@/components/form-field'
 import { VendorPicker } from '@/components/vendor-picker'
@@ -21,9 +22,10 @@ import { chargeTotals, quotationTotals } from '@/lib/calculation'
 import { formatMoney, formatPercent } from '@/lib/format'
 import {
   CURRENCIES,
-  EQUIPMENT_TYPES,
+  equipmentByMode,
   INCOTERMS,
   MOVEMENTS,
+  needsPorts,
   TRANSPORT_MODES,
   movementLabels,
   transportModeLabels,
@@ -124,6 +126,9 @@ function toForm(q: Quotation | undefined, defaults: { currency: Currency; validD
   }
 }
 
+// Ставки и количество: не меньше нуля и без опечаток на лишние нули
+const amount = (value: string) => Math.min(Math.max(Number(value) || 0, 0), 1e9)
+
 const required: (keyof FormState)[] = [
   'customer',
   'contactPerson',
@@ -156,6 +161,21 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
     toForm(existing, { currency: settings.defaultCurrency, validDays: settings.quotationValidityDays }),
   )
   const [errors, setErrors] = useState<Errors>({})
+  const saving = useRef(false)
+
+  // Ушли с недозаполненной формы — спрашиваем, чтобы случайный клик по меню не стёр работу
+  const [initial] = useState(() => JSON.stringify(form))
+  const dirty = JSON.stringify(form) !== initial
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      dirty && !saving.current && currentLocation.pathname !== nextLocation.pathname,
+  )
+  useEffect(() => {
+    if (!dirty) return
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault()
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -177,7 +197,10 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
       ...prev,
       customer: name,
       customerAddress: customer?.address ?? prev.customerAddress,
-      contactPerson: customer ? `${customer.contactPerson}, ${customer.phone}` : prev.contactPerson,
+      // Пустой контакт или телефон не оставляет лишнюю запятую: «, +993…»
+      contactPerson: customer
+        ? [customer.contactPerson, customer.phone].filter((v) => v?.trim()).join(', ') || prev.contactPerson
+        : prev.contactPerson,
     }))
     setErrors((prev) => ({ ...prev, customer: undefined, contactPerson: undefined }))
   }
@@ -194,6 +217,17 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
       form.cargo.map((line, i) => (i === index ? { ...line, ...patch } : line)),
     )
 
+  // Сменили вид транспорта — тип подбираем под него (у авиа это всегда Air)
+  const pickMode = (mode: TransportMode) =>
+    setForm((prev) => ({
+      ...prev,
+      mode,
+      equipment: equipmentByMode[mode].includes(prev.equipment) ? prev.equipment : equipmentByMode[mode][0]!,
+    }))
+  // Старая котировка с неподходящим типом: оставляем его в списке, чтобы не потерять
+  const equipmentOptions = [...new Set([...equipmentByMode[form.mode], form.equipment])]
+  const showPorts = needsPorts(form.mode, form.movement)
+
   const weightKg = (Number(form.weight) || 0) * (form.weightUnit === 't' ? 1000 : 1)
   const totals = quotationTotals({ charges: form.charges } as Quotation)
   const money = (value: number) => formatMoney(value, form.currency)
@@ -204,13 +238,24 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
     for (const key of required) {
       if (!String(form[key]).trim()) nextErrors[key] = t('Required field')
     }
-    if (form.transportQuantity && Number(form.transportQuantity) <= 0)
-      nextErrors.transportQuantity = t('Must be above 0')
+    if (
+      form.transportQuantity &&
+      !(Number.isInteger(Number(form.transportQuantity)) && Number(form.transportQuantity) > 0)
+    )
+      nextErrors.transportQuantity = t('Whole number above 0')
+    if (form.weight && !(Number(form.weight) > 0)) nextErrors.weight = t('Must be above 0')
+    if (form.volumeM3 && Number(form.volumeM3) < 0) nextErrors.volumeM3 = t('Cannot be negative')
+    if (form.chargeableWeightKg && Number(form.chargeableWeightKg) < 0)
+      nextErrors.chargeableWeightKg = t('Cannot be negative')
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length) {
       document.getElementById(Object.keys(nextErrors)[0])?.focus()
       return
     }
+    // Двойной клик по «Создать» не создаёт две котировки
+    if (saving.current) return
+    saving.current = true
+    const ports = needsPorts(form.mode, form.movement)
 
     const data = {
       status: form.status,
@@ -219,8 +264,8 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
       contactPerson: form.contactPerson.trim(),
       collectionAddress: form.collectionAddress.trim(),
       deliveryAddress: form.deliveryAddress.trim(),
-      portOfDeparture: form.portOfDeparture.trim() || undefined,
-      portOfDelivery: form.portOfDelivery.trim() || undefined,
+      portOfDeparture: (ports && form.portOfDeparture.trim()) || undefined,
+      portOfDelivery: (ports && form.portOfDelivery.trim()) || undefined,
       incoterm: form.incoterm,
       movement: form.movement,
       mode: form.mode,
@@ -228,7 +273,7 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
       transportQuantity: Number(form.transportQuantity),
       weightKg,
       volumeM3: form.volumeM3 ? Number(form.volumeM3) : undefined,
-      chargeableWeightKg: form.chargeableWeightKg ? Number(form.chargeableWeightKg) : undefined,
+      chargeableWeightKg: form.mode === 'air' && form.chargeableWeightKg ? Number(form.chargeableWeightKg) : undefined,
       natureOfGoods: form.natureOfGoods.trim(),
       cargo: form.cargo,
       // Для поиска и списка: все перевозчики из строк расчёта
@@ -339,12 +384,16 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
                 onChange={(city) => set('deliveryAddress', city)}
               />
             </FormField>
-            <FormField label="Port of departure" htmlFor="portOfDeparture">
-              <Input {...bind('portOfDeparture')} />
-            </FormField>
-            <FormField label="Port of delivery" htmlFor="portOfDelivery">
-              <Input {...bind('portOfDelivery')} />
-            </FormField>
+            {showPorts && (
+              <>
+                <FormField label="Port of departure" htmlFor="portOfDeparture">
+                  <Input {...bind('portOfDeparture')} />
+                </FormField>
+                <FormField label="Port of delivery" htmlFor="portOfDelivery">
+                  <Input {...bind('portOfDelivery')} />
+                </FormField>
+              </>
+            )}
             <FormField label="Incoterms" htmlFor="incoterm" required>
               <NativeSelect
                 id="incoterm"
@@ -375,7 +424,7 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
         <SectionCard title="Transport">
           <div className="grid grid-cols-2 gap-4">
             <FormField label="Mode" htmlFor="mode" required>
-              <NativeSelect id="mode" value={form.mode} onChange={(e) => set('mode', e.target.value as TransportMode)}>
+              <NativeSelect id="mode" value={form.mode} onChange={(e) => pickMode(e.target.value as TransportMode)}>
                 {TRANSPORT_MODES.map((value) => (
                   <option key={value} value={value}>
                     {t(transportModeLabels[value])}
@@ -389,7 +438,7 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
                 value={form.equipment}
                 onChange={(e) => set('equipment', e.target.value as EquipmentType)}
               >
-                {EQUIPMENT_TYPES.map((value) => (
+                {equipmentOptions.map((value) => (
                   <option key={value}>{value}</option>
                 ))}
               </NativeSelect>
@@ -412,12 +461,15 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
                 </div>
               </div>
             </FormField>
-            <FormField label="Volume, m³" htmlFor="volumeM3">
+            <FormField label="Volume, m³" htmlFor="volumeM3" error={errors.volumeM3}>
               <Input {...bind('volumeM3')} type="number" min={0} step="any" />
             </FormField>
-            <FormField label="CWT, kg" htmlFor="chargeableWeightKg">
-              <Input {...bind('chargeableWeightKg')} type="number" min={0} step="any" />
-            </FormField>
+            {/* Оплачиваемый вес считают только в авиа */}
+            {form.mode === 'air' && (
+              <FormField label="CWT, kg" htmlFor="chargeableWeightKg" error={errors.chargeableWeightKg}>
+                <Input {...bind('chargeableWeightKg')} type="number" min={0} step="any" />
+              </FormField>
+            )}
             <FormField
               label="Nature of goods"
               htmlFor="natureOfGoods"
@@ -580,21 +632,24 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
                   type="number"
                   aria-label={t('Qty')}
                   value={charge.quantity}
-                  onChange={(e) => updateCharge(charge.id, { quantity: Number(e.target.value) })}
+                  min={0}
+                  onChange={(e) => updateCharge(charge.id, { quantity: amount(e.target.value) })}
                 />
                 <Input
                   type="number"
                   step="any"
                   aria-label={t('Rate income')}
                   value={charge.rateIncome}
-                  onChange={(e) => updateCharge(charge.id, { rateIncome: Number(e.target.value) })}
+                  min={0}
+                  onChange={(e) => updateCharge(charge.id, { rateIncome: amount(e.target.value) })}
                 />
                 <Input
                   type="number"
                   step="any"
                   aria-label={t('Rate cost')}
                   value={charge.rateCost}
-                  onChange={(e) => updateCharge(charge.id, { rateCost: Number(e.target.value) })}
+                  min={0}
+                  onChange={(e) => updateCharge(charge.id, { rateCost: amount(e.target.value) })}
                 />
                 <div className="text-right text-sm tabular-nums">
                   {money(line.income)}
@@ -669,6 +724,14 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
           {existing ? t('Save changes') : t('Create quotation')}
         </Button>
       </div>
+      <ConfirmDelete
+        open={blocker.state === 'blocked'}
+        onOpenChange={(open) => !open && blocker.reset?.()}
+        title={t('Leave without saving?')}
+        description="Everything you entered in this quotation will be lost."
+        confirmLabel="Leave"
+        onConfirm={() => blocker.proceed?.()}
+      />
     </form>
   )
 }

@@ -16,10 +16,12 @@ type ConfirmDeleteProps = {
   title: string
   description: string
   onConfirm: () => void
+  // Текст кнопки, если это не удаление (например, «Отменить перевозку»)
+  confirmLabel?: string
 }
 
 // Удаление необратимо, поэтому всегда спрашиваем подтверждение
-export function ConfirmDelete({ open, onOpenChange, title, description, onConfirm }: ConfirmDeleteProps) {
+export function ConfirmDelete({ open, onOpenChange, title, description, onConfirm, confirmLabel }: ConfirmDeleteProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -28,8 +30,8 @@ export function ConfirmDelete({ open, onOpenChange, title, description, onConfir
           <AlertDialogDescription>{t(description)}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>{t('Delete')}</AlertDialogAction>
+          <AlertDialogCancel>{t(confirmLabel ? 'Back' : 'Cancel')}</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>{t(confirmLabel ?? 'Delete')}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

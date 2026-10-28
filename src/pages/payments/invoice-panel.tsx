@@ -10,7 +10,7 @@ import { usePermissions } from '@/data/auth'
 import { deleteInvoice, removePayment, updatePayment } from '@/data/store'
 import { t } from '@/i18n'
 import { invoiceTotals } from '@/lib/calculation'
-import { formatSize, readReceipt } from '@/lib/files'
+import { acceptFor, fileError, formatSize, readReceipt, RECEIPT_TYPES } from '@/lib/files'
 import { formatDate, formatMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { paymentMethodLabels, type Invoice, type Payment } from '@/types/invoice'
@@ -193,7 +193,7 @@ function PaymentsList({ invoice }: { invoice: Invoice }) {
 // Чек к оплате: открыть, если есть; приложить, если нет (бухгалтер тоже может)
 function ReceiptCell({ invoiceId, payment, canAttach }: { invoiceId: string; payment: Payment; canAttach: boolean }) {
   const ref = useRef<HTMLInputElement>(null)
-  const [warning, setWarning] = useState(false)
+  const [warning, setWarning] = useState<string>()
   const receipt = payment.receipt
 
   if (receipt) {
@@ -231,19 +231,18 @@ function ReceiptCell({ invoiceId, payment, canAttach }: { invoiceId: string; pay
         ref={ref}
         type="file"
         hidden
-        accept="image/*,application/pdf"
+        accept={acceptFor(RECEIPT_TYPES)}
         onChange={async (e) => {
           const file = e.target.files?.[0]
+          e.target.value = ''
           if (!file) return
+          const problem = await fileError(file, RECEIPT_TYPES)
+          if (problem) return setWarning(problem)
           const ok = updatePayment(invoiceId, payment.id, { receipt: await readReceipt(file) })
-          setWarning(!ok)
+          setWarning(ok ? undefined : t('Browser storage is full: the file was saved as a record only.'))
         }}
       />
-      {warning && (
-        <span className="text-xs text-amber-600">
-          {t('Browser storage is full: the file was saved as a record only.')}
-        </span>
-      )}
+      {warning && <span className="text-xs text-amber-600">{warning}</span>}
     </>
   )
 }

@@ -79,6 +79,11 @@ function CustomerForm({
     event.stopPropagation()
     const next: typeof errors = {}
     for (const key of required) if (!form[key].trim()) next[key] = t('Required field')
+    // Два клиента с одинаковым названием потом не различить в списках
+    const sameName = allCustomers.find(
+      (c) => c.id !== customer?.id && c.name.trim().toLowerCase() === form.name.trim().toLowerCase(),
+    )
+    if (form.name.trim() && sameName) next.name = t('{name} already exists in Customers', { name: sameName.name })
     if (form.phone.trim() && !isValidPhone(form.phone)) next.phone = t('Enter a valid phone number')
     if (form.email.trim() && !isValidEmail(form.email)) next.email = t('Enter a valid email')
     setErrors(next)

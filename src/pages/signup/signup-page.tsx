@@ -1,6 +1,6 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { ArrowLeft, ArrowRight, Check, Container } from 'lucide-react'
-import { Link, Navigate, useNavigate } from 'react-router'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router'
 
 import { Combobox } from '@/components/combobox'
 import { FormField } from '@/components/form-field'
@@ -15,6 +15,7 @@ import {
   planSeats,
   registerCompany,
   TEAM_SIZES,
+  useCompanies,
   TRIAL_DAYS,
   type Plan,
   type TeamSize,
@@ -79,7 +80,28 @@ const STEPS = [
 const PAID_PLANS: Plan[] = ['start', 'business', 'enterprise']
 
 // Проверка одного шага: возвращает ошибки только его полей
-function validate(step: number, form: Form): Errors {
+// Черновик анкеты переживает обновление страницы и кнопку «Назад». Пароли не сохраняем
+const DRAFT_KEY = 'signup-draft'
+function loadDraft(): Form {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY)
+    if (raw) return { ...empty, ...JSON.parse(raw), password: '', confirm: '' }
+  } catch {
+    // нет sessionStorage — начинаем с пустой формы
+  }
+  return empty
+}
+function saveDraft(form: Form) {
+  try {
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ ...form, password: '', confirm: '' }))
+  } catch {
+    // не сохранилось — не страшно
+  }
+}
+
+const normalizeEmail = (email: string) => email.trim().toLowerCase()
+
+function validate(step: number, form: Form, takenEmails: string[] = []): Errors {
   const errors: Errors = {}
   if (step === 0) {
     if (form.company.trim().length < 2) errors.company = t('At least 2 characters')
@@ -93,6 +115,8 @@ function validate(step: number, form: Form): Errors {
   if (step === 1) {
     if (form.name.trim().length < 2) errors.name = t('At least 2 characters')
     if (!isValidEmail(form.email)) errors.email = t('Enter a valid email')
+    else if (takenEmails.includes(normalizeEmail(form.email)))
+      errors.email = t('A company with this email is already registered. Sign in instead.')
     if (!isValidPhone(form.phone)) errors.phone = t('Enter a valid phone number')
     if (form.password.length < 8) errors.password = t('At least 8 characters')
     else if (!/\d/.test(form.password) || !/[A-Za-zА-Яа-я]/.test(form.password))
@@ -107,9 +131,20 @@ export function SignupPage() {
   const session = useSession()
   const navigate = useNavigate()
   const countries = useMemo(() => countryOptions(), [])
-  const [step, setStep] = useState(0)
-  const [form, setForm] = useState<Form>(empty)
+  const companies = useCompanies()
+  const takenEmails = companies.map((c) => c.adminEmail.toLowerCase())
+  const [form, setForm] = useState<Form>(loadDraft)
   const [errors, setErrors] = useState<Errors>({})
+  const [submitting, setSubmitting] = useState(false)
+  // Шаг живёт в адресе (?step=2): кнопка «Назад» в браузере возвращает на прошлый шаг, а не уводит со страницы
+  const [params, setParams] = useSearchParams()
+  const wanted = Math.min(Math.max(Number(params.get('step') ?? 1) - 1, 0), STEPS.length - 1)
+  // Перескочить вперёд по ссылке нельзя: открываем первый шаг, где есть ошибки
+  const firstInvalid = STEPS.findIndex((_, index) => index < wanted && Object.keys(validate(index, form)).length > 0)
+  const step = firstInvalid === -1 ? wanted : firstInvalid
+  const setStep = (next: number) => setParams(next ? { step: String(next + 1) } : {})
+
+  useEffect(() => saveDraft(form), [form])
 
   if (session) return <Navigate to="/" replace />
 
@@ -134,7 +169,7 @@ export function SignupPage() {
     set({ modes: form.modes.includes(mode) ? form.modes.filter((m) => m !== mode) : [...form.modes, mode] })
 
   const finish = () => {
-    const email = form.email.trim()
+    const email = normalizeEmail(form.email)
     const name = form.name.trim()
     const company = form.company.trim()
     const phone = form.phone.trim()
@@ -165,16 +200,26 @@ export function SignupPage() {
       documentPrefix: prefix,
     })
     signIn(email)
+    try {
+      sessionStorage.removeItem(DRAFT_KEY)
+    } catch {
+      // ничего
+    }
     navigate('/', { replace: true })
   }
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    const next = validate(step, form)
+    // Двойной клик по «Начать» не создаёт две компании
+    if (submitting) return
+    const next = validate(step, form, takenEmails)
     setErrors(next)
     if (Object.keys(next).length) return
     if (step < STEPS.length - 1) setStep(step + 1)
-    else finish()
+    else {
+      setSubmitting(true)
+      finish()
+    }
   }
 
   return (
@@ -351,7 +396,7 @@ export function SignupPage() {
                   {t('Back')}
                 </Button>
               )}
-              <Button type="submit" className="h-10 flex-1">
+              <Button type="submit" className="h-10 flex-1" disabled={submitting}>
                 {step < STEPS.length - 1 ? (
                   <>
                     {t('Continue')}
