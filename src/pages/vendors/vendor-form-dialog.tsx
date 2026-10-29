@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { createVendor, updateVendor, useVendors } from '@/data/store'
 import { t } from '@/i18n'
+import { phoneExample } from '@/lib/phone'
 import { countryOptions } from '@/lib/countries'
 import { isValidEmail, isValidPhone } from '@/lib/input-rules'
 import { cn } from '@/lib/utils'
@@ -127,9 +128,14 @@ function VendorForm({
     <form onSubmit={submit} noValidate className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField label="Company name" htmlFor="vendor-name" required error={errors.name} className="sm:col-span-2">
-          <Input {...text('name')} autoFocus />
+          <Input {...text('name')} autoFocus placeholder={t('e.g. Kras Logistics')} />
         </FormField>
-        <FormField label="Company type" htmlFor="vendor-type" required>
+        <FormField
+          label="Company type"
+          htmlFor="vendor-type"
+          required
+          hint="What the company is: an airline, a shipping line, a trucking company, a rail operator or an agent who arranges transport for you."
+        >
           <NativeSelect id="vendor-type" value={form.type} onChange={(e) => pickType(e.target.value as VendorType)}>
             {VENDOR_TYPES.map((value) => (
               <option key={value} value={value}>
@@ -151,7 +157,13 @@ function VendorForm({
             }}
           />
         </FormField>
-        <FormField label="Transport they handle" required error={errors.modes} className="sm:col-span-2">
+        <FormField
+          label="Transport they handle"
+          required
+          error={errors.modes}
+          className="sm:col-span-2"
+          hint="Which transport you can order from them. An agent can handle several kinds."
+        >
           <div className="flex flex-wrap gap-2">
             {TRANSPORT_MODES.map((mode) => {
               const active = form.modes.includes(mode)
@@ -173,14 +185,18 @@ function VendorForm({
             })}
           </div>
         </FormField>
-        <FormField label="Contact person" htmlFor="vendor-contactPerson">
-          <Input {...text('contactPerson')} />
+        <FormField
+          label="Contact person"
+          htmlFor="vendor-contactPerson"
+          hint="The person at this company you call or write to about bookings, for example their sales or operations manager."
+        >
+          <Input {...text('contactPerson')} placeholder={t('e.g. Merdan, operations')} />
         </FormField>
         <FormField label="Phone" htmlFor="vendor-phone" error={errors.phone}>
-          <Input {...text('phone')} type="tel" placeholder="+993 12 345678" />
+          <Input {...text('phone')} type="tel" placeholder={phoneExample(form.country)} />
         </FormField>
         <FormField label="Email" htmlFor="vendor-email" className="sm:col-span-2" error={errors.email}>
-          <Input {...text('email')} type="email" />
+          <Input {...text('email')} type="email" placeholder="booking@company.com" />
         </FormField>
       </div>
       <DialogFooter>

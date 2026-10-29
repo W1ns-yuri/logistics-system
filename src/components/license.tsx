@@ -67,7 +67,7 @@ export function LicenseBanner() {
           : t('Your license ends on {date} ({n} d left).', { date: formatDate(company.paidUntil), n: left })}
       </span>
       {role === 'admin' && (
-        <Link to="/settings#subscription" className="underline underline-offset-2">
+        <Link to="/settings?tab=subscription" className="underline underline-offset-2">
           {t('Renew')}
         </Link>
       )}

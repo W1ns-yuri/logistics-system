@@ -3,7 +3,8 @@ import type { ReactNode } from 'react'
 import { useSettings } from '@/data/settings'
 import { t } from '@/i18n'
 import { chargeTotals, quotationTotals } from '@/lib/calculation'
-import { formatDate, formatMoney, formatWeight } from '@/lib/format'
+import { formatDate, formatMoney, formatTransit, formatWeight } from '@/lib/format'
+import { terminalLabels } from '@/lib/terminals'
 import { movementLabels, transportModeLabels } from '@/types/logistics'
 import type { Quotation } from '@/types/quotation'
 
@@ -44,21 +45,21 @@ export function QuotationPreview({ quotation: q }: { quotation: Quotation }) {
           <Term label="Date">{formatDate(q.createdAt)}</Term>
           {q.validTo && <Term label="Valid to">{formatDate(q.validTo)}</Term>}
           <Term label="Mode">{t(transportModeLabels[q.mode])}</Term>
-          {q.transitTime && <Term label="Transit time">{q.transitTime}</Term>}
+          {q.transitTime && <Term label="Transit time">{formatTransit(q.transitTime)}</Term>}
         </dl>
       </div>
 
       <div className="mt-8 grid grid-cols-2 gap-x-8 gap-y-3 rounded-lg bg-muted/50 p-4 sm:grid-cols-4 print:grid-cols-4">
         <Fact label="Pick up location">{q.collectionAddress}</Fact>
         <Fact label="Delivery location">{q.deliveryAddress}</Fact>
-        <Fact label="Port of departure">{q.portOfDeparture}</Fact>
-        <Fact label="Port of delivery">{q.portOfDelivery}</Fact>
+        <Fact label={terminalLabels(q.mode).from}>{q.portOfDeparture}</Fact>
+        <Fact label={terminalLabels(q.mode).to}>{q.portOfDelivery}</Fact>
         <Fact label="Incoterms">{q.incoterm}</Fact>
         <Fact label="Movement">{t(movementLabels[q.movement])}</Fact>
         <Fact label="Equipment">{`${q.transportQuantity} × ${q.equipment}`}</Fact>
         <Fact label="Weight">{formatWeight(q.weightKg)}</Fact>
         {q.volumeM3 ? <Fact label="Volume, m³">{q.volumeM3}</Fact> : null}
-        {q.chargeableWeightKg ? <Fact label="CWT, kg">{q.chargeableWeightKg}</Fact> : null}
+        {q.chargeableWeightKg ? <Fact label="Chargeable weight, kg">{q.chargeableWeightKg}</Fact> : null}
         <Fact label="Nature of goods">{q.natureOfGoods}</Fact>
       </div>
 

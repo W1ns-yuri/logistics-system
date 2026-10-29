@@ -36,33 +36,32 @@ export function AuthLayout({ tab, children }: { tab: 'signin' | 'signup'; childr
     <div className="flex min-h-svh bg-muted/40">
       <BrandPanel />
 
-      <div className="flex min-w-0 flex-1 flex-col px-4 py-6 sm:px-8">
-        <div className="flex items-center justify-between gap-4">
-          {/* На телефоне левой панели нет, поэтому логотип здесь */}
-          <Logo className="lg:invisible" />
-          <div className="flex items-center gap-1.5 text-sm">
-            {LANGUAGES.map((lang, index) => (
-              <span key={lang.value} className="flex items-center gap-1.5">
-                {index > 0 && <span className="text-muted-foreground/60">/</span>}
-                <button
-                  type="button"
-                  onClick={() => updateSettings({ language: lang.value })}
-                  className={cn(
-                    'text-muted-foreground hover:text-foreground',
-                    settings.language === lang.value && 'font-medium text-foreground',
-                  )}
-                >
-                  {lang.label}
-                </button>
-              </span>
-            ))}
-          </div>
+      {/* Правая половина: форма по центру. Язык и подвал не занимают высоту, чтобы на ноутбуке всё влезало без прокрутки */}
+      <div className="relative flex min-w-0 flex-1 flex-col px-4 pt-5 pb-10 sm:px-8 lg:pt-14">
+        {/* На телефоне левой панели нет, поэтому логотип здесь */}
+        <Logo className="lg:hidden" />
+        <div className="absolute top-5 right-4 flex items-center gap-1.5 text-sm sm:right-8">
+          {LANGUAGES.map((lang, index) => (
+            <span key={lang.value} className="flex items-center gap-1.5">
+              {index > 0 && <span className="text-muted-foreground/60">/</span>}
+              <button
+                type="button"
+                onClick={() => updateSettings({ language: lang.value })}
+                className={cn(
+                  'text-muted-foreground hover:text-foreground',
+                  settings.language === lang.value && 'font-medium text-foreground',
+                )}
+              >
+                {lang.label}
+              </button>
+            </span>
+          ))}
         </div>
 
-        <div className="flex flex-1 items-center justify-center py-8">
+        <div className="flex flex-1 items-center justify-center py-6">
           <main
             className={cn(
-              'w-full overflow-hidden rounded-xl border bg-card shadow-sm',
+              'w-full rounded-xl border bg-card shadow-sm',
               tab === 'signin' ? 'max-w-[440px]' : 'max-w-[560px]',
             )}
           >
@@ -78,7 +77,7 @@ export function AuthLayout({ tab, children }: { tab: 'signin' | 'signup'; childr
           </main>
         </div>
 
-        <div className="text-center text-xs text-muted-foreground">
+        <div className="absolute inset-x-0 bottom-4 text-center text-xs text-muted-foreground">
           © {CURRENT_YEAR} {PRODUCT_NAME} · <a href="mailto:support@omniroute.app">{t('Support')}</a>
         </div>
       </div>
@@ -93,7 +92,7 @@ function AuthTab({ to, active, children }: { to: string; active: boolean; childr
       replace
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'border-b-2 py-3.5 text-center transition-colors',
+        'border-b-2 py-3 text-center transition-colors',
         active ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground',
       )}
     >
@@ -120,10 +119,12 @@ function Logo({ className, onDark }: { className?: string; onDark?: boolean }) {
 
 function BrandPanel() {
   return (
-    <aside className="relative hidden w-[52%] max-w-[1000px] shrink-0 flex-col overflow-hidden bg-[#061a38] p-10 text-white lg:flex">
+    // Панель всегда ровно в высоту экрана и не прокручивается вместе с формой
+    <aside className="sticky top-0 hidden h-svh w-[52%] max-w-[1000px] shrink-0 flex-col overflow-hidden bg-[#061a38] p-8 text-white lg:flex xl:p-10">
       <Logo onDark />
 
-      <div className="relative my-auto py-8">
+      {/* Ширина карты зависит от высоты экрана: на низком ноутбуке карта меньше, заголовок не уезжает вниз */}
+      <div className="relative mx-auto my-auto w-full py-4" style={{ maxWidth: 'calc((100svh - 20rem) * 1.78)' }}>
         {/* Карта медленно «дышит», края растворяются в фоне */}
         <div className="relative animate-[auth-drift_24s_ease-in-out_infinite_alternate] [mask-image:radial-gradient(ellipse_at_center,black_55%,transparent_78%)] motion-reduce:animate-none">
           <img src={mapImage} alt="" className="w-full select-none" draggable={false} />
@@ -145,10 +146,10 @@ function BrandPanel() {
       </div>
 
       <div className="relative text-center">
-        <h2 className="text-4xl leading-tight font-semibold tracking-tight text-balance xl:text-5xl">
+        <h2 className="text-3xl leading-tight font-semibold tracking-tight text-balance xl:text-4xl min-[1700px]:text-5xl">
           {t('The smart workspace for modern forwarding.')}
         </h2>
-        <p className="mx-auto mt-4 max-w-lg text-lg text-pretty text-slate-400">
+        <p className="mx-auto mt-3 max-w-lg text-base text-pretty text-slate-400 xl:text-lg">
           {t('Track shipments, manage quotations, and analyze revenue in one secure platform.')}
         </p>
       </div>
@@ -166,7 +167,7 @@ function LiveCard() {
   const item = LIVE[index]!
 
   return (
-    <div className="absolute bottom-6 left-6 rounded-lg border border-white/10 bg-white/5 px-4 py-3 shadow-xl backdrop-blur-md">
+    <div className="absolute bottom-4 left-4 rounded-lg border border-white/10 bg-white/5 px-4 py-3 shadow-xl backdrop-blur-md">
       <div key={index} className="animate-in fade-in slide-in-from-bottom-1 duration-500">
         <div className="flex items-center gap-2 text-xs text-slate-400">
           <span className="relative flex size-2">

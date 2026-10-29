@@ -242,7 +242,7 @@ function ShipmentForm({
             ))}
           </NativeSelect>
         </FormField>
-        <FormField label="Type" htmlFor="shipment-equipment" required>
+        <FormField label="Equipment" htmlFor="shipment-equipment" required>
           <NativeSelect {...bind('equipment')}>
             {[...new Set([...equipmentByMode[form.mode], form.equipment])].map((value) => (
               <option key={value}>{value}</option>

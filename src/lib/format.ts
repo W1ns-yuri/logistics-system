@@ -1,3 +1,5 @@
+import { t } from '@/i18n'
+
 // Форматирование для таблиц и карточек. Всё в одном месте, чтобы формат был везде одинаковым.
 
 const dateFormatter = new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -29,4 +31,10 @@ export function formatMoney(value: number, currency: string) {
 
 export function formatPercent(value: number) {
   return `${value.toFixed(1)} %`
+}
+
+// «15 days» / «15-20 days» → на языке интерфейса. Старые записи в свободной форме показываем как есть
+export function formatTransit(value?: string) {
+  const days = value?.match(/^(\d+(?:-\d+)?) days$/)?.[1]
+  return days ? t('{n} days', { n: days }) : value
 }
