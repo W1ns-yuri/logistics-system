@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { ArrowLeft, ArrowRight, Check, Container } from 'lucide-react'
-import { Link, Navigate, useNavigate, useSearchParams } from 'react-router'
+import { ArrowLeft, ArrowRight, Check } from 'lucide-react'
+import { Navigate, useNavigate, useSearchParams } from 'react-router'
 
+import { AuthLayout } from '@/components/auth-layout'
 import { Combobox } from '@/components/combobox'
-import { FormField } from '@/components/form-field'
+import { FieldError, FormField } from '@/components/form-field'
 import { TransportModeIcon } from '@/components/transport-mode'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,7 +24,8 @@ import {
 import { prefixFromName, updateSettings } from '@/data/settings'
 import { startEmptyWorkspace } from '@/data/store'
 import { t } from '@/i18n'
-import { citySuggestions, countryOptions } from '@/lib/countries'
+import { phoneExample } from '@/lib/phone'
+import { cityKeywords, cityLabel, citySuggestions, countryOptions } from '@/lib/countries'
 import { isValidEmail, isValidPhone } from '@/lib/input-rules'
 import { cn } from '@/lib/utils'
 import { usd } from '@/pages/analytics/format'
@@ -164,7 +166,11 @@ export function SignupPage() {
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => set({ [key]: e.target.value }),
   })
   const prefix = prefixFromName(form.company || 'XX')
-  const cities = citySuggestions(form.country).map((city) => ({ value: city, label: city }))
+  const cities = citySuggestions(form.country).map((city) => ({
+    value: city,
+    label: cityLabel(city),
+    keywords: cityKeywords(city),
+  }))
   const toggleMode = (mode: TransportMode) =>
     set({ modes: form.modes.includes(mode) ? form.modes.filter((m) => m !== mode) : [...form.modes, mode] })
 
@@ -223,13 +229,10 @@ export function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center bg-muted/60 px-4 py-10">
-      <main className="w-full max-w-[560px] rounded-xl border bg-card shadow-sm">
-        <div className="px-6 pt-8 pb-7 sm:px-8">
-          <div className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <Container className="size-4" />
-          </div>
-          <h1 className="mt-6 text-xl font-semibold tracking-tight">{t('Create a company account')}</h1>
+    <AuthLayout tab="signup">
+      <div>
+        <div className="px-6 pt-6 pb-7 sm:px-8">
+          <h1 className="text-2xl font-semibold tracking-tight">{t('Create a company account')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {t('{n}-day free trial. No card needed. You become the admin and invite your team later.', {
               n: TRIAL_DAYS,
@@ -241,14 +244,19 @@ export function SignupPage() {
           <form onSubmit={submit} noValidate className="mt-6 space-y-4">
             {step === 0 && (
               <>
-                <FormField label="Company name" htmlFor="signup-company" required error={errors.company}>
-                  <Input {...bind('company')} maxLength={80} autoFocus placeholder="Win Fin Logistics" />
+                <FormField
+                  label="Company name"
+                  htmlFor="signup-company"
+                  required
+                  error={errors.company}
+                  hint="As it should appear on quotations and invoices. You can change it later in Settings."
+                >
+                  <Input {...bind('company')} maxLength={80} autoFocus placeholder={t('Your company name')} />
                 </FormField>
-                {form.company.trim() && (
-                  <p className="-mt-2 text-xs text-muted-foreground">
-                    {t('Document numbers will look like {example}', { example: `${prefix}000001` })}
-                  </p>
-                )}
+                {/* Строка всегда занимает место: пока название пустое, она просто невидима, и форма не дёргается */}
+                <p className={cn('-mt-2 h-4 text-xs text-muted-foreground', !form.company.trim() && 'invisible')}>
+                  {t('Document numbers will look like {example}', { example: `${prefix}000001` })}
+                </p>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <FormField label="Country" htmlFor="signup-country" required error={errors.country}>
                     <Combobox
@@ -281,10 +289,12 @@ export function SignupPage() {
                           key={mode}
                           type="button"
                           aria-pressed={on}
+                          aria-invalid={!!errors.modes && mode === TRANSPORT_MODES[0]}
                           onClick={() => toggleMode(mode)}
                           className={cn(
                             'flex h-9 items-center justify-center gap-2 rounded-md border text-sm transition-colors hover:bg-accent',
                             on && 'border-primary bg-primary/5 text-primary ring-1 ring-primary',
+                            errors.modes && 'border-destructive',
                           )}
                         >
                           <TransportModeIcon mode={mode} />
@@ -295,7 +305,13 @@ export function SignupPage() {
                   </div>
                 </FormField>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField label="Team size" htmlFor="signup-teamSize" required error={errors.teamSize}>
+                  <FormField
+                    label="Team size"
+                    htmlFor="signup-teamSize"
+                    required
+                    error={errors.teamSize}
+                    hint="Helps us suggest a plan. It does not limit anything."
+                  >
                     <NativeSelect
                       id="signup-teamSize"
                       value={form.teamSize}
@@ -312,9 +328,6 @@ export function SignupPage() {
                       ))}
                     </NativeSelect>
                   </FormField>
-                  <FormField label="Website" htmlFor="signup-website" error={errors.website}>
-                    <Input {...bind('website')} maxLength={100} placeholder="winfin.tm" />
-                  </FormField>
                 </div>
               </>
             )}
@@ -322,25 +335,47 @@ export function SignupPage() {
             {step === 1 && (
               <>
                 <FormField label="Your name" htmlFor="signup-name" required error={errors.name}>
-                  <Input {...bind('name')} maxLength={80} autoComplete="name" autoFocus />
+                  <Input
+                    {...bind('name')}
+                    maxLength={80}
+                    autoComplete="name"
+                    autoFocus
+                    placeholder={t('First and last name')}
+                  />
                 </FormField>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField label="Work email" htmlFor="signup-email" required error={errors.email}>
-                    <Input {...bind('email')} type="email" autoComplete="email" />
+                  <FormField
+                    label="Work email"
+                    htmlFor="signup-email"
+                    required
+                    error={errors.email}
+                    hint="You will sign in with this email. Later we will send a code to confirm it."
+                  >
+                    <Input {...bind('email')} type="email" autoComplete="email" placeholder="name@company.com" />
                   </FormField>
                   <FormField label="Phone" htmlFor="signup-phone" required error={errors.phone}>
-                    <Input {...bind('phone')} type="tel" autoComplete="tel" placeholder="+993 12 345678" />
+                    <Input {...bind('phone')} type="tel" autoComplete="tel" placeholder={phoneExample(form.country)} />
                   </FormField>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField label="Password" htmlFor="signup-password" required error={errors.password}>
-                    <Input {...bind('password')} type="password" autoComplete="new-password" />
+                  <FormField
+                    label="Password"
+                    htmlFor="signup-password"
+                    required
+                    error={errors.password}
+                    hint="At least 8 characters, letters and digits."
+                  >
+                    <Input
+                      {...bind('password')}
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder={t('At least 8 characters')}
+                    />
                   </FormField>
                   <FormField label="Repeat password" htmlFor="signup-confirm" required error={errors.confirm}>
                     <Input {...bind('confirm')} type="password" autoComplete="new-password" />
                   </FormField>
                 </div>
-                <p className="text-xs text-muted-foreground">{t('At least 8 characters, letters and digits.')}</p>
               </>
             )}
 
@@ -371,7 +406,7 @@ export function SignupPage() {
                     {t('Use the trial first. We will remind you before it ends.')}
                   </div>
                 </PlanCard>
-                <label className="flex items-start gap-2 pt-1 text-sm text-muted-foreground">
+                <label className="relative flex items-start gap-2 pt-1 text-sm text-muted-foreground">
                   <input
                     id="signup-agree"
                     type="checkbox"
@@ -382,10 +417,8 @@ export function SignupPage() {
                   <span className={errors.agree ? 'text-destructive' : undefined}>
                     {t('I agree to the terms of service and privacy policy')}
                   </span>
+                  {errors.agree && <FieldError text={t('Please accept the terms to continue')} />}
                 </label>
-                {errors.agree && (
-                  <p className="-mt-2 text-xs text-destructive">{t('Please accept the terms to continue')}</p>
-                )}
               </>
             )}
 
@@ -409,14 +442,8 @@ export function SignupPage() {
             </div>
           </form>
         </div>
-        <div className="border-t bg-muted/40 px-8 py-3 text-sm text-muted-foreground">
-          {t('Already have an account?')}{' '}
-          <Link to="/login" className="font-medium text-primary hover:underline">
-            {t('Sign in')}
-          </Link>
-        </div>
-      </main>
-    </div>
+      </div>
+    </AuthLayout>
   )
 }
 

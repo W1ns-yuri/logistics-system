@@ -3,9 +3,10 @@ import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react'
 import { Link, Navigate, useBlocker, useNavigate, useParams } from 'react-router'
 
 import { CityPicker } from '@/components/city-picker'
+import { Combobox } from '@/components/combobox'
 import { ConfirmDelete } from '@/components/confirm-delete'
 import { CustomerPicker } from '@/components/customer-picker'
-import { FormField } from '@/components/form-field'
+import { FieldHint, FormField } from '@/components/form-field'
 import { VendorPicker } from '@/components/vendor-picker'
 import { SectionCard } from '@/components/section-card'
 import { Button } from '@/components/ui/button'
@@ -15,11 +16,12 @@ import { Textarea } from '@/components/ui/textarea'
 import { quotationStatuses } from '@/components/status-badge'
 import { useCanModify } from '@/data/auth'
 import { useSettings } from '@/data/settings'
-import { createQuotation, updateQuotation, useQuotation, useVendors } from '@/data/store'
+import { createQuotation, updateQuotation, useQuotation, useQuotations, useVendors } from '@/data/store'
 import type { Customer } from '@/types/directory'
 import { t } from '@/i18n'
 import { chargeTotals, quotationTotals } from '@/lib/calculation'
 import { formatMoney, formatPercent } from '@/lib/format'
+import { terminalLabels, terminalSuggestions } from '@/lib/terminals'
 import {
   CURRENCIES,
   equipmentByMode,
@@ -117,7 +119,8 @@ function toForm(q: Quotation | undefined, defaults: { currency: Currency; validD
     cargo: q?.cargo ?? [],
     carrier: q?.carrier ?? '',
     currency: q?.currency ?? defaults.currency,
-    transitTime: q?.transitTime ?? '',
+    // В форме — только число дней (или диапазон 15-20), слово «days» добавляем при сохранении
+    transitTime: (q?.transitTime ?? '').match(/\d+(\s*-\s*\d+)?/)?.[0].replace(/\s/g, '') ?? '',
     paymentTerms: q?.paymentTerms ?? '',
     validTo: q?.validTo ?? validTo.toISOString().slice(0, 10),
     charges: q?.charges.length ? q.charges : [emptyCharge()],
@@ -125,6 +128,9 @@ function toForm(q: Quotation | undefined, defaults: { currency: Currency; validD
     notes: q?.notes ?? '',
   }
 }
+
+// Строка расчёта, в которую хоть что-то вписали (пустые не сохраняем и не проверяем)
+const isFilled = (c: Charge) => !!(c.chargeType.trim() || c.vendorId || c.rateIncome || c.rateCost)
 
 // Ставки и количество: не меньше нуля и без опечаток на лишние нули
 const amount = (value: string) => Math.min(Math.max(Number(value) || 0, 0), 1e9)
@@ -157,6 +163,7 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
   const navigate = useNavigate()
   const settings = useSettings()
   const vendors = useVendors()
+  const quotations = useQuotations()
   const [form, setForm] = useState(() =>
     toForm(existing, { currency: settings.defaultCurrency, validDays: settings.quotationValidityDays }),
   )
@@ -227,6 +234,21 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
   // Старая котировка с неподходящим типом: оставляем его в списке, чтобы не потерять
   const equipmentOptions = [...new Set([...equipmentByMode[form.mode], form.equipment])]
   const showPorts = needsPorts(form.mode, form.movement)
+  const terminals = terminalLabels(form.mode)
+  // Подсказки портов/аэропортов/станций + те, что уже вписывали в других котировках
+  const terminalOptions = [
+    ...new Set([
+      ...terminalSuggestions(form.mode),
+      ...quotations
+        .filter((q) => q.mode === form.mode)
+        .flatMap((q) => [q.portOfDeparture, q.portOfDelivery])
+        .filter((v): v is string => !!v),
+    ]),
+  ].map((value) => ({ value, label: value }))
+  // Оплачиваемый вес в авиа: больше из фактического и объёмного (1 м³ = 167 кг)
+  const suggestedCwt = Math.ceil(
+    Math.max((Number(form.weight) || 0) * (form.weightUnit === 't' ? 1000 : 1), (Number(form.volumeM3) || 0) * 167),
+  )
 
   const weightKg = (Number(form.weight) || 0) * (form.weightUnit === 't' ? 1000 : 1)
   const totals = quotationTotals({ charges: form.charges } as Quotation)
@@ -247,9 +269,14 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
     if (form.volumeM3 && Number(form.volumeM3) < 0) nextErrors.volumeM3 = t('Cannot be negative')
     if (form.chargeableWeightKg && Number(form.chargeableWeightKg) < 0)
       nextErrors.chargeableWeightKg = t('Cannot be negative')
+    // Без ставки клиенту и себестоимости не посчитать прибыль — обе обязательны хотя бы в одной строке
+    const filled = form.charges.filter(isFilled)
+    if (!filled.length || filled.some((c) => !(c.rateIncome > 0) || !(c.rateCost > 0)))
+      nextErrors.charges = t('Enter the rate to the customer and the cost in every line')
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length) {
-      document.getElementById(Object.keys(nextErrors)[0])?.focus()
+      const first = Object.keys(nextErrors)[0]
+      ;(document.getElementById(first) ?? document.querySelector<HTMLElement>('[aria-invalid="true"]'))?.focus()
       return
     }
     // Двойной клик по «Создать» не создаёт две котировки
@@ -273,7 +300,8 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
       transportQuantity: Number(form.transportQuantity),
       weightKg,
       volumeM3: form.volumeM3 ? Number(form.volumeM3) : undefined,
-      chargeableWeightKg: form.mode === 'air' && form.chargeableWeightKg ? Number(form.chargeableWeightKg) : undefined,
+      chargeableWeightKg:
+        form.mode === 'air' ? Number(form.chargeableWeightKg) || suggestedCwt || undefined : undefined,
       natureOfGoods: form.natureOfGoods.trim(),
       cargo: form.cargo,
       // Для поиска и списка: все перевозчики из строк расчёта
@@ -281,11 +309,11 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
         ...new Set(form.charges.map((c) => vendors.find((v) => v.id === c.vendorId)?.name).filter(Boolean)),
       ].join(', '),
       currency: form.currency,
-      transitTime: form.transitTime.trim(),
+      transitTime: form.transitTime ? `${form.transitTime} days` : '',
       paymentTerms: form.paymentTerms.trim(),
       validTo: form.validTo || undefined,
       // Пустые строки калькуляции не сохраняем
-      charges: form.charges.filter((c) => c.chargeType.trim() || c.rateIncome || c.rateCost),
+      charges: form.charges.filter(isFilled),
       termsAndConditions: form.termsAndConditions.trim() || undefined,
       notes: form.notes.trim() || undefined,
     }
@@ -331,10 +359,10 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
       </div>
 
       {/* ---------- General ---------- */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-2">
         <SectionCard title="Customer">
-          <div className="space-y-4">
-            <FormField label="Customer" htmlFor="customer" required error={errors.customer}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField label="Customer" htmlFor="customer" required error={errors.customer} className="sm:col-span-2">
               <CustomerPicker
                 id="customer"
                 value={form.customer}
@@ -342,13 +370,16 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
                 onChange={(name, customer) => pickCustomer(name, customer)}
               />
             </FormField>
-            <FormField label="Customer address" htmlFor="customerAddress">
-              <Input {...bind('customerAddress')} />
+            <FormField
+              label="Contact person"
+              htmlFor="contactPerson"
+              required
+              error={errors.contactPerson}
+              hint="Who at the customer asked for the price. Filled in from the customer card."
+            >
+              <Input {...bind('contactPerson')} placeholder={t('Name and phone')} />
             </FormField>
-            <FormField label="Contact person" htmlFor="contactPerson" required error={errors.contactPerson}>
-              <Input {...bind('contactPerson')} placeholder="Ms. Lilia Cherry, +86 000 000 123" />
-            </FormField>
-            {existing && (
+            {existing ? (
               <FormField label="Status" htmlFor="status">
                 <NativeSelect
                   id="status"
@@ -362,12 +393,19 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
                   ))}
                 </NativeSelect>
               </FormField>
+            ) : (
+              <FormField label="Valid to" htmlFor="validTo" hint="Until when the price holds. Printed on the PDF.">
+                <Input {...bind('validTo')} type="date" />
+              </FormField>
             )}
+            <FormField label="Customer address" htmlFor="customerAddress" className="sm:col-span-2">
+              <Input {...bind('customerAddress')} placeholder={t('Filled in from the customer card')} />
+            </FormField>
           </div>
         </SectionCard>
 
         <SectionCard title="Route">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <FormField label="Pick up location" htmlFor="collectionAddress" required error={errors.collectionAddress}>
               <CityPicker
                 id="collectionAddress"
@@ -384,17 +422,12 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
                 onChange={(city) => set('deliveryAddress', city)}
               />
             </FormField>
-            {showPorts && (
-              <>
-                <FormField label="Port of departure" htmlFor="portOfDeparture">
-                  <Input {...bind('portOfDeparture')} />
-                </FormField>
-                <FormField label="Port of delivery" htmlFor="portOfDelivery">
-                  <Input {...bind('portOfDelivery')} />
-                </FormField>
-              </>
-            )}
-            <FormField label="Incoterms" htmlFor="incoterm" required>
+            <FormField
+              label="Incoterms"
+              htmlFor="incoterm"
+              required
+              hint="Who pays for what along the way. EXW: the buyer takes the goods at the seller. DAP: the seller delivers to the named place."
+            >
               <NativeSelect
                 id="incoterm"
                 value={form.incoterm}
@@ -405,7 +438,12 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
                 ))}
               </NativeSelect>
             </FormField>
-            <FormField label="Movement" htmlFor="movement" required>
+            <FormField
+              label="Movement"
+              htmlFor="movement"
+              required
+              hint="Where you take the cargo from and where you hand it over: from the door (address) or from the port."
+            >
               <NativeSelect
                 id="movement"
                 value={form.movement}
@@ -418,21 +456,48 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
                 ))}
               </NativeSelect>
             </FormField>
+            {showPorts && (
+              <>
+                <FormField label={terminals.from} htmlFor="portOfDeparture">
+                  <Combobox
+                    id="portOfDeparture"
+                    value={form.portOfDeparture}
+                    options={terminalOptions}
+                    allowCustom
+                    placeholder="Select or type"
+                    onChange={(value) => set('portOfDeparture', value)}
+                  />
+                </FormField>
+                <FormField label={terminals.to} htmlFor="portOfDelivery">
+                  <Combobox
+                    id="portOfDelivery"
+                    value={form.portOfDelivery}
+                    options={terminalOptions}
+                    allowCustom
+                    placeholder="Select or type"
+                    onChange={(value) => set('portOfDelivery', value)}
+                  />
+                </FormField>
+              </>
+            )}
           </div>
         </SectionCard>
+      </div>
 
-        <SectionCard title="Transport">
-          <div className="grid grid-cols-2 gap-4">
-            <FormField label="Mode" htmlFor="mode" required>
-              <NativeSelect id="mode" value={form.mode} onChange={(e) => pickMode(e.target.value as TransportMode)}>
-                {TRANSPORT_MODES.map((value) => (
-                  <option key={value} value={value}>
-                    {t(transportModeLabels[value])}
-                  </option>
-                ))}
-              </NativeSelect>
-            </FormField>
-            <FormField label="Type" htmlFor="equipment" required>
+      <SectionCard title="Transport and cargo">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <FormField label="Mode" htmlFor="mode" required>
+            <NativeSelect id="mode" value={form.mode} onChange={(e) => pickMode(e.target.value as TransportMode)}>
+              {TRANSPORT_MODES.map((value) => (
+                <option key={value} value={value}>
+                  {t(transportModeLabels[value])}
+                </option>
+              ))}
+            </NativeSelect>
+          </FormField>
+          {/* В авиа выбирать нечего (всегда Air), поэтому поле прячем */}
+          {form.mode !== 'air' && (
+            <FormField label="Equipment" htmlFor="equipment" required hint={equipmentHints[form.mode]}>
               <NativeSelect
                 id="equipment"
                 value={form.equipment}
@@ -443,45 +508,62 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
                 ))}
               </NativeSelect>
             </FormField>
-            <FormField label="Quantity" htmlFor="transportQuantity" required error={errors.transportQuantity}>
-              <Input {...bind('transportQuantity')} type="number" min={1} />
-            </FormField>
-            <FormField label="Weight" htmlFor="weight" required error={errors.weight}>
-              <div className="flex gap-2">
-                <Input {...bind('weight')} type="number" min={0} step="any" />
-                <div className="w-20 shrink-0">
-                  <NativeSelect
-                    aria-label={t('Weight unit')}
-                    value={form.weightUnit}
-                    onChange={(e) => set('weightUnit', e.target.value as 'kg' | 't')}
-                  >
-                    <option value="kg">{t('kg')}</option>
-                    <option value="t">{t('ton')}</option>
-                  </NativeSelect>
-                </div>
+          )}
+          <FormField
+            label="Quantity"
+            htmlFor="transportQuantity"
+            required
+            error={errors.transportQuantity}
+            hint="How many containers, trucks or wagons. For air and part loads put 1."
+          >
+            <Input {...bind('transportQuantity')} type="number" min={1} />
+          </FormField>
+          <FormField label="Weight" htmlFor="weight" required error={errors.weight}>
+            <div className="flex gap-2">
+              <Input {...bind('weight')} type="number" min={0} step="any" placeholder="0" />
+              <div className="w-20 shrink-0">
+                <NativeSelect
+                  aria-label={t('Weight unit')}
+                  value={form.weightUnit}
+                  onChange={(e) => set('weightUnit', e.target.value as 'kg' | 't')}
+                >
+                  <option value="kg">{t('kg')}</option>
+                  <option value="t">{t('ton')}</option>
+                </NativeSelect>
               </div>
-            </FormField>
-            <FormField label="Volume, m³" htmlFor="volumeM3" error={errors.volumeM3}>
-              <Input {...bind('volumeM3')} type="number" min={0} step="any" />
-            </FormField>
-            {/* Оплачиваемый вес считают только в авиа */}
-            {form.mode === 'air' && (
-              <FormField label="CWT, kg" htmlFor="chargeableWeightKg" error={errors.chargeableWeightKg}>
-                <Input {...bind('chargeableWeightKg')} type="number" min={0} step="any" />
-              </FormField>
-            )}
+            </div>
+          </FormField>
+          <FormField label="Volume, m³" htmlFor="volumeM3" error={errors.volumeM3}>
+            <Input {...bind('volumeM3')} type="number" min={0} step="any" placeholder="0" />
+          </FormField>
+          {/* Оплачиваемый вес считают только в авиа */}
+          {form.mode === 'air' && (
             <FormField
-              label="Nature of goods"
-              htmlFor="natureOfGoods"
-              required
-              error={errors.natureOfGoods}
-              className="col-span-2"
+              label="Chargeable weight, kg"
+              htmlFor="chargeableWeightKg"
+              error={errors.chargeableWeightKg}
+              hint="Airlines charge for the bigger of the real weight and the volume weight (1 m³ = 167 kg). Leave empty and we use the suggested value."
             >
-              <Input {...bind('natureOfGoods')} placeholder={t('e.g. Cotton yarn')} />
+              <Input
+                {...bind('chargeableWeightKg')}
+                type="number"
+                min={0}
+                step="any"
+                placeholder={suggestedCwt ? String(suggestedCwt) : '0'}
+              />
             </FormField>
-          </div>
-        </SectionCard>
-      </div>
+          )}
+          <FormField
+            label="Nature of goods"
+            htmlFor="natureOfGoods"
+            required
+            error={errors.natureOfGoods}
+            className="sm:col-span-2 lg:col-span-3"
+          >
+            <Input {...bind('natureOfGoods')} placeholder={t('e.g. Cotton yarn')} />
+          </FormField>
+        </div>
+      </SectionCard>
 
       {/* ---------- Cargo lines (необязательно) ---------- */}
       <SectionCard
@@ -515,7 +597,7 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
             {t('Optional. Add lines if you know pieces, packages and dimensions.')}
           </p>
         ) : (
-          <div className="space-y-2 overflow-x-auto">
+          <div className="-mx-1 space-y-2 overflow-x-auto px-1 py-1">
             <div className="grid min-w-[720px] grid-cols-[80px_1fr_1.4fr_1.2fr_110px_100px_36px] gap-2 text-xs text-muted-foreground">
               <span>{t('Pieces')}</span>
               <span>{t('Package type')}</span>
@@ -600,13 +682,24 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
           </Button>
         }
       >
-        <div className="space-y-2 overflow-x-auto">
+        <div className="-mx-1 space-y-2 overflow-x-auto px-1 py-1">
           <div className="grid min-w-[980px] grid-cols-[1.2fr_1.4fr_80px_120px_120px_minmax(240px,1fr)_36px] gap-2 text-xs text-muted-foreground">
-            <span>{t('Carrier')}</span>
-            <span>{t('Charge type')}</span>
-            <span>{t('Qty')}</span>
-            <span>{t('Rate income')}</span>
-            <span>{t('Rate cost')}</span>
+            <HeaderHint label="Carrier" hint="Who does this part of the job: carrier, agent or customs broker." />
+            <HeaderHint
+              label="Service"
+              hint="What you charge for: freight, pick-up, customs, insurance. One line per service."
+            />
+            <HeaderHint label="Qty" hint="How many times the rate applies, e.g. 2 containers × the rate." />
+            <HeaderHint
+              label={t('Rate income, {currency}', { currency: form.currency })}
+              hint="Price for the customer for one unit."
+              required
+            />
+            <HeaderHint
+              label={t('Rate cost, {currency}', { currency: form.currency })}
+              hint="What the carrier charges you for one unit."
+              required
+            />
             <span className="text-right">{t('Income / Profit / Margin')}</span>
             <span />
           </div>
@@ -623,7 +716,7 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
                   onChange={(vendorId) => updateCharge(charge.id, { vendorId })}
                 />
                 <Input
-                  aria-label={t('Charge type')}
+                  aria-label={t('Service')}
                   placeholder={t('e.g. Ocean freight 40 HQ')}
                   value={charge.chargeType}
                   onChange={(e) => updateCharge(charge.id, { chargeType: e.target.value })}
@@ -639,7 +732,9 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
                   type="number"
                   step="any"
                   aria-label={t('Rate income')}
-                  value={charge.rateIncome}
+                  aria-invalid={!!errors.charges && isFilled(charge) && !(charge.rateIncome > 0)}
+                  placeholder="0"
+                  value={charge.rateIncome || ''}
                   min={0}
                   onChange={(e) => updateCharge(charge.id, { rateIncome: amount(e.target.value) })}
                 />
@@ -647,7 +742,9 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
                   type="number"
                   step="any"
                   aria-label={t('Rate cost')}
-                  value={charge.rateCost}
+                  aria-invalid={!!errors.charges && isFilled(charge) && !(charge.rateCost > 0)}
+                  placeholder="0"
+                  value={charge.rateCost || ''}
                   min={0}
                   onChange={(e) => updateCharge(charge.id, { rateCost: amount(e.target.value) })}
                 />
@@ -677,6 +774,8 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
           })}
         </div>
 
+        {errors.charges && <p className="mt-2 text-sm text-destructive">{errors.charges}</p>}
+
         {/* Итоги считаются на лету, пока человек вводит ставки */}
         <div className="mt-4 grid gap-3 rounded-lg bg-muted/50 p-4 sm:grid-cols-4">
           <Total label="Rate income" value={money(totals.income)} />
@@ -697,20 +796,50 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
               ))}
             </NativeSelect>
           </FormField>
-          <FormField label="Transit time" htmlFor="transitTime">
-            <Input {...bind('transitTime')} placeholder={t('e.g. 15 days')} />
+          <FormField
+            label="Transit time, days"
+            htmlFor="transitTime"
+            hint="Only the number of days, or a range like 15-20."
+          >
+            <Input
+              {...bind('transitTime')}
+              inputMode="numeric"
+              maxLength={7}
+              placeholder="15"
+              onChange={(e) => set('transitTime', e.target.value.replace(/[^\d-]/g, '').replace(/-+/g, '-'))}
+            />
           </FormField>
-          <FormField label="Payment terms" htmlFor="paymentTerms">
+          <FormField
+            label="Payment terms"
+            htmlFor="paymentTerms"
+            hint="How the customer pays, e.g. 30% before loading and 70% on delivery."
+          >
             <Input {...bind('paymentTerms')} placeholder="30% / 70%" />
           </FormField>
-          <FormField label="Valid to" htmlFor="validTo">
-            <Input {...bind('validTo')} type="date" />
+          {existing && (
+            <FormField label="Valid to" htmlFor="validTo">
+              <Input {...bind('validTo')} type="date" />
+            </FormField>
+          )}
+          <FormField
+            label="Terms & conditions"
+            htmlFor="termsAndConditions"
+            className="self-start sm:col-span-2"
+            hint="Printed on the quotation for the customer."
+          >
+            <Textarea
+              {...bind('termsAndConditions')}
+              rows={3}
+              placeholder={t('e.g. Price excludes customs duties and storage.')}
+            />
           </FormField>
-          <FormField label="Terms & conditions" htmlFor="termsAndConditions" className="sm:col-span-2">
-            <Textarea {...bind('termsAndConditions')} rows={3} />
-          </FormField>
-          <FormField label="Notes" htmlFor="notes" className="sm:col-span-2">
-            <Textarea {...bind('notes')} rows={3} />
+          <FormField
+            label="Notes"
+            htmlFor="notes"
+            className="self-start sm:col-span-2"
+            hint="For your team only. The customer does not see notes."
+          >
+            <Textarea {...bind('notes')} rows={3} placeholder={t('Internal notes')} />
           </FormField>
         </div>
       </SectionCard>
@@ -752,5 +881,24 @@ function Total({ label, value, tone }: { label: string; value: string; tone?: 'g
         {value}
       </div>
     </div>
+  )
+}
+
+// Пояснение к виду «тары»: что значат FCL, 40 HQ и т.п.
+const equipmentHints: Record<TransportMode, string> = {
+  sea: 'FCL: a whole container for this cargo. LCL: part of a shared container. 20 GP / 40 DV: 20 or 40-foot standard container, 40 HQ: high cube, 40 OT: open top, 40 RF: refrigerated.',
+  road: 'FTL: a whole truck. LTL: part of a truck shared with other cargo. Lowbed and flatbed: open platforms for heavy or oversized cargo. 20 GP / 40 HQ: a container on a truck.',
+  rail: 'FCL: a whole container. 20 GP / 40 DV / 40 HQ: container size in feet. 40 OT: open top, 40 RF: refrigerated.',
+  air: '',
+}
+
+// Заголовок колонки таблицы со значком «?»
+function HeaderHint({ label, hint, required }: { label: string; hint: string; required?: boolean }) {
+  return (
+    <span className="flex items-center gap-1">
+      {t(label)}
+      {required && <span className="text-destructive">*</span>}
+      <FieldHint text={hint} />
+    </span>
   )
 }

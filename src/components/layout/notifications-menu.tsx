@@ -81,7 +81,7 @@ export function NotificationsMenu() {
         </div>
         <div className="border-t p-1">
           <DropdownMenuItem asChild className="justify-center text-xs text-muted-foreground">
-            <Link to="/settings">{t('Notification settings')}</Link>
+            <Link to="/settings?tab=preferences">{t('Notification settings')}</Link>
           </DropdownMenuItem>
         </div>
       </DropdownMenuContent>

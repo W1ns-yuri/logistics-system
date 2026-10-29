@@ -674,7 +674,25 @@ export function addTeamMember(data: Omit<TeamMember, 'id'>) {
 }
 
 export function updateTeamMember(id: string, patch: Partial<TeamMember>) {
-  setState((s) => ({ ...s, team: s.team.map((m) => (m.id === id ? { ...m, ...patch } : m)) }))
+  setState((s) => {
+    const before = s.team.find((m) => m.id === id)
+    const oldEmail = before?.email
+    const newEmail = patch.email
+    // Сменили email — котировки и перевозки этого человека остаются за ним
+    const moved = (email?: string) => (oldEmail && newEmail && email === oldEmail ? newEmail : email)
+    return {
+      ...s,
+      team: s.team.map((m) => (m.id === id ? { ...m, ...patch } : m)),
+      quotations:
+        newEmail && newEmail !== oldEmail
+          ? s.quotations.map((q) => ({ ...q, createdBy: moved(q.createdBy) }))
+          : s.quotations,
+      shipments:
+        newEmail && newEmail !== oldEmail
+          ? s.shipments.map((x) => ({ ...x, createdBy: moved(x.createdBy) }))
+          : s.shipments,
+    }
+  })
 }
 
 export function removeTeamMember(id: string) {

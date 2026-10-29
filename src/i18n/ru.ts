@@ -127,7 +127,7 @@ export const ru: Record<string, string> = {
   'Company type': 'Тип компании',
   'Transport they handle': 'Какие перевозки делает',
   Sign: 'Знак',
-  Equipment: 'Транспорт',
+  Equipment: 'Тип (контейнер, машина)',
   Containers: 'Контейнеры',
   Pending: 'В ожидании',
   Quantity: 'Количество',
@@ -226,7 +226,7 @@ export const ru: Record<string, string> = {
   'Add charge': 'Добавить ставку',
   'Remove charge': 'Убрать ставку',
   'Order type': 'Тип услуги',
-  'Charge type': 'Статья',
+  'Charge type': 'Услуга',
   Qty: 'Кол-во',
   'Rate income': 'Ставка клиенту',
   'Rate cost': 'Себестоимость',
@@ -673,7 +673,7 @@ export const ru: Record<string, string> = {
   'Who you are': 'Кто вы',
   'Your account': 'Ваш аккаунт',
   'How you sign in': 'Как входить',
-  'After the trial': 'После пробного периода',
+  'After the trial': 'После пробных дней',
   '{n}-day free trial. No card needed. You become the admin and invite your team later.':
     '{n} дней бесплатно, карта не нужна. Вы станете админом и позже пригласите команду.',
   'What do you transport?': 'Что вы перевозите?',
@@ -695,7 +695,7 @@ export const ru: Record<string, string> = {
   '{name}: the content does not match the file type': '{name}: содержимое не совпадает с типом файла',
   'PDF, JPG, PNG, WEBP, Word or Excel, up to 10 MB.': 'PDF, JPG, PNG, WEBP, Word или Excel, до 10 МБ.',
   'A company with this email is already registered. Sign in instead.':
-    'Компания с этим email уже зарегистрирована. Войдите в систему.',
+    'Этот email уже занят другой компанией. Войдите в систему.',
   'Whole number above 0': 'Целое число больше 0',
   'Cannot be negative': 'Не может быть меньше 0',
   'ETA cannot be before ETD': 'Прибытие не может быть раньше отправки',
@@ -710,4 +710,120 @@ export const ru: Record<string, string> = {
   '{name} already exists in Customers': '{name} уже есть в клиентах',
   '{name} already exists in Vendors': '{name} уже есть в подрядчиках',
   'Add invoice': 'Добавить инвойс',
+  'Sign in to {name}': 'Вход в {name}',
+  'Enter your work email to open the workspace.': 'Введите рабочий email, чтобы открыть рабочее пространство.',
+  'Demo access': 'Демо-доступ',
+  'No password needed. Pick a role to try the system.': 'Пароль не нужен. Выберите роль, чтобы попробовать систему.',
+  'Forwarding suite': 'Система для экспедиторов',
+  'The smart workspace for modern forwarding.': 'Умное рабочее место для современной экспедиции.',
+  'Track shipments, manage quotations, and analyze revenue in one secure platform.':
+    'Перевозки, котировки и выручка в одной защищённой системе.',
+  Live: 'Сейчас',
+  'As it should appear on quotations and invoices. You can change it later in Settings.':
+    'Как писать в котировках и инвойсах. Потом можно поменять в настройках.',
+  'Your company name': 'Название вашей компании',
+  'Helps us suggest a plan. It does not limit anything.': 'Нужно, чтобы подсказать тариф. Ничего не ограничивает.',
+  'First and last name': 'Имя и фамилия',
+  'You will sign in with this email. Later we will send a code to confirm it.':
+    'По этому email вы будете входить. Позже сюда придёт код подтверждения.',
+  'With country code, e.g. +1 202 555 0123': 'С кодом страны, например +1 202 555 0123',
+  '(you)': '(вы)',
+  'Airlines charge for the bigger of the real weight and the volume weight (1 m³ = 167 kg). Leave empty and we use the suggested value.':
+    'Авиакомпании берут деньги за больший из двух весов: фактический или объёмный (1 м³ = 167 кг). Оставьте пустым, и мы подставим подсказанное значение.',
+  'Airport of arrival': 'Аэропорт прибытия',
+  'Airport of departure': 'Аэропорт вылета',
+  'Chargeable weight, kg': 'Оплачиваемый вес, кг',
+  'Company details': 'Реквизиты компании',
+  'Company details, team, subscription and personal preferences.':
+    'Реквизиты компании, команда, подписка и личные настройки.',
+  Done: 'Готово',
+  'Edit {name}': 'Изменить: {name}',
+  'Enter the rate to the customer and the cost in every line': 'Укажите ставку клиенту и себестоимость в каждой строке',
+  'FCL: a whole container for this cargo. LCL: part of a shared container. 20 GP / 40 DV: 20 or 40-foot standard container, 40 HQ: high cube, 40 OT: open top, 40 RF: refrigerated.':
+    'FCL — целый контейнер под этот груз. LCL — место в сборном контейнере. 20 GP / 40 DV — обычный 20- или 40-футовый контейнер, 40 HQ — высокий, 40 OT — с открытым верхом, 40 RF — рефрижератор.',
+  'FCL: a whole container. 20 GP / 40 DV / 40 HQ: container size in feet. 40 OT: open top, 40 RF: refrigerated.':
+    'FCL — целый контейнер. 20 GP / 40 DV / 40 HQ — размер контейнера в футах. 40 OT — с открытым верхом, 40 RF — рефрижератор.',
+  'FTL: a whole truck. LTL: part of a truck shared with other cargo. Lowbed and flatbed: open platforms for heavy or oversized cargo. 20 GP / 40 HQ: a container on a truck.':
+    'FTL — целая фура. LTL — часть фуры вместе с другими грузами (сборный). Lowbed и Flatbed — открытые платформы для тяжёлых и негабаритных грузов. 20 GP / 40 HQ — контейнер на машине.',
+  'Filled in from the customer card': 'Подставится из карточки клиента',
+  'For your team only. The customer does not see notes.': 'Только для вашей команды. Клиент заметки не видит.',
+  'How many containers, trucks or wagons. For air and part loads put 1.':
+    'Сколько контейнеров, машин или вагонов. Для авиа и сборных грузов — 1.',
+  'How many days the price is valid. Printed on the quotation PDF.':
+    'Сколько дней действует цена. Печатается в PDF котировки.',
+  'How many times the rate applies, e.g. 2 containers × the rate.':
+    'Сколько раз применяется ставка, например 2 контейнера × ставка.',
+  'How the customer pays, e.g. 30% before loading and 70% on delivery.':
+    'Как платит клиент, например 30% до погрузки и 70% по доставке.',
+  'Internal notes': 'Внутренние заметки',
+  'Invitation sent to {email}.': 'Приглашение отправлено на {email}.',
+  'Language and appearance': 'Язык и оформление',
+  'Legal or office address. Printed on quotations and invoices.':
+    'Юридический или фактический адрес. Печатается в котировках и инвойсах.',
+  'Name and phone': 'Имя и телефон',
+  'New quotations start in this currency. You can change it in each quotation.':
+    'Новые котировки создаются в этой валюте. В каждой котировке её можно сменить.',
+  'Only the number of days, or a range like 15-20.': 'Только число дней или диапазон, например 15-20.',
+  'Optional. Printed next to the contacts on PDFs.': 'Необязательно. Печатается рядом с контактами в PDF.',
+  'Port of discharge': 'Порт выгрузки',
+  'Port of loading': 'Порт погрузки',
+  Preferences: 'Личные настройки',
+  'Price for the customer for one unit.': 'Цена для клиента за единицу.',
+  'Printed in the header of quotation and invoice PDFs, so customers see who sends them.':
+    'Печатаются в шапке PDF котировок и инвойсов, чтобы клиент видел, от кого документ.',
+  'Printed on the quotation for the customer.': 'Печатается в котировке для клиента.',
+  'Rate cost, {currency}': 'Себестоимость, {currency}',
+  'Rate income, {currency}': 'Ставка клиенту, {currency}',
+  'Remove {name} from the team?': 'Убрать {name} из команды?',
+  'Reset settings': 'Сбросить настройки',
+  'Select or type': 'Выберите или впишите',
+  'Send invitation': 'Отправить приглашение',
+  Service: 'Услуга',
+  'Station of arrival': 'Станция прибытия',
+  'Station of departure': 'Станция отправления',
+  'Street, building': 'Улица, дом',
+  'Street, building, city, country': 'Улица, дом, город, страна',
+  'The person at this company you call or write to about bookings, for example their sales or operations manager.':
+    'Человек в этой компании, с кем вы договариваетесь о перевозках: менеджер по продажам или диспетчер.',
+  'The person opens the link from the email, sets their own password and signs in with this email. You never need to know their password.':
+    'Человек откроет ссылку из письма, сам задаст пароль и будет входить по этому email. Знать его пароль вам не нужно.',
+  'The person signs in with this email. The company is found by the email, so no company name is needed at sign-in.':
+    'Человек входит по этому email. Компания определяется по email, поэтому при входе название компании не нужно.',
+  'The person will no longer be able to sign in. Their quotations and shipments stay.':
+    'Человек больше не сможет войти. Его котировки и перевозки останутся.',
+  Theme: 'Тема',
+  'This email is already in the team': 'Этот email уже есть в команде',
+  'Transit time, days': 'Срок в пути, дней',
+  'Transport and cargo': 'Транспорт и груз',
+  'Two to four Latin letters at the start of every number, usually your company initials.':
+    '2–4 латинские буквы в начале каждого номера, обычно инициалы компании.',
+  'Until when the price holds. Printed on the PDF.': 'До какой даты действует цена. Печатается в PDF.',
+  'We will email an invitation. The person sets their own password.':
+    'Мы отправим приглашение на email. Пароль человек задаст сам.',
+  'What the carrier charges you for one unit.': 'Сколько перевозчик берёт с вас за единицу.',
+  'What the company is: an airline, a shipping line, a trucking company, a rail operator or an agent who arranges transport for you.':
+    'Кто эта компания: авиакомпания, морская линия, автоперевозчик, ж/д оператор или агент, который организует перевозку за вас.',
+  'What you charge for: freight, pick-up, customs, insurance. One line per service.':
+    'За что берёте деньги: фрахт, забор груза, таможня, страховка. Одна строка — одна услуга.',
+  'Where you take the cargo from and where you hand it over: from the door (address) or from the port.':
+    'Откуда забираете груз и где сдаёте: от двери (адрес) или от порта.',
+  'Which transport you can order from them. An agent can handle several kinds.':
+    'Какой транспорт можно у них заказать. Агент может работать с несколькими видами.',
+  'Who at the customer asked for the price. Filled in from the customer card.':
+    'Кто у клиента запросил цену. Подставляется из карточки клиента.',
+  'Who does this part of the job: carrier, agent or customs broker.':
+    'Кто делает эту часть работы: перевозчик, агент или таможенный брокер.',
+  'Who pays for what along the way. EXW: the buyer takes the goods at the seller. DAP: the seller delivers to the named place.':
+    'Кто за что платит по пути. EXW — покупатель забирает товар у продавца. DAP — продавец доставляет до указанного места.',
+  'Who you talk to at this customer. Filled into new quotations automatically.':
+    'С кем вы общаетесь у этого клиента. Подставится в новые котировки автоматически.',
+  'You cannot change your own role or email.': 'Свою роль и email поменять нельзя.',
+  'Your company tax number. Invoices to companies usually must show it. Leave empty if you do not need it.':
+    'ИНН вашей компании. В инвойсах для компаний он обычно обязателен. Если не нужен — оставьте пустым.',
+  'e.g. Kras Logistics': 'например, Kras Logistics',
+  'e.g. Merdan, operations': 'например, Мердан, диспетчер',
+  'e.g. Mr. Aman': 'например, Аман',
+  'e.g. 101234567890': 'например, 101234567890',
+  'e.g. Price excludes customs duties and storage.': 'например, цена без таможенных пошлин и хранения.',
+  'e.g. Turkmen Textile': 'например, Turkmen Textile',
 }

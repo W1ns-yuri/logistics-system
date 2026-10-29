@@ -6,6 +6,7 @@ import { formatWeight } from '@/lib/format'
 import { movementLabels, needsPorts } from '@/types/logistics'
 import type { Quotation } from '@/types/quotation'
 import { t } from '@/i18n'
+import { terminalLabels } from '@/lib/terminals'
 
 // Вкладка General: поля со слайда 3 презентации, сгруппированы по смыслу
 export function QuotationGeneralTab({ quotation: q }: { quotation: Quotation }) {
@@ -32,8 +33,8 @@ export function QuotationGeneralTab({ quotation: q }: { quotation: Quotation }) 
           <InfoField label="Delivery location">{q.deliveryAddress}</InfoField>
           {(needsPorts(q.mode, q.movement) || q.portOfDeparture || q.portOfDelivery) && (
             <>
-              <InfoField label="Port of departure">{q.portOfDeparture}</InfoField>
-              <InfoField label="Port of delivery">{q.portOfDelivery}</InfoField>
+              <InfoField label={terminalLabels(q.mode).from}>{q.portOfDeparture}</InfoField>
+              <InfoField label={terminalLabels(q.mode).to}>{q.portOfDelivery}</InfoField>
             </>
           )}
           <InfoField label="Incoterms">{q.incoterm}</InfoField>
@@ -46,13 +47,13 @@ export function QuotationGeneralTab({ quotation: q }: { quotation: Quotation }) 
           <InfoField label="Mode">
             <TransportModeLabel mode={q.mode} />
           </InfoField>
-          <InfoField label="Type">{q.equipment}</InfoField>
+          <InfoField label="Equipment">{q.equipment}</InfoField>
           <InfoField label="Quantity">{q.transportQuantity}</InfoField>
           <InfoField label="Nature of goods">{q.natureOfGoods}</InfoField>
           <InfoField label="Gross weight">{formatWeight(q.weightKg)}</InfoField>
           <InfoField label="Volume">{q.volumeM3 != null ? `${q.volumeM3} m³` : ''}</InfoField>
           {(q.mode === 'air' || !!q.chargeableWeightKg) && (
-            <InfoField label="Chargeable weight (CWT)">
+            <InfoField label="Chargeable weight, kg">
               {q.chargeableWeightKg ? formatWeight(q.chargeableWeightKg) : '—'}
             </InfoField>
           )}

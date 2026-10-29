@@ -3,7 +3,7 @@ import { SectionCard } from '@/components/section-card'
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useVendors } from '@/data/store'
 import { chargeTotals, quotationTotals } from '@/lib/calculation'
-import { formatMoney, formatPercent } from '@/lib/format'
+import { formatMoney, formatPercent, formatTransit } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { Quotation } from '@/types/quotation'
 import { t } from '@/i18n'
@@ -82,7 +82,7 @@ export function QuotationCalculationTab({ quotation: q }: { quotation: Quotation
         <SectionCard title="Terms">
           <div className="grid grid-cols-2 gap-4">
             <InfoField label="Currency">{q.currency}</InfoField>
-            <InfoField label="Transit time">{q.transitTime}</InfoField>
+            <InfoField label="Transit time">{formatTransit(q.transitTime)}</InfoField>
             <InfoField label="Payment terms">{q.paymentTerms}</InfoField>
           </div>
         </SectionCard>

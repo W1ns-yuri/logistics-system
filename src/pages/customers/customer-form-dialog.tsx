@@ -7,7 +7,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input'
 import { createCustomer, updateCustomer, useCustomers } from '@/data/store'
 import { t } from '@/i18n'
-import { citySuggestions, countryOptions } from '@/lib/countries'
+import { phoneExample } from '@/lib/phone'
+import { cityKeywords, cityLabel, citySuggestions, countryOptions } from '@/lib/countries'
 import { isValidEmail, isValidPhone } from '@/lib/input-rules'
 import type { Customer } from '@/types/directory'
 
@@ -66,7 +67,7 @@ function CustomerForm({
   const cities = citySuggestions(
     form.country,
     allCustomers.filter((c) => c.country === form.country).map((c) => c.city),
-  ).map((city) => ({ value: city, label: city }))
+  ).map((city) => ({ value: city, label: cityLabel(city), keywords: cityKeywords(city) }))
   const pick = (patch: Partial<FormState>) => {
     setForm((prev) => ({ ...prev, ...patch }))
     setErrors((prev) => ({ ...prev, ...Object.fromEntries(Object.keys(patch).map((k) => [k, undefined])) }))
@@ -102,7 +103,7 @@ function CustomerForm({
     <form onSubmit={submit} noValidate className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField label="Company name" htmlFor="customer-name" required error={errors.name} className="sm:col-span-2">
-          <Input {...bind('name')} autoFocus />
+          <Input {...bind('name')} autoFocus placeholder={t('e.g. Turkmen Textile')} />
         </FormField>
         <FormField label="Country" htmlFor="customer-country" required error={errors.country}>
           <Combobox
@@ -126,16 +127,20 @@ function CustomerForm({
           />
         </FormField>
         <FormField label="Address" htmlFor="customer-address" className="sm:col-span-2">
-          <Input {...bind('address')} />
+          <Input {...bind('address')} placeholder={t('Street, building')} />
         </FormField>
-        <FormField label="Contact person" htmlFor="customer-contactPerson">
-          <Input {...bind('contactPerson')} />
+        <FormField
+          label="Contact person"
+          htmlFor="customer-contactPerson"
+          hint="Who you talk to at this customer. Filled into new quotations automatically."
+        >
+          <Input {...bind('contactPerson')} placeholder={t('e.g. Mr. Aman')} />
         </FormField>
         <FormField label="Phone" htmlFor="customer-phone" error={errors.phone}>
-          <Input {...bind('phone')} type="tel" placeholder="+993 12 345678" />
+          <Input {...bind('phone')} type="tel" placeholder={phoneExample(form.country)} />
         </FormField>
         <FormField label="Email" htmlFor="customer-email" className="sm:col-span-2" error={errors.email}>
-          <Input {...bind('email')} type="email" />
+          <Input {...bind('email')} type="email" placeholder="info@company.com" />
         </FormField>
       </div>
       <DialogFooter>

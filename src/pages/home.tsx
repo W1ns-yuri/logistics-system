@@ -113,7 +113,7 @@ export function HomePage() {
   }, [quotations, shipments, invoices, canSeePayments])
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-6">
+    <div className="mx-auto max-w-[1600px] space-y-6 p-6">
       <PageHeader title="Home" description="Overview of quotations, shipments and payments." />
 
       {quotations.length === 0 && <GettingStarted />}
@@ -197,7 +197,7 @@ function GettingStarted() {
     { title: 'Add your first customer', to: '/customers?new=1', done: customers.length > 0 },
     { title: 'Add a carrier or agent', to: '/vendors?new=1', done: vendors.length > 0 },
     { title: 'Create a quotation', to: '/quotations/new', done: false },
-    { title: 'Invite your team', to: '/settings', done: team.length > 1 },
+    { title: 'Invite your team', to: '/settings?tab=team', done: team.length > 1 },
   ]
   return (
     <Card className="gap-4">
