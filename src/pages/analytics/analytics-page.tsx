@@ -39,7 +39,7 @@ export function AnalyticsPage() {
   const modeTotal = data.modes.reduce((acc, m) => acc + m.count, 0)
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-5 p-6">
+    <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
       <PageHeader
         title="Analytics"
         description="Revenue, profit and operations at a glance. Amounts are in USD at demo rates."
@@ -232,7 +232,7 @@ export function AnalyticsPage() {
                 return (
                   <div key={p.status} className="rounded-lg border bg-muted/30 p-2.5 text-center">
                     <Icon
-                      className={cn('mx-auto size-4', p.status === 'at_border' ? 'text-warning' : 'text-primary')}
+                      className={cn('mx-auto size-4', p.status === 'at_border' ? 'text-warning-text' : 'text-primary')}
                     />
                     <div className="mt-1.5 text-xl font-semibold tabular-nums">{p.count}</div>
                     <div className="text-[11px] leading-tight text-muted-foreground">{t(statusLabel[p.status])}</div>
@@ -349,7 +349,7 @@ function MarginPill({ value }: { value: number }) {
       ? 'bg-success/12 text-success'
       : value >= 8
         ? 'bg-primary/10 text-primary'
-        : 'bg-warning/15 text-amber-700 dark:text-warning'
+        : 'bg-warning/15 text-warning-text'
   return (
     <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium tabular-nums', tone)}>{value.toFixed(1)}%</span>
   )

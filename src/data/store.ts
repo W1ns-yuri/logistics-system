@@ -183,12 +183,18 @@ function load(): State {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
       const saved = { ...initialState(), ...JSON.parse(raw) } as State
-      return normalize({ ...saved, invoices: withPayments(saved.invoices, saved.shipments) })
+      return withFreshStatuses(normalize({ ...saved, invoices: withPayments(saved.invoices, saved.shipments) }))
     }
   } catch {
     // нет доступа к localStorage или там мусор — начинаем с демо-данных
   }
-  return initialState()
+  return withFreshStatuses(initialState())
+}
+
+// Срок оплаты проходит сам по себе, без изменений в инвойсе. Поэтому при каждом открытии
+// пересчитываем статусы, иначе просроченный инвойс так и висел бы «Частично оплачен»
+function withFreshStatuses(s: State): State {
+  return { ...s, invoices: s.invoices.map((inv) => ({ ...inv, status: invoiceStatus(inv) })) }
 }
 
 let state: State = load()
@@ -293,9 +299,18 @@ export function deleteQuotation(id: string) {
 }
 
 // Кнопка «Create shipment»: шипмент получает номер котировки, маршрут и груз переносятся
+// Действующая (не отменённая) перевозка, созданная из котировки
+const linkedShipment = (shipments: Shipment[], quotationId: string) =>
+  shipments.find((s) => s.quotationId === quotationId && s.status !== 'cancelled')
+export const useLinkedShipment = (quotationId?: string) =>
+  useStore((s) => (quotationId ? linkedShipment(s.shipments, quotationId) : undefined))
+
+// Одна котировка — одна перевозка: если перевозка уже есть, возвращаем её, а не делаем дубль
 export function createShipmentFromQuotation(id: string) {
   const q = state.quotations.find((item) => item.id === id)
   if (!q) return
+  const existing = linkedShipment(state.shipments, q.id)
+  if (existing) return existing
   const shipment: Shipment = {
     id: newId(),
     number: nextShipmentNumber(),
@@ -500,12 +515,15 @@ export function deleteVendor(id: string) {
 export const useInvoices = () => useStore((s) => s.invoices)
 
 // Статус инвойса считается из оплат и срока
+// Черновик клиенту ещё не отправлен, поэтому просроченным не считается.
+// Дата берётся прямо здесь: функция нужна уже при загрузке, когда today() ниже ещё не объявлен
 function invoiceStatus(invoice: Invoice): InvoiceStatus {
   const { total, balanceDue } = invoiceTotals(invoice)
   if (total > 0 && balanceDue <= 0.005) return 'paid'
-  if (invoice.dueDate < today()) return 'overdue'
+  if (invoice.status === 'draft' && invoice.paid <= 0) return 'draft'
+  if (invoice.dueDate < new Date().toISOString().slice(0, 10)) return 'overdue'
   if (invoice.paid > 0) return 'partially_paid'
-  return invoice.status === 'draft' ? 'draft' : 'sent'
+  return 'sent'
 }
 
 // paid и discount — сумма по списку оплат; после любого изменения пересчитываем

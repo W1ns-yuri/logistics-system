@@ -13,7 +13,7 @@ import { t } from '@/i18n'
 const kindIcon: Record<NotificationKind, { icon: typeof Bell; className: string }> = {
   status: { icon: Truck, className: 'bg-primary/10 text-primary' },
   quotation: { icon: FileText, className: 'bg-success/12 text-success' },
-  border: { icon: AlertTriangle, className: 'bg-warning/15 text-warning' },
+  border: { icon: AlertTriangle, className: 'bg-warning/15 text-warning-text' },
 }
 
 export function NotificationsMenu() {

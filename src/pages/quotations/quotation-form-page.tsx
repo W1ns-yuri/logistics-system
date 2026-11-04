@@ -330,7 +330,7 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
   const backTo = existing ? `/quotations/${existing.id}` : '/quotations'
 
   return (
-    <form onSubmit={submit} noValidate className="mx-auto max-w-[1400px] space-y-5 p-6">
+    <form onSubmit={submit} noValidate className="mx-auto max-w-[1400px] space-y-5 p-4 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Button asChild variant="outline" size="icon-sm" aria-label={t('Back')}>

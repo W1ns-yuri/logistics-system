@@ -9,8 +9,8 @@ import { cn } from '@/lib/utils'
 // Подпись + поле + ошибка. Обязательные поля помечены звёздочкой, остальные — без пометок,
 // чтобы длинные русские подписи не переносились и не налезали друг на друга.
 // hint — пояснение «что это и зачем», показывается при наведении на значок «?».
-// Ошибка всплывает поверх формы под полем, поэтому вёрстка не прыгает. Чтобы подсказки не громоздились
-// друг на друга, текст видно у поля в фокусе или под мышкой, у остальных — только красная рамка.
+// Ошибка всплывает поверх формы над полем справа, на свободном месте строки с подписью: вёрстка не прыгает
+// и соседние поля не закрываются. Текст видно у поля в фокусе или под мышкой, у остальных — только красная рамка.
 // Первое поле с ошибкой получает фокус само.
 export function FormField({
   label,
@@ -50,6 +50,7 @@ export function FormField({
         {error && (
           <FieldError
             text={error}
+            placement="above"
             className="opacity-0 transition-opacity group-focus-within/field:opacity-100 group-hover/field:opacity-100"
           />
         )}
@@ -80,17 +81,35 @@ export function FieldHint({ text }: { text: string }) {
   )
 }
 
-// Всплывающая подсказка об ошибке: стрелка указывает на поле, место в форме она не занимает
-export function FieldError({ text, className }: { text: string; className?: string }) {
+// Всплывающая подсказка об ошибке: стрелка указывает на поле, место в форме она не занимает.
+// above — над полем у правого края, below — под полем слева (для галочек, где сверху текст)
+export function FieldError({
+  text,
+  className,
+  placement = 'below',
+}: {
+  text: string
+  className?: string
+  placement?: 'above' | 'below'
+}) {
   return (
     <div
       role="alert"
       className={cn(
-        'pointer-events-none absolute top-full left-0 z-20 mt-1.5 max-w-full animate-in rounded-md bg-destructive px-2.5 py-1 text-xs text-white shadow-md fade-in-0 slide-in-from-top-1',
+        'pointer-events-none absolute z-20 max-w-[90%] animate-in rounded-md bg-destructive px-2.5 py-1 text-xs text-white shadow-md fade-in-0',
+        placement === 'above'
+          ? 'right-0 bottom-full mb-1.5 slide-in-from-bottom-1'
+          : 'top-full left-0 mt-1.5 slide-in-from-top-1',
         className,
       )}
     >
-      <span aria-hidden className="absolute -top-1 left-3 size-2 rotate-45 bg-destructive" />
+      <span
+        aria-hidden
+        className={cn(
+          'absolute size-2 rotate-45 bg-destructive',
+          placement === 'above' ? 'right-3 -bottom-1' : 'left-3 -top-1',
+        )}
+      />
       <span className="relative">{text}</span>
     </div>
   )

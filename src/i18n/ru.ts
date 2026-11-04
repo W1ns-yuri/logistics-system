@@ -111,10 +111,38 @@ export const ru: Record<string, string> = {
   'Next page': 'Следующая страница',
   'Last page': 'Последняя страница',
   'Click a row to select it.': 'Нажмите на строку, чтобы выбрать её.',
-  'Click a row to select it, double-click to open the quotation.':
-    'Клик выбирает строку, двойной клик открывает котировку.',
-  'Click a row to select it, double-click to open the shipment.':
-    'Клик выбирает строку, двойной клик открывает перевозку.',
+  'Click the number to open a quotation. Click a row to select it for the buttons above.':
+    'Нажмите на номер, чтобы открыть котировку. Клик по строке выбирает её для кнопок сверху.',
+  'Click the number to open a shipment. Click a row to select it for the buttons above.':
+    'Нажмите на номер, чтобы открыть перевозку. Клик по строке выбирает её для кнопок сверху.',
+  'Close menu': 'Закрыть меню',
+  Close: 'Закрыть',
+  kg: 'кг',
+  ton: 'т',
+  'Open shipment {number}': 'Открыть перевозку {number}',
+  'Password reset by email is not available yet. Write to': 'Сброс пароля по почте пока не работает. Напишите на',
+  'Answers to common questions and how to reach us.': 'Ответы на частые вопросы и как с нами связаться.',
+  'Write to us': 'Напишите нам',
+  'Describe what happened and, if you can, attach a screenshot. We answer on working days.':
+    'Опишите, что случилось, и по возможности приложите скриншот. Отвечаем в рабочие дни.',
+  'Common questions': 'Частые вопросы',
+  'How does a quotation become a shipment?': 'Как котировка становится перевозкой?',
+  'Open the quotation and press "Create shipment". Route, cargo, customer and carriers are copied over. One quotation gives one shipment.':
+    'Откройте котировку и нажмите «Создать перевозку». Маршрут, груз, клиент и перевозчики перенесутся сами. Из одной котировки получается одна перевозка.',
+  'Where do I issue an invoice to the customer?': 'Где выставить инвойс клиенту?',
+  'Invoices are issued from the shipment: open it and use "Create invoice" in Customer payments. Payments against the invoice are recorded there too.':
+    'Инвойс выставляется из перевозки: откройте её и нажмите «Выставить инвойс» в блоке «Оплаты клиента». Там же отмечаются оплаты.',
+  'Who sees what?': 'Кто что видит?',
+  'Admin sees and changes everything, including the team. Accountant sees orders and invoices and records payments. Employee works with orders and does not see payments.':
+    'Админ видит и меняет всё, включая команду. Бухгалтер видит заказы и инвойсы и вносит оплаты. Сотрудник работает с заказами и не видит оплаты.',
+  'How are numbers like AT000001 made?': 'Откуда берутся номера вида AT000001?',
+  'From the prefix in Settings → Company → Document numbers. Quotations, shipments and invoices each count from 1.':
+    'Из префикса в Настройки → Компания → Номера документов. У котировок, перевозок и инвойсов свой счёт с 1.',
+  'How do I add a colleague?': 'Как добавить коллегу?',
+  'Settings → Team and roles → Add person. They get an invitation by email and set their own password.':
+    'Настройки → Команда и роли → Добавить сотрудника. Ему придёт приглашение на почту, пароль он задаст сам.',
+  Menu: 'Меню',
+  'Open menu': 'Открыть меню',
 
   // Виды транспорта и оборудование
   Air: 'Авиа',

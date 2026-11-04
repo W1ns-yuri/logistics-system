@@ -7,7 +7,14 @@ import { DocumentToolbar } from '@/components/document-toolbar'
 import { PageHeader } from '@/components/page-header'
 import { quotationStatuses } from '@/components/status-badge'
 import { useCanModify } from '@/data/auth'
-import { copyQuotation, createShipmentFromQuotation, deleteQuotation, useMemberName, useQuotations } from '@/data/store'
+import {
+  copyQuotation,
+  createShipmentFromQuotation,
+  deleteQuotation,
+  useLinkedShipment,
+  useMemberName,
+  useQuotations,
+} from '@/data/store'
 import { TRANSPORT_MODES, transportModeLabels } from '@/types/logistics'
 import { QUOTATION_STATUSES, type Quotation } from '@/types/quotation'
 import { quotationColumns } from './quotation-columns'
@@ -25,13 +32,14 @@ export function QuotationsPage() {
 
   // Если выбранную котировку удалили, selected станет undefined — кнопки сами выключатся
   const selected = quotations.find((q) => q.id === selectedId)
+  const linked = useLinkedShipment(selected?.id)
   const canModify = useCanModify(selected)
   const ownerName = useMemberName(selected?.createdBy)
 
   const open = (quotation: Quotation) => navigate(`/quotations/${quotation.id}`)
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-4 p-6">
+    <div className="mx-auto max-w-[1600px] space-y-4 p-4 sm:p-6">
       <PageHeader
         title="Quotations"
         description="Price offers for customers: route, cargo, calculation and margin."
@@ -51,7 +59,7 @@ export function QuotationsPage() {
               const shipment = selected && createShipmentFromQuotation(selected.id)
               if (shipment) navigate(`/shipments/${shipment.id}`)
             }}
-            createShipmentDisabled={selected?.status === 'shipment_created' || selected?.status === 'cancelled'}
+            createShipmentDisabled={!!linked || selected?.status === 'cancelled'}
             onDelete={() => setConfirmOpen(true)}
           />
         }
@@ -76,7 +84,7 @@ export function QuotationsPage() {
         <QuotationPreview quotation={selected} />
       ) : (
         <p className="px-1 text-xs text-muted-foreground">
-          {t('Click a row to select it, double-click to open the quotation.')}
+          {t('Click the number to open a quotation. Click a row to select it for the buttons above.')}
         </p>
       )}
 

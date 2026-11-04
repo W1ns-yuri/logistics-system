@@ -78,7 +78,7 @@ export function LicensePaymentsPage() {
   ]
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-5 p-6">
+    <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
       <PageHeader title="License payments" description="Every payment for a license, newest first. Amounts in USD." />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {kpis.map((kpi) => (

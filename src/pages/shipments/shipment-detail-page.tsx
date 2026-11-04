@@ -60,7 +60,7 @@ export function ShipmentDetailPage() {
   const nextStatus = isCancelled ? undefined : SHIPMENT_STATUSES[currentIndex + 1]
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-5 p-6">
+    <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <Button variant="outline" size="icon-sm" aria-label={t('Back')} onClick={() => navigate('/shipments')}>

@@ -22,7 +22,8 @@ export function DataTablePagination<TData>({ table }: { table: Table<TData> }) {
     <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2.5 text-sm text-muted-foreground">
       <div className="tabular-nums">{t('{from}–{to} of {total}', { from, to, total })}</div>
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
+        {/* На телефоне выбор количества строк не нужен, оставляем только листание */}
+        <div className="hidden items-center gap-2 sm:flex">
           <span>{t('Rows per page')}</span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -53,9 +54,10 @@ export function DataTablePagination<TData>({ table }: { table: Table<TData> }) {
           <Button
             variant="outline"
             size="icon-sm"
+            className="hidden sm:inline-flex"
             onClick={() => table.firstPage()}
             disabled={!table.getCanPreviousPage()}
-            aria-label="First page"
+            aria-label={t('First page')}
           >
             <ChevronsLeft />
           </Button>
@@ -64,7 +66,7 @@ export function DataTablePagination<TData>({ table }: { table: Table<TData> }) {
             size="icon-sm"
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
-            aria-label="Previous page"
+            aria-label={t('Previous page')}
           >
             <ChevronLeft />
           </Button>
@@ -73,16 +75,17 @@ export function DataTablePagination<TData>({ table }: { table: Table<TData> }) {
             size="icon-sm"
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
-            aria-label="Next page"
+            aria-label={t('Next page')}
           >
             <ChevronRight />
           </Button>
           <Button
             variant="outline"
             size="icon-sm"
+            className="hidden sm:inline-flex"
             onClick={() => table.lastPage()}
             disabled={!table.getCanNextPage()}
-            aria-label="Last page"
+            aria-label={t('Last page')}
           >
             <ChevronsRight />
           </Button>

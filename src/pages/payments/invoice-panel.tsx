@@ -137,7 +137,7 @@ function PaymentsList({ invoice }: { invoice: Invoice }) {
               <div className="text-sm text-muted-foreground">
                 {t(paymentMethodLabels[p.method])}
                 {p.discount > 0 && (
-                  <span className="ml-1 text-amber-600 dark:text-warning">
+                  <span className="ml-1 text-warning-text">
                     · {t('discount')} {money(p.discount)}
                   </span>
                 )}

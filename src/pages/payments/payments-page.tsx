@@ -30,6 +30,14 @@ const columns: ColumnDef<InvoiceRow, unknown>[] = [
     meta: { label: 'Bill to' },
     cell: ({ row }) => <span className="font-medium">{row.original.billTo}</span>,
   },
+  // Статус сразу после плательщика: в русской версии колонки шире, и в конце таблицы он уезжал за край
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    meta: { label: 'Status' },
+    filterFn: 'arrIncludesSome',
+    cell: ({ row }) => <InvoiceStatusBadge status={row.original.status} />,
+  },
   {
     accessorKey: 'poNumber',
     header: 'P.O.#',
@@ -74,13 +82,6 @@ const columns: ColumnDef<InvoiceRow, unknown>[] = [
       </span>
     ),
   },
-  {
-    accessorKey: 'status',
-    header: 'Status',
-    meta: { label: 'Status' },
-    filterFn: 'arrIncludesSome',
-    cell: ({ row }) => <InvoiceStatusBadge status={row.original.status} />,
-  },
 ]
 
 const statusOptions = INVOICE_STATUSES.map((value) => ({ value, label: invoiceStatuses[value].label }))
@@ -123,7 +124,7 @@ export function PaymentsPage() {
   ]
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-4 p-6">
+    <div className="mx-auto max-w-[1600px] space-y-4 p-4 sm:p-6">
       <PageHeader title="Payments" description="Customer invoices, payments received and balance due." />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

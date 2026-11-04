@@ -47,7 +47,7 @@ export function PlatformDashboardPage() {
   ]
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-5 p-6">
+    <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
       <PageHeader
         title="Dashboard"
         description="How the platform earns: money from licenses, new companies and renewals. Last 12 months, USD."

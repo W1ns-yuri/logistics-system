@@ -247,7 +247,7 @@ export function VendorPaymentsSection({ shipment }: { shipment: Shipment }) {
                   <td
                     className={cn(
                       'py-1.5 text-right font-medium tabular-nums',
-                      row.owed > row.paid ? 'text-amber-600 dark:text-warning' : 'text-success',
+                      row.owed > row.paid ? 'text-warning-text' : 'text-success',
                     )}
                   >
                     {formatMoney(Math.max(0, row.owed - row.paid), costCurrency)}

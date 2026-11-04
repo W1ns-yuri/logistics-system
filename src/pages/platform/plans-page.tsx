@@ -31,7 +31,7 @@ export function PlansPage() {
   ]
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5 p-6">
+    <div className="mx-auto max-w-6xl space-y-5 p-4 sm:p-6">
       <PageHeader
         title="Plans"
         description="Prices are examples for the prototype. A yearly payment costs 10 months."

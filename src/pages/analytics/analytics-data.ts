@@ -175,7 +175,8 @@ export function buildAnalytics({
   for (const inv of invoices) {
     const balance = toUSD(invoiceTotals(inv).balanceDue, inv.currency)
     if (balance <= 0.5) continue
-    const late = daysLate(inv.dueDate)
+    // Черновик ещё не отправлен клиенту — не просрочка (так же считает статус инвойса)
+    const late = inv.status === 'draft' ? 0 : daysLate(inv.dueDate)
     const bucket = late <= 0 ? buckets[0] : late <= 30 ? buckets[1] : late <= 60 ? buckets[2] : buckets[3]
     bucket!.amount += balance
     bucket!.count += 1

@@ -121,7 +121,7 @@ export function CustomersPage() {
   const selected = rows.find((row) => row.id === selectedId)
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-4 p-6">
+    <div className="mx-auto max-w-[1600px] space-y-4 p-4 sm:p-6">
       <PageHeader
         title="Customers"
         description="Companies you quote and ship for, with contacts and conversion."

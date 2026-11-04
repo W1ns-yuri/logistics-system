@@ -14,6 +14,7 @@ import {
   updateQuotation,
   useMemberName,
   useQuotation,
+  useLinkedShipment,
 } from '@/data/store'
 import { useCanModify, usePermissions } from '@/data/auth'
 import { t } from '@/i18n'
@@ -28,6 +29,7 @@ export function QuotationDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const quotation = useQuotation(id)
+  const linked = useLinkedShipment(id)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [tab, setTab] = useState('general')
   const { canEditOrders } = usePermissions()
@@ -44,10 +46,10 @@ export function QuotationDetailPage() {
     setTimeout(() => window.print(), 50)
   }
 
-  const canCreateShipment = quotation.status !== 'shipment_created' && quotation.status !== 'cancelled'
+  const canCreateShipment = quotation.status !== 'cancelled'
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-5 p-6">
+    <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <Button asChild variant="outline" size="icon-sm" aria-label={t('Back to quotations')}>
@@ -123,17 +125,26 @@ export function QuotationDetailPage() {
                 <Trash2 />
                 {t('Delete')}
               </Button>
-              <Button
-                size="sm"
-                disabled={!canCreateShipment}
-                onClick={() => {
-                  const shipment = createShipmentFromQuotation(quotation.id)
-                  if (shipment) navigate(`/shipments/${shipment.id}`)
-                }}
-              >
-                <Truck />
-                {t('Create shipment')}
-              </Button>
+              {linked ? (
+                <Button size="sm" asChild>
+                  <Link to={`/shipments/${linked.id}`}>
+                    <Truck />
+                    {t('Open shipment {number}', { number: linked.number })}
+                  </Link>
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  disabled={!canCreateShipment}
+                  onClick={() => {
+                    const shipment = createShipmentFromQuotation(quotation.id)
+                    if (shipment) navigate(`/shipments/${shipment.id}`)
+                  }}
+                >
+                  <Truck />
+                  {t('Create shipment')}
+                </Button>
+              )}
             </>
           )}
         </div>

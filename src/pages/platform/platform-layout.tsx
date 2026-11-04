@@ -9,6 +9,7 @@ import {
   Languages,
   Layers,
   LogOut,
+  Menu,
   Moon,
   ShieldCheck,
   Sun,
@@ -59,6 +60,7 @@ const allItems = groups.flatMap((g) => g.items)
 export function PlatformLayout() {
   const owner = usePlatformOwner()
   const [collapsed, setCollapsed] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   if (!owner) return <OwnerLogin />
 
   return (
@@ -68,9 +70,11 @@ export function PlatformLayout() {
           collapsed={collapsed}
           onToggle={() => setCollapsed((prev) => !prev)}
           nav={{ groups, footer, title: 'Platform admin', subtitle: 'All companies and licenses', icon: ShieldCheck }}
+          mobileOpen={menuOpen}
+          onMobileClose={() => setMenuOpen(false)}
         />
         <div className="flex min-w-0 flex-1 flex-col">
-          <PlatformHeader owner={owner} />
+          <PlatformHeader owner={owner} onMenu={() => setMenuOpen(true)} />
           <main className="flex-1 overflow-y-auto">
             <Outlet />
           </main>
@@ -80,7 +84,7 @@ export function PlatformLayout() {
   )
 }
 
-function PlatformHeader({ owner }: { owner: string }) {
+function PlatformHeader({ owner, onMenu }: { owner: string; onMenu: () => void }) {
   const { pathname } = useLocation()
   const { theme, toggleTheme } = useTheme()
   const settings = useSettings()
@@ -88,7 +92,10 @@ function PlatformHeader({ owner }: { owner: string }) {
   const current = [...allItems].reverse().find((item) => pathname.startsWith(item.path))
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-4 border-b bg-background px-6">
+    <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-3 sm:gap-4 sm:px-6">
+      <Button variant="ghost" size="icon-sm" className="md:hidden" aria-label={t('Open menu')} onClick={onMenu}>
+        <Menu />
+      </Button>
       <nav className="flex min-w-0 items-center gap-1.5 text-sm">
         <Link to="/platform" className="text-muted-foreground hover:text-foreground">
           {t('Platform')}

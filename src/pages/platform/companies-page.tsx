@@ -52,7 +52,7 @@ const columns: ColumnDef<CompanyRow, unknown>[] = [
     cell: ({ row }) => {
       const { seatsUsed, seats } = row.original
       return (
-        <span className={seats !== null && seatsUsed >= seats ? 'text-warning tabular-nums' : 'tabular-nums'}>
+        <span className={seats !== null && seatsUsed >= seats ? 'text-warning-text tabular-nums' : 'tabular-nums'}>
           {seatsUsed} / {seats ?? '∞'}
         </span>
       )
@@ -120,7 +120,7 @@ export function CompaniesPage() {
   ]
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-5 p-6">
+    <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
       <PageHeader title="Companies" description="Everyone who registered, their plan and how long the license lasts." />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

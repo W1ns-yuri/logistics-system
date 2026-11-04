@@ -28,6 +28,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('demo-password')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [forgot, setForgot] = useState(false)
 
   // Куда вернуть после входа (RequireAuth кладёт это в state)
   const from = (location.state as { from?: string } | null)?.from ?? '/'
@@ -87,7 +88,12 @@ export function LoginPage() {
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">{t('Password')}</Label>
-                <button type="button" className="text-xs text-muted-foreground hover:text-foreground">
+                <button
+                  type="button"
+                  aria-expanded={forgot}
+                  onClick={() => setForgot((prev) => !prev)}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
                   {t('Forgot password?')}
                 </button>
               </div>
@@ -111,6 +117,15 @@ export function LoginPage() {
                   {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
               </div>
+              {/* Сброс по письму появится вместе с сервером, пока подсказываем, к кому обратиться */}
+              {forgot && (
+                <p className="rounded-md bg-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+                  {t('Password reset by email is not available yet. Write to')}{' '}
+                  <a href="mailto:support@omniroute.app" className="font-medium text-primary hover:underline">
+                    support@omniroute.app
+                  </a>
+                </p>
+              )}
             </div>
 
             <label className="flex items-center gap-2 pt-1 text-sm">

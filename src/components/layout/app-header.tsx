@@ -4,9 +4,9 @@ import {
   FileText,
   Languages,
   LogOut,
+  Menu,
   Moon,
   Plus,
-  Search,
   Settings,
   Sun,
   Truck,
@@ -27,16 +27,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Input } from '@/components/ui/input'
 import { findNavItem } from '@/config/navigation'
 import { signOut, usePermissions, useSession } from '@/data/auth'
 import { initials, updateSettings, useSettings } from '@/data/settings'
 import { useTheme } from '@/hooks/use-theme'
 import { LANGUAGES, t, type Language } from '@/i18n'
 import { roleLabels } from '@/types/team'
+import { GlobalSearch } from './global-search'
 import { NotificationsMenu } from './notifications-menu'
 
-export function AppHeader() {
+export function AppHeader({ onMenu }: { onMenu: () => void }) {
   const { pathname } = useLocation()
   const current = findNavItem(pathname)
   const { theme, toggleTheme } = useTheme()
@@ -47,9 +47,12 @@ export function AppHeader() {
   const userName = session?.name ?? ''
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-4 border-b bg-background px-6">
-      {/* Хлебные крошки: Home > Quotations */}
-      <nav className="flex min-w-0 items-center gap-1.5 text-sm">
+    <header className="relative flex h-14 shrink-0 items-center gap-2 border-b bg-background px-3 sm:gap-4 sm:px-6">
+      <Button variant="ghost" size="icon-sm" className="md:hidden" aria-label={t('Open menu')} onClick={onMenu}>
+        <Menu />
+      </Button>
+      {/* Хлебные крошки: Home > Quotations. На телефоне место нужно кнопкам, раздел и так виден в заголовке */}
+      <nav className="hidden min-w-0 items-center gap-1.5 text-sm sm:flex">
         <Link to="/" className="text-muted-foreground hover:text-foreground">
           {t('Home')}
         </Link>
@@ -61,18 +64,15 @@ export function AppHeader() {
         )}
       </nav>
 
-      <div className="ml-auto flex items-center gap-2">
-        <div className="relative hidden lg:block">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder={t('Search by reference, customer...')} className="h-9 w-72 pl-8" />
-        </div>
+      <div className="ml-auto flex items-center gap-1 sm:gap-2">
+        <GlobalSearch />
 
         {canEditOrders && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm">
+              <Button size="sm" aria-label={t('New')}>
                 <Plus />
-                {t('New')}
+                <span className="hidden sm:inline">{t('New')}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
@@ -109,8 +109,8 @@ export function AppHeader() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="gap-1.5 px-2 font-semibold" aria-label={t('Language')}>
               <Languages />
-              {settings.language.toUpperCase()}
-              <ChevronDown className="size-3.5 text-muted-foreground" />
+              <span className="hidden sm:inline">{settings.language.toUpperCase()}</span>
+              <ChevronDown className="hidden size-3.5 text-muted-foreground sm:block" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-40">
@@ -139,6 +139,7 @@ export function AppHeader() {
           <DropdownMenuTrigger asChild>
             <button
               type="button"
+              aria-label={t('Account')}
               className="rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
               <Avatar>
