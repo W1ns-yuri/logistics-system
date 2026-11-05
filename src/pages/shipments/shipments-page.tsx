@@ -49,6 +49,7 @@ export function ShipmentsPage() {
             hasSelection={!!selected}
             canModify={canModify}
             ownerName={ownerName}
+            editDisabled={selected?.status === 'cancelled'}
             onNew={() => setFormMode('new')}
             onOpen={() => selected && open(selected)}
             onEdit={() => setFormMode('edit')}

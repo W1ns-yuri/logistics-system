@@ -1,6 +1,7 @@
 import { Paperclip, X } from 'lucide-react'
 import { useRef, useState, type FormEvent } from 'react'
 
+import { DateInput } from '@/components/date-input'
 import { FormField } from '@/components/form-field'
 import { Button } from '@/components/ui/button'
 import {
@@ -130,7 +131,7 @@ function PaymentForm({ invoice, payment, onDone }: { invoice: Invoice; payment?:
           />
         </FormField>
         <FormField label="Payment date" htmlFor="payment-date" required>
-          <Input id="payment-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <DateInput id="payment-date" value={date} clearable={false} onChange={setDate} />
         </FormField>
         <FormField label="Payment method" htmlFor="payment-method" required>
           <NativeSelect id="payment-method" value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)}>

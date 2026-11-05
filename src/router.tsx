@@ -7,6 +7,7 @@ import { CustomersPage } from '@/pages/customers/customers-page'
 import { HomePage } from '@/pages/home'
 import { LoginPage } from '@/pages/login/login-page'
 import { NotFoundPage } from '@/pages/not-found'
+import { InvoicePrintPage } from '@/pages/payments/invoice-print-page'
 import { PaymentsPage } from '@/pages/payments/payments-page'
 import { CompaniesPage } from '@/pages/platform/companies-page'
 import { CompanyPage } from '@/pages/platform/company-page'
@@ -40,6 +41,17 @@ export const router = createBrowserRouter([
       { path: 'plans', element: <PlansPage /> },
     ],
   },
+  // Инвойс на печать: без меню и шапки, только документ
+  {
+    path: '/invoices/:id/print',
+    element: (
+      <RequireAuth>
+        <RequirePayments>
+          <InvoicePrintPage />
+        </RequirePayments>
+      </RequireAuth>
+    ),
+  },
   {
     path: '/',
     element: (
@@ -66,12 +78,9 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        // Сотрудник тоже заходит: видит только свои цифры (см. AnalyticsPage)
         path: 'analytics',
-        element: (
-          <RequirePayments>
-            <AnalyticsPage />
-          </RequirePayments>
-        ),
+        element: <AnalyticsPage />,
       },
       { path: 'settings', element: <SettingsPage /> },
       { path: 'support', element: <SupportPage /> },

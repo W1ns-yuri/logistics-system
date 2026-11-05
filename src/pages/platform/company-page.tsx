@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ArrowLeft, Ban, CalendarPlus, LockOpen } from 'lucide-react'
 import { Link, useParams } from 'react-router'
 
+import { DateInput } from '@/components/date-input'
 import { InfoField } from '@/components/info-field'
 import { DaysLeft, LicenseStatusBadge } from '@/components/license'
 import { SectionCard } from '@/components/section-card'
@@ -16,7 +17,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -161,12 +161,12 @@ export function CompanyPage() {
               {t('+1 year')} · {usd(paymentAmount(renewPlan, 12))}
             </Button>
             <div className="ml-auto flex items-center gap-2">
-              <Input
-                type="date"
+              <DateInput
                 aria-label={t('Paid until')}
                 value={until}
-                onChange={(e) => setUntil(e.target.value)}
-                className="h-8 w-40"
+                clearable={false}
+                onChange={setUntil}
+                className="w-44"
               />
               <Button
                 size="sm"

@@ -14,7 +14,8 @@ export const quotationStatuses: StatusConfig<QuotationStatus> = {
   shipment_created: { label: 'Shipment created', variant: 'secondary' },
   completed: { label: 'Completed', variant: 'success' },
   failed: { label: 'Failed', variant: 'destructive' },
-  cancelled: { label: 'Cancelled', variant: 'destructive' },
+  // Отменена нами — серым, чтобы не путать с проваленной (красной)
+  cancelled: { label: 'Cancelled', variant: 'outline' },
 }
 
 export const shipmentStatuses: StatusConfig<ShipmentStatus> = {

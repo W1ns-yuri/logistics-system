@@ -3,13 +3,15 @@ import { useMemo, useState, type ReactNode } from 'react'
 
 import { PageHeader } from '@/components/page-header'
 import { TransportModeIcon } from '@/components/transport-mode'
-import { useInvoices, useQuotations, useShipments, useVendors } from '@/data/store'
+import { usePermissions, useSession } from '@/data/auth'
+import { useActiveInvoices, useQuotations, useShipments, useVendors } from '@/data/store'
 import { t } from '@/i18n'
 import { cn } from '@/lib/utils'
 import { transportModeLabels, type TransportMode } from '@/types/logistics'
 import { buildAnalytics, PERIODS, type Period } from './analytics-data'
 import { RevenueChart, BarList, Donut, LegendRow, Sparkline } from './charts'
 import { monthLabel, usd, usdShort } from './format'
+import { findStats, MyResults, TeamResultsTable } from './team-results'
 
 const modeColors: Record<TransportMode, string> = {
   road: 'var(--chart-3)',
@@ -21,9 +23,11 @@ const modeColors: Record<TransportMode, string> = {
 export function AnalyticsPage() {
   const quotations = useQuotations()
   const shipments = useShipments()
-  const invoices = useInvoices()
+  const invoices = useActiveInvoices()
   const vendors = useVendors()
   const [period, setPeriod] = useState<Period>(6)
+  const { role } = usePermissions()
+  const session = useSession()
 
   const data = useMemo(
     () => buildAnalytics({ period, quotations, shipments, invoices, vendors }),
@@ -37,33 +41,47 @@ export function AnalyticsPage() {
     partial: i === data.trend.length - 1,
   }))
   const modeTotal = data.modes.reduce((acc, m) => acc + m.count, 0)
+  const periodSwitch = (
+    <div className="inline-flex rounded-lg border bg-muted/50 p-0.5" role="tablist">
+      {PERIODS.map((p) => (
+        <button
+          key={p.value}
+          type="button"
+          role="tab"
+          aria-selected={period === p.value}
+          onClick={() => setPeriod(p.value)}
+          className={cn(
+            'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+            period === p.value
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          {t(p.label)}
+        </button>
+      ))}
+    </div>
+  )
+
+  // Сотрудник не видит деньги компании — только свои результаты
+  if (role === 'employee')
+    return (
+      <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
+        <PageHeader
+          title="My results"
+          description="Your quotations and shipments for the period. Amounts are in USD at demo rates."
+          actions={periodSwitch}
+        />
+        <MyResults stats={findStats(data.members, session?.email)} />
+      </div>
+    )
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
       <PageHeader
         title="Analytics"
         description="Revenue, profit and operations at a glance. Amounts are in USD at demo rates."
-        actions={
-          <div className="inline-flex rounded-lg border bg-muted/50 p-0.5" role="tablist">
-            {PERIODS.map((p) => (
-              <button
-                key={p.value}
-                type="button"
-                role="tab"
-                aria-selected={period === p.value}
-                onClick={() => setPeriod(p.value)}
-                className={cn(
-                  'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-                  period === p.value
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {t(p.label)}
-              </button>
-            ))}
-          </div>
-        }
+        actions={periodSwitch}
       />
 
       {/* KPI */}
@@ -172,6 +190,16 @@ export function AnalyticsPage() {
         <ConversionPanel funnel={data.funnel} />
         <ReceivablesPanel receivables={data.receivables} />
       </div>
+
+      {role === 'admin' && (
+        <Panel
+          title="Results by member"
+          description="Who created how many quotations, how many were won, and the money their shipments brought"
+          className="[&>div:last-child]:px-0 [&>div:last-child]:pb-0"
+        >
+          <TeamResultsTable members={data.members} />
+        </Panel>
+      )}
 
       <div className="grid gap-4 xl:grid-cols-3">
         <Panel title="Top routes" className="xl:col-span-2 [&>div:last-child]:px-0 [&>div:last-child]:pb-0">
@@ -359,10 +387,14 @@ function ConversionPanel({ funnel }: { funnel: ReturnType<typeof buildAnalytics>
   const parts = [
     { key: 'won', label: 'Won', value: funnel.won, color: 'var(--chart-2)' },
     { key: 'open', label: 'In progress', value: funnel.open, color: 'var(--chart-1)' },
-    { key: 'lost', label: 'Lost', value: funnel.lost, color: 'var(--chart-5)' },
+    { key: 'failed', label: 'Failed', value: funnel.failed, color: 'var(--chart-5)' },
+    { key: 'cancelled', label: 'Cancelled', value: funnel.cancelled, color: 'var(--muted-foreground)' },
   ]
   return (
-    <Panel title="Quotation conversion" description="Won out of decided quotations">
+    <Panel
+      title="Quotation conversion"
+      description="Won out of won + failed. Quotations we cancelled ourselves do not count"
+    >
       <div className="flex items-baseline gap-2">
         <span className="text-4xl font-semibold tracking-tight tabular-nums">{Math.round(funnel.conversion)}%</span>
         <span className="text-sm text-muted-foreground">{t('{n} quotations', { n: funnel.created })}</span>
@@ -378,7 +410,7 @@ function ConversionPanel({ funnel }: { funnel: ReturnType<typeof buildAnalytics>
           ) : null,
         )}
       </div>
-      <div className="mt-5 grid grid-cols-3 gap-3">
+      <div className="mt-5 grid grid-cols-2 gap-3">
         {parts.map((p) => (
           <div key={p.key}>
             <LegendRow color={p.color} label={t(p.label)} />

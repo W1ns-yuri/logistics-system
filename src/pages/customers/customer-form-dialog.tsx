@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { createCustomer, updateCustomer, useCustomers } from '@/data/store'
 import { t } from '@/i18n'
 import { phoneExample } from '@/lib/phone'
-import { cityKeywords, cityLabel, citySuggestions, countryOptions } from '@/lib/countries'
+import { allCities, cityKeywords, cityLabel, citySuggestions, countryLabel, countryOptions } from '@/lib/countries'
 import { isValidEmail, isValidPhone } from '@/lib/input-rules'
 import type { Customer } from '@/types/directory'
 
@@ -64,10 +64,19 @@ function CustomerForm({
   // Страна — из списка, город — подсказки по стране (и города уже заведённых клиентов), можно вписать свой
   const countries = useMemo(() => countryOptions(), [])
   const allCustomers = useCustomers()
-  const cities = citySuggestions(
-    form.country,
-    allCustomers.filter((c) => c.country === form.country).map((c) => c.city),
-  ).map((city) => ({ value: city, label: cityLabel(city), keywords: cityKeywords(city) }))
+  // Страна не выбрана — показываем все города со страной рядом: выбрал город, страна подставится сама
+  const cities = form.country
+    ? citySuggestions(
+        form.country,
+        allCustomers.filter((c) => c.country === form.country).map((c) => c.city),
+      ).map((city) => ({ value: city, label: cityLabel(city), keywords: cityKeywords(city) }))
+    : allCities().map(({ city, country }) => ({
+        value: city,
+        label: cityLabel(city),
+        hint: countryLabel(country),
+        keywords: `${cityKeywords(city)} ${country}`,
+      }))
+  const countryOfCity = (city: string) => allCities().find((c) => c.city === city)?.country
   const pick = (patch: Partial<FormState>) => {
     setForm((prev) => ({ ...prev, ...patch }))
     setErrors((prev) => ({ ...prev, ...Object.fromEntries(Object.keys(patch).map((k) => [k, undefined])) }))
@@ -123,7 +132,7 @@ function CustomerForm({
             options={cities}
             placeholder="Select or type a city"
             allowCustom
-            onChange={(city) => pick({ city })}
+            onChange={(city) => pick(form.country ? { city } : { city, country: countryOfCity(city) ?? '' })}
           />
         </FormField>
         <FormField label="Address" htmlFor="customer-address" className="sm:col-span-2">

@@ -1,4 +1,4 @@
-import { Download, FileText, Paperclip, Pencil, Trash2, Wallet } from 'lucide-react'
+import { Download, FileText, Paperclip, Pencil, Printer, Trash2, Wallet } from 'lucide-react'
 import { useRef, useState } from 'react'
 
 import { ConfirmDelete } from '@/components/confirm-delete'
@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import { paymentMethodLabels, type Invoice, type Payment } from '@/types/invoice'
 import { InvoiceFormDialog } from './invoice-form-dialog'
 import { InvoicePreview } from './invoice-preview'
+import { printInvoice } from './invoice-print-page'
 
 // Карточка инвойса как в приложении клиента: сверху остаток, ниже вкладки Details / Payments
 export function InvoicePanel({ invoice, onDeleted }: { invoice: Invoice; onDeleted: () => void }) {
@@ -39,6 +40,10 @@ export function InvoicePanel({ invoice, onDeleted }: { invoice: Invoice; onDelet
           <div className="text-3xl font-semibold tracking-tight tabular-nums">{money(Math.max(0, balanceDue))}</div>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={() => printInvoice(invoice.id)}>
+            <Printer />
+            {t('Print / PDF')}
+          </Button>
           {canEditInvoices && (
             <>
               <Button size="sm" variant="outline" onClick={() => setEditing(true)}>

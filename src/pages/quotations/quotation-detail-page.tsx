@@ -3,7 +3,6 @@ import { ArrowLeft, Calculator, Copy, FileText, Info, Pencil, Printer, Trash2, T
 import { Link, useNavigate, useParams } from 'react-router'
 
 import { ConfirmDelete } from '@/components/confirm-delete'
-import { QuotationStatusBadge } from '@/components/status-badge'
 import { TransportModeIcon } from '@/components/transport-mode'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -23,6 +22,7 @@ import { NotFoundPage } from '@/pages/not-found'
 import { QuotationCalculationTab } from './quotation-calculation-tab'
 import { QuotationGeneralTab } from './quotation-general-tab'
 import { QuotationPreview } from './quotation-preview'
+import { QuotationStatusMenu } from './quotation-status-menu'
 
 // Карточка котировки: вкладки General / Calculation / PDF (слайды 3–4 презентации)
 export function QuotationDetailPage() {
@@ -60,7 +60,7 @@ export function QuotationDetailPage() {
           <div>
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-2xl font-semibold tracking-tight">{quotation.reference}</h1>
-              <QuotationStatusBadge status={quotation.status} />
+              <QuotationStatusMenu quotation={quotation} editable={canModify} />
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
               <TransportModeIcon mode={quotation.mode} />

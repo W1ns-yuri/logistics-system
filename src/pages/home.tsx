@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { usePermissions } from '@/data/auth'
 import { useSettings } from '@/data/settings'
-import { useCustomers, useInvoices, useQuotations, useShipments, useTeam, useVendors } from '@/data/store'
+import { useCustomers, useActiveInvoices, useQuotations, useShipments, useTeam, useVendors } from '@/data/store'
 import { t } from '@/i18n'
 import { invoiceTotals, quotationTotals } from '@/lib/calculation'
 import { toUSD } from '@/lib/currency'
@@ -32,7 +32,7 @@ export function HomePage() {
   const navigate = useNavigate()
   const quotations = useQuotations()
   const shipments = useShipments()
-  const invoices = useInvoices()
+  const invoices = useActiveInvoices()
   const { canSeePayments } = usePermissions()
 
   const kpis = useMemo(() => {

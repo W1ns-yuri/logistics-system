@@ -5,7 +5,7 @@ import { Link } from 'react-router'
 import { DataTable } from '@/components/data-table/data-table'
 import { PageHeader } from '@/components/page-header'
 import { InvoiceStatusBadge, invoiceStatuses } from '@/components/status-badge'
-import { useInvoices } from '@/data/store'
+import { useActiveInvoices } from '@/data/store'
 import { t } from '@/i18n'
 import { invoiceTotals } from '@/lib/calculation'
 import { toUSD } from '@/lib/currency'
@@ -87,7 +87,7 @@ const columns: ColumnDef<InvoiceRow, unknown>[] = [
 const statusOptions = INVOICE_STATUSES.map((value) => ({ value, label: invoiceStatuses[value].label }))
 
 export function PaymentsPage() {
-  const invoices = useInvoices()
+  const invoices = useActiveInvoices()
   const [selectedId, setSelectedId] = useState<string>()
 
   const rows = useMemo<InvoiceRow[]>(() => invoices.map((inv) => ({ ...inv, ...invoiceTotals(inv) })), [invoices])

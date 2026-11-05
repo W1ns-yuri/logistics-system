@@ -1,4 +1,18 @@
-import { ArrowLeft, Check, ChevronRight, CircleX, Download, FileText, Paperclip, Pencil, Trash2 } from 'lucide-react'
+import {
+  ArrowLeft,
+  Ban,
+  Check,
+  ChevronRight,
+  CircleX,
+  Download,
+  FileText,
+  Paperclip,
+  Pencil,
+  Receipt,
+  Trash2,
+  Undo2,
+  Wallet,
+} from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
@@ -9,11 +23,13 @@ import { ShipmentStatusBadge, shipmentStatuses } from '@/components/status-badge
 import { TransportModeLabel } from '@/components/transport-mode'
 import { Button } from '@/components/ui/button'
 import { NativeSelect } from '@/components/ui/native-select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCanModify, usePermissions } from '@/data/auth'
 import {
   addShipmentDocument,
   removeShipmentDocument,
   setShipmentStatus,
+  undoShipmentStatus,
   useQuotation,
   useMemberName,
   useShipment,
@@ -32,6 +48,7 @@ import {
   type Shipment,
   type ShipmentStatus,
 } from '@/types/shipment'
+import { CancelShipmentDialog } from './cancel-shipment-dialog'
 import { ShipmentFormDialog } from './shipment-form-dialog'
 import { CustomerPaymentsSection, VendorPaymentsSection } from './shipment-payments'
 
@@ -41,12 +58,13 @@ export function ShipmentDetailPage() {
   const shipment = useShipment(id)
   const quotation = useQuotation(shipment?.quotationId)
   const vendors = useVendors()
-  const { canEditOrders, canSeePayments } = usePermissions()
+  const { canEditOrders, canSeePayments, role } = usePermissions()
   // Чужую перевозку видно целиком, но менять её может только автор или админ
   const canModify = useCanModify(shipment)
   const ownerName = useMemberName(shipment?.createdBy)
   const [editOpen, setEditOpen] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
+  const [undoOpen, setUndoOpen] = useState(false)
 
   if (!shipment) return <NotFoundPage />
 
@@ -58,6 +76,11 @@ export function ShipmentDetailPage() {
   const isCancelled = shipment.status === 'cancelled'
   const currentIndex = SHIPMENT_STATUSES.indexOf(shipment.status as (typeof SHIPMENT_STATUSES)[number])
   const nextStatus = isCancelled ? undefined : SHIPMENT_STATUSES[currentIndex + 1]
+  // Отменённая перевозка закрыта: ничего не меняем, не платим, инвойсы не выставляем
+  const editable = canModify && !isCancelled
+  // Последний шаг можно отменить. Вернуть отменённую перевозку может только админ
+  const canUndo = canModify && shipment.history.length > 1 && (!isCancelled || role === 'admin')
+  const lastEvent = shipment.history[shipment.history.length - 1]
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
@@ -84,6 +107,16 @@ export function ShipmentDetailPage() {
         )}
         {canModify && (
           <div className="flex flex-wrap items-center gap-2">
+            {canUndo && (
+              <Button size="sm" variant="outline" onClick={() => setUndoOpen(true)}>
+                <Undo2 />
+                {isCancelled ? t('Restore shipment') : t('Undo step')}
+              </Button>
+            )}
+          </div>
+        )}
+        {editable && (
+          <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
               <Pencil />
               {t('Edit')}
@@ -91,7 +124,7 @@ export function ShipmentDetailPage() {
             <Button
               size="sm"
               variant="outline"
-              disabled={isCancelled || shipment.status === 'completed'}
+              disabled={shipment.status === 'completed'}
               onClick={() => setCancelOpen(true)}
               className="text-destructive hover:text-destructive"
             >
@@ -111,6 +144,26 @@ export function ShipmentDetailPage() {
           </div>
         )}
       </div>
+
+      {isCancelled && (
+        <div
+          role="status"
+          className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/[0.06] px-4 py-3 text-sm"
+        >
+          <Ban className="mt-0.5 size-4 shrink-0 text-destructive" />
+          <div>
+            <div className="font-medium text-destructive">
+              {t('Cancelled {date}', { date: formatDateTime(lastEvent?.at) })}
+            </div>
+            <div className="mt-0.5">
+              {t('Reason')}: {shipment.cancelReason || lastEvent?.note || '—'}
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {t('The shipment is closed: it cannot be changed, and it is not counted in Payments.')}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
@@ -150,27 +203,53 @@ export function ShipmentDetailPage() {
               )}
             </div>
           </SectionCard>
-          <DocumentsSection shipment={shipment} canEdit={canModify} />
+          <DocumentsSection shipment={shipment} canEdit={editable} />
           {canSeePayments && (
-            <>
-              <CustomerPaymentsSection shipment={shipment} />
-              <VendorPaymentsSection shipment={shipment} />
-            </>
+            // Оплаты клиента и подрядчикам — на отдельных вкладках
+            <Tabs defaultValue="customer" className="gap-3">
+              <TabsList>
+                <TabsTrigger value="customer">
+                  <Receipt />
+                  {t('Customer payments')}
+                </TabsTrigger>
+                <TabsTrigger value="vendor">
+                  <Wallet />
+                  {t('Vendor payments')}
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="customer">
+                <CustomerPaymentsSection shipment={shipment} locked={isCancelled} />
+              </TabsContent>
+              <TabsContent value="vendor">
+                <VendorPaymentsSection shipment={shipment} locked={isCancelled} />
+              </TabsContent>
+            </Tabs>
           )}
         </div>
 
-        <TrackingSection shipment={shipment} canEdit={canModify} />
+        <TrackingSection shipment={shipment} canEdit={editable} />
       </div>
 
       <ShipmentFormDialog open={editOpen} onOpenChange={setEditOpen} shipment={shipment} />
-      {/* Отмена — серьёзное действие: случайный клик не должен отменить перевозку */}
+      {/* Отмена — серьёзное действие: показываем, сколько денег уже ушло и пришло, и просим причину */}
+      <CancelShipmentDialog shipment={shipment} open={cancelOpen} onOpenChange={setCancelOpen} />
       <ConfirmDelete
-        open={cancelOpen}
-        onOpenChange={setCancelOpen}
-        title={t('Cancel shipment {number}?', { number: shipment.number })}
-        description="The shipment stays in the list with the Cancelled status. You can bring it back by choosing another status."
-        confirmLabel="Cancel shipment"
-        onConfirm={() => setShipmentStatus(shipment.id, 'cancelled')}
+        open={undoOpen}
+        onOpenChange={setUndoOpen}
+        title={
+          isCancelled
+            ? t('Restore shipment {number}?', { number: shipment.number })
+            : t('Undo the step “{status}”?', {
+                status: lastEvent ? t(shipmentStatuses[lastEvent.status].label) : '',
+              })
+        }
+        description={
+          isCancelled
+            ? 'The shipment goes back to the status it had before it was cancelled.'
+            : 'The shipment goes back to the previous status. Dates of earlier steps stay as they were.'
+        }
+        confirmLabel={isCancelled ? 'Restore shipment' : 'Undo step'}
+        onConfirm={() => undoShipmentStatus(shipment.id)}
       />
     </div>
   )
@@ -193,7 +272,7 @@ function TrackingSection({ shipment, canEdit }: { shipment: Shipment; canEdit: b
             value={shipment.status}
             onChange={(e) => setShipmentStatus(shipment.id, e.target.value as ShipmentStatus)}
           >
-            {[...SHIPMENT_STATUSES, 'cancelled' as const].map((status) => (
+            {SHIPMENT_STATUSES.map((status) => (
               <option key={status} value={status}>
                 {t(shipmentStatuses[status].label)}
               </option>
@@ -246,6 +325,7 @@ function TrackingSection({ shipment, canEdit }: { shipment: Shipment; canEdit: b
       {isCancelled && (
         <div className="mt-5 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {t('This shipment was cancelled.')}
+          {shipment.cancelReason && <div className="mt-0.5 text-xs">{shipment.cancelReason}</div>}
         </div>
       )}
     </SectionCard>

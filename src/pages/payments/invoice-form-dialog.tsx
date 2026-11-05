@@ -1,6 +1,7 @@
 import { Plus, Trash2 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 
+import { DateInput } from '@/components/date-input'
 import { FormField } from '@/components/form-field'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -105,10 +106,20 @@ function InvoiceForm({ invoice, onDone }: { invoice: Invoice; onDone: () => void
           <Input {...bind('projectName')} placeholder="2026.05.18-AHL-62" />
         </FormField>
         <FormField label="Invoice date" htmlFor="invoice-invoiceDate" required>
-          <Input {...bind('invoiceDate')} type="date" />
+          <DateInput
+            id="invoice-invoiceDate"
+            value={head.invoiceDate}
+            clearable={false}
+            onChange={(v) => setHead((prev) => ({ ...prev, invoiceDate: v }))}
+          />
         </FormField>
         <FormField label="Due date" htmlFor="invoice-dueDate" required>
-          <Input {...bind('dueDate')} type="date" />
+          <DateInput
+            id="invoice-dueDate"
+            value={head.dueDate}
+            clearable={false}
+            onChange={(v) => setHead((prev) => ({ ...prev, dueDate: v }))}
+          />
         </FormField>
         <FormField label="Terms" htmlFor="invoice-terms">
           <Input {...bind('terms')} />
