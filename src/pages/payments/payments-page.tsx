@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 
 import { DataTable } from '@/components/data-table/data-table'
 import { PageHeader } from '@/components/page-header'
@@ -12,7 +12,6 @@ import { toUSD } from '@/lib/currency'
 import { formatDate, formatMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { INVOICE_STATUSES, type Invoice } from '@/types/invoice'
-import { InvoicePanel } from './invoice-panel'
 
 type InvoiceRow = Invoice & { total: number; balanceDue: number }
 
@@ -22,7 +21,11 @@ const columns: ColumnDef<InvoiceRow, unknown>[] = [
     header: 'Invoice #',
     meta: { label: 'Invoice #' },
     enableHiding: false,
-    cell: ({ row }) => <span className="font-medium text-primary">{row.original.number}</span>,
+    cell: ({ row }) => (
+      <Link to={`/payments/${row.original.id}`} className="font-medium text-primary hover:underline">
+        {row.original.number}
+      </Link>
+    ),
   },
   {
     accessorKey: 'billTo',
@@ -88,10 +91,9 @@ const statusOptions = INVOICE_STATUSES.map((value) => ({ value, label: invoiceSt
 
 export function PaymentsPage() {
   const invoices = useActiveInvoices()
-  const [selectedId, setSelectedId] = useState<string>()
+  const navigate = useNavigate()
 
   const rows = useMemo<InvoiceRow[]>(() => invoices.map((inv) => ({ ...inv, ...invoiceTotals(inv) })), [invoices])
-  const selected = rows.find((row) => row.id === selectedId)
 
   // Итоги для плиток сверху: инвойсы бывают в USD, TMT и EUR — сводим в доллары по демо-курсу
   const usd = (row: InvoiceRow, key: 'total' | 'balanceDue' | 'paid') => toUSD(row[key], row.currency)
@@ -141,24 +143,21 @@ export function PaymentsPage() {
         columns={columns}
         data={rows}
         getRowId={(row) => row.id}
-        selectedId={selected?.id}
-        onSelect={(row) => setSelectedId(row?.id)}
+        // Клик по инвойсу открывает его страницу
+        onSelect={(row) => row && navigate(`/payments/${row.id}`)}
+        onOpen={(row) => navigate(`/payments/${row.id}`)}
         searchPlaceholder="Search invoice, customer, project..."
         facetFilters={[{ columnId: 'status', title: 'Status', options: statusOptions }]}
         initialSorting={[{ id: 'invoiceDate', desc: true }]}
         rowClassName={(row) => (row.status === 'overdue' ? 'bg-destructive/[0.03]' : undefined)}
       />
 
-      {selected ? (
-        <InvoicePanel invoice={selected} onDeleted={() => setSelectedId(undefined)} />
-      ) : (
-        <p className="px-1 text-xs text-muted-foreground">
-          {t('Click an invoice to preview it.')}{' '}
-          <Link to="/shipments" className="text-primary hover:underline">
-            {t('Invoices are created from a shipment')}
-          </Link>
-        </p>
-      )}
+      <p className="px-1 text-xs text-muted-foreground">
+        {t('Click an invoice to open it.')}{' '}
+        <Link to="/shipments" className="text-primary hover:underline">
+          {t('Invoices are created from a shipment')}
+        </Link>
+      </p>
       <p className="px-1 text-xs text-muted-foreground">{t('Totals are converted to USD at demo rates.')}</p>
     </div>
   )

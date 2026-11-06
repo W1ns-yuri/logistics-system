@@ -1,4 +1,14 @@
-import { ArrowDownRight, ArrowUpRight, CircleDot, MapPin, PackageCheck, Ship, Truck } from 'lucide-react'
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  ChartColumn,
+  ChartNoAxesGantt,
+  CircleDot,
+  MapPin,
+  PackageCheck,
+  Ship,
+  Truck,
+} from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 
 import { PageHeader } from '@/components/page-header'
@@ -9,7 +19,7 @@ import { t } from '@/i18n'
 import { cn } from '@/lib/utils'
 import { transportModeLabels, type TransportMode } from '@/types/logistics'
 import { buildAnalytics, PERIODS, type Period } from './analytics-data'
-import { RevenueChart, BarList, Donut, LegendRow, Sparkline } from './charts'
+import { RevenueChart, BarList, Donut, LegendRow, ProgressLines, Sparkline } from './charts'
 import { monthLabel, usd, usdShort } from './format'
 import { findStats, MyResults, TeamResultsTable } from './team-results'
 
@@ -20,12 +30,36 @@ const modeColors: Record<TransportMode, string> = {
   rail: 'var(--chart-2)',
 }
 
+type ChartView = 'lines' | 'bars'
+const CHART_VIEW_KEY = 'analytics-chart-view'
+const CHART_VIEWS: { value: ChartView; label: string; icon: typeof ChartNoAxesGantt }[] = [
+  { value: 'lines', label: 'Progress lines', icon: ChartNoAxesGantt },
+  { value: 'bars', label: 'Bars and line', icon: ChartColumn },
+]
+
+function readChartView(): ChartView {
+  try {
+    return localStorage.getItem(CHART_VIEW_KEY) === 'bars' ? 'bars' : 'lines'
+  } catch {
+    return 'lines'
+  }
+}
+
 export function AnalyticsPage() {
   const quotations = useQuotations()
   const shipments = useShipments()
   const invoices = useActiveInvoices()
   const vendors = useVendors()
   const [period, setPeriod] = useState<Period>(6)
+  const [chartView, setChartView] = useState<ChartView>(readChartView)
+  const changeChartView = (view: ChartView) => {
+    setChartView(view)
+    try {
+      localStorage.setItem(CHART_VIEW_KEY, view)
+    } catch {
+      // приватный режим — просто не запоминаем
+    }
+  }
   const { role } = usePermissions()
   const session = useSession()
 
@@ -122,20 +156,55 @@ export function AnalyticsPage() {
           title="Revenue & profit by month"
           className="xl:col-span-2"
           action={
-            <div className="flex items-center gap-4 text-xs">
+            <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 text-xs">
               <LegendRow color="var(--chart-1)" label={t('Revenue')} />
               <LegendRow color="var(--chart-2)" label={t('Gross profit')} />
+              <div
+                className="inline-flex rounded-lg border bg-muted/50 p-0.5"
+                role="radiogroup"
+                aria-label={t('Chart view')}
+              >
+                {CHART_VIEWS.map((v) => (
+                  <button
+                    key={v.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={chartView === v.value}
+                    aria-label={t(v.label)}
+                    title={t(v.label)}
+                    onClick={() => changeChartView(v.value)}
+                    className={cn(
+                      'rounded-md p-1.5 transition-colors',
+                      chartView === v.value
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    <v.icon className="size-4" />
+                  </button>
+                ))}
+              </div>
             </div>
           }
         >
-          <RevenueChart
-            data={trend}
-            height={340}
-            format={usdShort}
-            barLabel={t('Revenue')}
-            lineLabel={t('Gross profit')}
-            partialLabel={t('month in progress')}
-          />
+          {chartView === 'lines' ? (
+            <ProgressLines
+              data={trend}
+              format={usdShort}
+              barLabel={t('Revenue')}
+              lineLabel={t('Gross profit')}
+              partialLabel={t('month in progress')}
+            />
+          ) : (
+            <RevenueChart
+              data={trend}
+              height={340}
+              format={usdShort}
+              barLabel={t('Revenue')}
+              lineLabel={t('Gross profit')}
+              partialLabel={t('month in progress')}
+            />
+          )}
         </Panel>
 
         <Panel title="Shipments by mode">

@@ -169,7 +169,7 @@ export function QuotationDetailPage() {
           <QuotationGeneralTab quotation={quotation} />
         </TabsContent>
         <TabsContent value="calculation">
-          <QuotationCalculationTab quotation={quotation} />
+          <QuotationCalculationTab quotation={quotation} canEdit={canModify} />
         </TabsContent>
         <TabsContent value="pdf">
           <QuotationPreview quotation={quotation} />

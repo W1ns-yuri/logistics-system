@@ -14,9 +14,9 @@ import { buildPlatformAnalytics } from './platform-analytics'
 
 const planColors: Record<Plan, string> = {
   trial: 'var(--chart-5)',
-  start: 'var(--chart-1)',
-  business: 'var(--chart-2)',
-  enterprise: 'var(--chart-4)',
+  lite: 'var(--chart-1)',
+  lite_plus: 'var(--chart-2)',
+  standard: 'var(--chart-4)',
 }
 
 // Дашборд владельца платформы: деньги, новые клиенты, конверсия из пробного периода, продления
@@ -201,7 +201,7 @@ export function PlatformDashboardPage() {
                 <tbody>
                   {data.renewals.map((r) => {
                     const lastPayment = r.company.payments.at(-1)
-                    const next = lastPayment?.amount ?? planPrice.start
+                    const next = lastPayment?.amount ?? planPrice.lite
                     return (
                       <tr key={r.company.id} className="border-b last:border-0 hover:bg-muted/30">
                         <td className="px-5 py-3">

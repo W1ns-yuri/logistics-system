@@ -50,6 +50,8 @@
 }
 
 .dark {
+  /* Встроенные элементы браузера (календарь, стрелки чисел, полосы прокрутки) тоже тёмные */
+  color-scheme: dark;
   --background: oklch(0.17 0.015 262);
   --foreground: oklch(0.96 0.005 260);
   --card: oklch(0.21 0.018 262);
@@ -135,6 +137,31 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: 'cv11', 'ss01';
+  }
+  /* Тонкие полосы прокрутки в цвет темы: стандартная в таблицах слишком бросалась в глаза */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklch, var(--muted-foreground) 35%, transparent) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: color-mix(in oklch, var(--muted-foreground) 35%, transparent);
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  /* Стрелки у полей чисел не нужны: в тёмной теме они белые, а число и так вводят с клавиатуры */
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
   }
 }
 

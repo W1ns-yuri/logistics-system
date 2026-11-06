@@ -79,7 +79,7 @@ const STEPS = [
   { title: 'Plan', description: 'After the trial' },
 ] as const
 
-const PAID_PLANS: Plan[] = ['start', 'business', 'enterprise']
+const PAID_PLANS: Plan[] = ['lite', 'lite_plus', 'standard']
 
 // Проверка одного шага: возвращает ошибки только его полей
 // Черновик анкеты переживает обновление страницы и кнопку «Назад». Пароли не сохраняем
@@ -396,6 +396,9 @@ export function SignupPage() {
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">
                         {planSeats[plan] === null ? t('Unlimited users') : t('Up to {n} users', { n: planSeats[plan] })}
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {plan === 'standard' ? t('With analytics') : t('No analytics')}
                       </div>
                     </PlanCard>
                   ))}

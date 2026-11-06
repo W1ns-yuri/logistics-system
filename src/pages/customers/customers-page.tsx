@@ -1,15 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Mail, MapPin, Phone, User } from 'lucide-react'
-import { Link } from 'react-router'
+import { Plus } from 'lucide-react'
+import { Link, useNavigate } from 'react-router'
 
-import { ConfirmDelete } from '@/components/confirm-delete'
 import { DataTable } from '@/components/data-table/data-table'
-import { DirectoryActions } from '@/components/directory-actions'
 import { PageHeader } from '@/components/page-header'
-import { SectionCard } from '@/components/section-card'
-import { QuotationStatusBadge } from '@/components/status-badge'
-import { deleteCustomer, useCustomers, useQuotations, useShipments } from '@/data/store'
+import { Button } from '@/components/ui/button'
+import { usePermissions } from '@/data/auth'
+import { useCustomers, useQuotations } from '@/data/store'
 import { useFormMode } from '@/hooks/use-form-mode'
 import { t } from '@/i18n'
 import { countryLabel } from '@/lib/countries'
@@ -40,7 +38,11 @@ const columns: ColumnDef<CustomerRow, unknown>[] = [
     header: 'Customer',
     meta: { label: 'Customer' },
     enableHiding: false,
-    cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+    cell: ({ row }) => (
+      <Link to={`/customers/${row.original.id}`} className="font-medium text-primary hover:underline">
+        {row.original.name}
+      </Link>
+    ),
   },
   {
     accessorKey: 'country',
@@ -92,9 +94,8 @@ const columns: ColumnDef<CustomerRow, unknown>[] = [
 export function CustomersPage() {
   const customers = useCustomers()
   const quotations = useQuotations()
-  const shipments = useShipments()
-  const [selectedId, setSelectedId] = useState<string>()
-  const [confirmOpen, setConfirmOpen] = useState(false)
+  const navigate = useNavigate()
+  const { canEditOrders } = usePermissions()
   const { mode, setMode, close } = useFormMode()
 
   // Пересчитываем статистику, только когда меняются клиенты или котировки
@@ -118,7 +119,6 @@ export function CustomersPage() {
   )
 
   const countries = [...new Set(customers.map((c) => c.country))].sort().map((value) => ({ value, label: value }))
-  const selected = rows.find((row) => row.id === selectedId)
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-4 p-4 sm:p-6">
@@ -126,12 +126,12 @@ export function CustomersPage() {
         title="Customers"
         description="Companies you quote and ship for, with contacts and conversion."
         actions={
-          <DirectoryActions
-            hasSelection={!!selected}
-            onNew={() => setMode('new')}
-            onEdit={() => setMode('edit')}
-            onDelete={() => setConfirmOpen(true)}
-          />
+          canEditOrders && (
+            <Button size="sm" onClick={() => setMode('new')}>
+              <Plus />
+              {t('New')}
+            </Button>
+          )
         }
       />
 
@@ -139,79 +139,19 @@ export function CustomersPage() {
         columns={columns}
         data={rows}
         getRowId={(row) => row.id}
-        selectedId={selected?.id}
-        onSelect={(row) => setSelectedId(row?.id)}
+        // Клик по клиенту открывает его карточку на отдельной странице
+        onSelect={(row) => row && navigate(`/customers/${row.id}`)}
+        onOpen={(row) => navigate(`/customers/${row.id}`)}
         searchPlaceholder="Search customer, city, contact..."
         facetFilters={[{ columnId: 'country', title: 'Country', options: countries }]}
         initialSorting={[{ id: 'quotationCount', desc: true }]}
       />
-
-      {selected ? (
-        <div className="grid gap-4 lg:grid-cols-3">
-          <SectionCard title={selected.name}>
-            <ul className="space-y-3 text-sm">
-              <li className="flex gap-2.5">
-                <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                {selected.address}, {selected.city}, {selected.country}
-              </li>
-              <li className="flex gap-2.5">
-                <User className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                {selected.contactPerson}
-              </li>
-              <li className="flex gap-2.5">
-                <Mail className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                {selected.email}
-              </li>
-              <li className="flex gap-2.5">
-                <Phone className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                {selected.phone}
-              </li>
-            </ul>
-          </SectionCard>
-          <SectionCard title="Quotations" className="lg:col-span-2 [&>div:last-child]:p-0">
-            {selected.quotations.length === 0 ? (
-              <p className="p-5 text-sm text-muted-foreground">{t('No quotations for this customer yet.')}</p>
-            ) : (
-              <ul className="divide-y">
-                {selected.quotations.map((q) => (
-                  <li key={q.id} className="flex items-center justify-between gap-4 px-5 py-3 text-sm">
-                    <Link to={`/quotations/${q.id}`} className="font-medium text-primary hover:underline">
-                      {q.reference}
-                    </Link>
-                    <span className="flex-1 truncate text-muted-foreground">
-                      {q.collectionAddress} → {q.deliveryAddress}
-                    </span>
-                    <span className="text-muted-foreground tabular-nums">{formatDate(q.createdAt)}</span>
-                    <QuotationStatusBadge status={q.status} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </SectionCard>
-        </div>
-      ) : (
-        <p className="px-1 text-xs text-muted-foreground">{t('Click a customer to see contacts and quotations.')}</p>
-      )}
+      <p className="px-1 text-xs text-muted-foreground">{t('Click a customer to open the card.')}</p>
 
       <CustomerFormDialog
         open={!!mode}
         onOpenChange={(value) => !value && close()}
-        customer={mode === 'edit' ? selected : undefined}
-        onSaved={(c) => setSelectedId(c.id)}
-      />
-      <ConfirmDelete
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-        title={t('Delete customer {name}?', { name: selected?.name ?? '' })}
-        description={
-          selected && shipments.some((sh) => sh.customer === selected.name)
-            ? t('This customer has shipments. They stay, but the customer card will be removed.')
-            : t('The customer card will be removed. This cannot be undone.')
-        }
-        onConfirm={() => {
-          if (selected) deleteCustomer(selected.id)
-          setSelectedId(undefined)
-        }}
+        onSaved={(c) => navigate(`/customers/${c.id}`)}
       />
     </div>
   )

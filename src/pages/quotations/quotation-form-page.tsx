@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { AlertTriangle, ArrowLeft, Calculator, FileText, Plus, Save, Trash2 } from 'lucide-react'
-import { Link, Navigate, useBlocker, useNavigate, useParams } from 'react-router'
+import { Link, Navigate, useBlocker, useNavigate, useParams, useSearchParams } from 'react-router'
 
 import { CityPicker } from '@/components/city-picker'
 import { Combobox } from '@/components/combobox'
@@ -184,7 +184,9 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
     toForm(existing, { currency: settings.defaultCurrency, validDays: settings.quotationValidityDays }),
   )
   const [errors, setErrors] = useState<Errors>({})
-  const [tab, setTab] = useState<Tab>('general')
+  // ?tab=calculation — пришли из карточки по кнопке «Добавить расчёт»
+  const [params] = useSearchParams()
+  const [tab, setTab] = useState<Tab>(params.get('tab') === 'calculation' ? 'calculation' : 'general')
   const saving = useRef(false)
 
   // Ушли с недозаполненной формы — спрашиваем, чтобы случайный клик по меню не стёр работу
@@ -564,7 +566,7 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
                     ...form.cargo,
                     {
                       pieces: 1,
-                      packageType: 'Box',
+                      packageType: '',
                       natureOfGoods: form.natureOfGoods,
                       dimensions: '',
                       weightKg: 0,
@@ -964,10 +966,10 @@ function CargoLines({
   size: (value: string) => number | undefined
 }) {
   const totals = cargoTotals(lines)
-  const columns = 'grid min-w-[1040px] grid-cols-[72px_1fr_1.3fr_68px_68px_68px_96px_96px_96px_36px] gap-2'
+  const columns = 'grid min-w-[1100px] grid-cols-[72px_1fr_1.3fr_84px_84px_84px_112px_96px_96px_36px] gap-2'
   return (
     <div className="-mx-1 mt-4 space-y-2 overflow-x-auto px-1 py-1">
-      <div className={cn(columns, 'text-xs text-muted-foreground')}>
+      <div className={cn(columns, 'text-xs whitespace-nowrap text-muted-foreground')}>
         <span>{t('Pieces')}</span>
         <span>{t('Package type')}</span>
         <span>{t('Nature of goods')}</span>
@@ -986,6 +988,7 @@ function CargoLines({
             min={1}
             step={1}
             aria-label={t('Pieces')}
+            placeholder="1"
             value={line.pieces || ''}
             // Мест не может быть меньше одного: минус и ноль не пускаем, пустое поле — пока печатают
             onChange={(e) =>
@@ -997,11 +1000,13 @@ function CargoLines({
           />
           <Input
             aria-label={t('Package type')}
+            placeholder={t('Box, pallet, bag')}
             value={line.packageType}
             onChange={(e) => onChange(index, { packageType: e.target.value })}
           />
           <Input
             aria-label={t('Nature of goods')}
+            placeholder={t('e.g. Cotton yarn')}
             value={line.natureOfGoods}
             onChange={(e) => onChange(index, { natureOfGoods: e.target.value })}
           />
@@ -1012,6 +1017,7 @@ function CargoLines({
               min={0}
               step="any"
               aria-label={t({ lengthCm: 'Length, cm', widthCm: 'Width, cm', heightCm: 'Height, cm' }[key])}
+              placeholder={{ lengthCm: '120', widthCm: '80', heightCm: '100' }[key]}
               value={line[key] ?? ''}
               onChange={(e) => onChange(index, { [key]: size(e.target.value) })}
             />
@@ -1021,6 +1027,7 @@ function CargoLines({
             min={0}
             step="any"
             aria-label={t('Weight of 1 piece, kg')}
+            placeholder="25"
             value={line.weightPerPieceKg ?? ''}
             onChange={(e) => onChange(index, { weightPerPieceKg: size(e.target.value) })}
           />

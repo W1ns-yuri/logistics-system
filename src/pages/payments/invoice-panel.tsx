@@ -19,7 +19,15 @@ import { InvoicePreview } from './invoice-preview'
 import { printInvoice } from './invoice-print-page'
 
 // Карточка инвойса как в приложении клиента: сверху остаток, ниже вкладки Details / Payments
-export function InvoicePanel({ invoice, onDeleted }: { invoice: Invoice; onDeleted: () => void }) {
+export function InvoicePanel({
+  invoice,
+  onDeleted,
+  defaultTab = 'payments',
+}: {
+  invoice: Invoice
+  onDeleted: () => void
+  defaultTab?: 'details' | 'payments'
+}) {
   const { canEditPayments, canEditInvoices } = usePermissions()
   const [paying, setPaying] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -70,7 +78,7 @@ export function InvoicePanel({ invoice, onDeleted }: { invoice: Invoice; onDelet
         </div>
       </div>
 
-      <Tabs defaultValue="payments" className="gap-0">
+      <Tabs defaultValue={defaultTab} className="gap-0">
         <div className="border-y px-6 pt-2">
           <TabsList className="bg-transparent p-0">
             <TabsTrigger value="details">{t('Details')}</TabsTrigger>
