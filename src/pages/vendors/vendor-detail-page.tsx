@@ -108,7 +108,7 @@ export function VendorDetailPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatTile
           label="Shipments"
           value={ownShipments.length}
@@ -131,7 +131,7 @@ export function VendorDetailPage() {
         )}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-3">
         <SectionCard title="Contacts">
           <ul className="space-y-3 text-sm">
             <Contact icon={MapPin}>{countryLabel(vendor.country)}</Contact>

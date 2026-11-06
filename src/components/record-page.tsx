@@ -58,7 +58,7 @@ export function StatTile({
       <div className="text-xs text-muted-foreground">{t(label)}</div>
       <div
         className={cn(
-          'mt-1 text-xl font-semibold tabular-nums',
+          'mt-1 text-lg font-semibold tabular-nums sm:text-xl',
           tone === 'good' && 'text-success',
           tone === 'bad' && 'text-destructive',
           tone === 'warn' && 'text-warning-text',

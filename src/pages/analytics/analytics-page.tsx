@@ -155,6 +155,7 @@ export function AnalyticsPage() {
         <Panel
           title="Revenue & profit by month"
           className="xl:col-span-2"
+          bodyClassName="flex flex-col"
           action={
             <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 text-xs">
               <LegendRow color="var(--chart-1)" label={t('Revenue')} />
@@ -367,12 +368,14 @@ export function Panel({
   description,
   action,
   className,
+  bodyClassName,
   children,
 }: {
   title: string
   description?: string
   action?: ReactNode
   className?: string
+  bodyClassName?: string
   children: ReactNode
 }) {
   return (
@@ -384,7 +387,7 @@ export function Panel({
         </div>
         {action}
       </div>
-      <div className="flex-1 px-5 pb-5">{children}</div>
+      <div className={cn('flex-1 px-5 pb-5', bodyClassName)}>{children}</div>
     </section>
   )
 }

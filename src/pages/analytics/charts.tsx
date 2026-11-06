@@ -343,7 +343,7 @@ export function ProgressLines({
 }) {
   const max = Math.max(...data.map((d) => d.bar), 1)
   return (
-    <ul className="space-y-3.5" data-testid="progress-lines">
+    <ul className="flex flex-1 flex-col justify-around gap-3.5" data-testid="progress-lines">
       {data.map((d) => {
         const margin = d.bar ? (d.line / d.bar) * 100 : 0
         return (
@@ -356,7 +356,7 @@ export function ProgressLines({
               {d.partial && <span className="block text-[10px] font-normal opacity-70">{partialLabel}</span>}
             </span>
             <div
-              className="relative h-3 overflow-hidden rounded-full bg-muted"
+              className="relative h-3.5 overflow-hidden rounded-full bg-muted"
               title={`${barLabel}: ${format(d.bar)} · ${lineLabel}: ${format(d.line)}`}
             >
               <div
