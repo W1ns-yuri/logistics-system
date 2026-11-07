@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 
+import { DateInput } from '@/components/date-input'
 import { CityPicker } from '@/components/city-picker'
 import { CustomerPicker } from '@/components/customer-picker'
 import { FormField } from '@/components/form-field'
@@ -102,6 +103,17 @@ function ShipmentForm({
 }) {
   const [form, setForm] = useState(() => toForm(shipment))
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({})
+
+  // Для своего поля даты: то же, что bind, но onChange получает строку
+  const dateBind = (key: keyof FormState) => ({
+    id: `shipment-${key}`,
+    value: String(form[key] ?? ''),
+    'aria-invalid': !!errors[key],
+    onChange: (value: string) => {
+      setForm((prev) => ({ ...prev, [key]: value }))
+      setErrors((prev) => ({ ...prev, [key]: undefined }))
+    },
+  })
 
   const bind = (key: keyof FormState) => ({
     id: `shipment-${key}`,
@@ -214,13 +226,13 @@ function ShipmentForm({
 
       <div className="grid gap-4 sm:grid-cols-3">
         <FormField label="Order date" htmlFor="shipment-orderDate" required error={errors.orderDate}>
-          <Input {...bind('orderDate')} type="date" />
+          <DateInput {...dateBind('orderDate')} clearable={false} />
         </FormField>
         <FormField label="ETD" htmlFor="shipment-etd" error={errors.etd}>
-          <Input {...bind('etd')} type="date" />
+          <DateInput {...dateBind('etd')} />
         </FormField>
         <FormField label="ETA" htmlFor="shipment-eta" error={errors.eta}>
-          <Input {...bind('eta')} type="date" />
+          <DateInput {...dateBind('eta')} />
         </FormField>
         <FormField label="Mode" htmlFor="shipment-mode" required>
           <NativeSelect

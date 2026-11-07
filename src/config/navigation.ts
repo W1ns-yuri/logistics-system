@@ -50,7 +50,7 @@ export const navigation: NavGroup[] = [
     label: 'Finance',
     items: [
       { title: 'Payments', path: '/payments', icon: CreditCard, payments: true },
-      { title: 'Analytics', path: '/analytics', icon: BarChart3, payments: true },
+      { title: 'Analytics', path: '/analytics', icon: BarChart3 },
     ],
   },
 ]

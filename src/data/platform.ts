@@ -18,6 +18,7 @@ import {
   todayIso,
   TRIAL_DAYS,
   type Plan,
+  upgradePlan,
 } from './plans'
 
 export * from './plans'
@@ -97,10 +98,26 @@ function seed(): State {
   return { currentCompanyId: 'demo', companies: seedCompanies() }
 }
 
+// Переименовали тарифы (Start/Business/Enterprise → Lite/Lite+/Standard) — чиним сохранённое
+function upgradeState(saved: State): State {
+  return {
+    ...saved,
+    companies: saved.companies.map((c) => ({
+      ...c,
+      plan: upgradePlan(c.plan),
+      payments: c.payments.map((p) => ({ ...p, plan: upgradePlan(p.plan) })),
+      profile: c.profile && {
+        ...c.profile,
+        plannedPlan: c.profile.plannedPlan && upgradePlan(c.profile.plannedPlan),
+      },
+    })),
+  }
+}
+
 function load(): State {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw) as State
+    if (raw) return upgradeState(JSON.parse(raw) as State)
   } catch {
     // мусор в localStorage — начинаем с демо
   }
@@ -176,7 +193,7 @@ export function registerCompany(data: {
 // Продлить = принять оплату: от сегодняшнего дня, если уже истекла, иначе от текущей даты окончания.
 // Пробный период при продлении становится тарифом, выбранным при регистрации (или Start)
 export const renewalPlan = (company: Company): Plan =>
-  company.plan === 'trial' ? (company.profile?.plannedPlan ?? 'start') : company.plan
+  company.plan === 'trial' ? (company.profile?.plannedPlan ?? 'lite') : company.plan
 
 export function extendLicense(id: string, months: number) {
   const company = state.companies.find((c) => c.id === id)

@@ -3,7 +3,6 @@ import { ArrowLeft, Calculator, Copy, FileText, Info, Pencil, Printer, Trash2, T
 import { Link, useNavigate, useParams } from 'react-router'
 
 import { ConfirmDelete } from '@/components/confirm-delete'
-import { QuotationStatusBadge } from '@/components/status-badge'
 import { TransportModeIcon } from '@/components/transport-mode'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -14,6 +13,7 @@ import {
   updateQuotation,
   useMemberName,
   useQuotation,
+  useLinkedShipment,
 } from '@/data/store'
 import { useCanModify, usePermissions } from '@/data/auth'
 import { t } from '@/i18n'
@@ -22,12 +22,14 @@ import { NotFoundPage } from '@/pages/not-found'
 import { QuotationCalculationTab } from './quotation-calculation-tab'
 import { QuotationGeneralTab } from './quotation-general-tab'
 import { QuotationPreview } from './quotation-preview'
+import { QuotationStatusMenu } from './quotation-status-menu'
 
 // Карточка котировки: вкладки General / Calculation / PDF (слайды 3–4 презентации)
 export function QuotationDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const quotation = useQuotation(id)
+  const linked = useLinkedShipment(id)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [tab, setTab] = useState('general')
   const { canEditOrders } = usePermissions()
@@ -44,10 +46,10 @@ export function QuotationDetailPage() {
     setTimeout(() => window.print(), 50)
   }
 
-  const canCreateShipment = quotation.status !== 'shipment_created' && quotation.status !== 'cancelled'
+  const canCreateShipment = quotation.status !== 'cancelled'
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-5 p-6">
+    <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <Button asChild variant="outline" size="icon-sm" aria-label={t('Back to quotations')}>
@@ -58,7 +60,7 @@ export function QuotationDetailPage() {
           <div>
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-2xl font-semibold tracking-tight">{quotation.reference}</h1>
-              <QuotationStatusBadge status={quotation.status} />
+              <QuotationStatusMenu quotation={quotation} editable={canModify} />
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
               <TransportModeIcon mode={quotation.mode} />
@@ -123,17 +125,26 @@ export function QuotationDetailPage() {
                 <Trash2 />
                 {t('Delete')}
               </Button>
-              <Button
-                size="sm"
-                disabled={!canCreateShipment}
-                onClick={() => {
-                  const shipment = createShipmentFromQuotation(quotation.id)
-                  if (shipment) navigate(`/shipments/${shipment.id}`)
-                }}
-              >
-                <Truck />
-                {t('Create shipment')}
-              </Button>
+              {linked ? (
+                <Button size="sm" asChild>
+                  <Link to={`/shipments/${linked.id}`}>
+                    <Truck />
+                    {t('Open shipment {number}', { number: linked.number })}
+                  </Link>
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  disabled={!canCreateShipment}
+                  onClick={() => {
+                    const shipment = createShipmentFromQuotation(quotation.id)
+                    if (shipment) navigate(`/shipments/${shipment.id}`)
+                  }}
+                >
+                  <Truck />
+                  {t('Create shipment')}
+                </Button>
+              )}
             </>
           )}
         </div>
@@ -158,7 +169,7 @@ export function QuotationDetailPage() {
           <QuotationGeneralTab quotation={quotation} />
         </TabsContent>
         <TabsContent value="calculation">
-          <QuotationCalculationTab quotation={quotation} />
+          <QuotationCalculationTab quotation={quotation} canEdit={canModify} />
         </TabsContent>
         <TabsContent value="pdf">
           <QuotationPreview quotation={quotation} />

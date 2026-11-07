@@ -1,18 +1,23 @@
 // Тарифы платформы и помощники для дат. Отдельный файл, чтобы им пользовались и данные, и демо-генератор.
 
-export const PLANS = ['trial', 'start', 'business', 'enterprise'] as const
+export const PLANS = ['trial', 'lite', 'lite_plus', 'standard'] as const
 export type Plan = (typeof PLANS)[number]
 
-// Мест (сотрудников) по тарифу; null — без лимита
-export const planSeats: Record<Plan, number | null> = { trial: 3, start: 5, business: 15, enterprise: null }
+// Мест (сотрудников) по тарифу; null — без лимита. Lite+ обещаем «5–7», лимит ставим по верхней границе
+export const planSeats: Record<Plan, number | null> = { trial: 3, lite: 3, lite_plus: 7, standard: 10 }
 export const planLabels: Record<Plan, string> = {
   trial: 'Trial',
-  start: 'Start',
-  business: 'Business',
-  enterprise: 'Enterprise',
+  lite: 'Lite',
+  lite_plus: 'Lite+',
+  standard: 'Standard',
 }
-// Цена в месяц, USD. Примерные цифры для прототипа, обсудим с клиентом
-export const planPrice: Record<Plan, number> = { trial: 0, start: 49, business: 129, enterprise: 299 }
+// Цена в месяц, USD — от клиента (07.11)
+export const planPrice: Record<Plan, number> = { trial: 0, lite: 10, lite_plus: 15, standard: 20 }
+
+// Старые id тарифов (до 06.11) → новые, для данных, сохранённых в браузере
+export const LEGACY_PLANS: Record<string, Plan> = { start: 'lite', business: 'lite_plus', enterprise: 'standard' }
+export const upgradePlan = (plan: string): Plan => LEGACY_PLANS[plan] ?? (plan as Plan)
+
 // Год стоит как 10 месяцев: два месяца в подарок
 export const YEAR_PRICE_MONTHS = 10
 

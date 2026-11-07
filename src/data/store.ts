@@ -1,3 +1,4 @@
+import { upgradeQuotationCargo } from '@/lib/cargo'
 import { useSyncExternalStore } from 'react'
 
 import { invoiceTotals } from '@/lib/calculation'
@@ -5,7 +6,14 @@ import type { Customer, Vendor } from '@/types/directory'
 import type { Invoice, InvoiceStatus, Payment } from '@/types/invoice'
 import type { Currency } from '@/types/logistics'
 import type { Quotation } from '@/types/quotation'
-import type { Shipment, ShipmentDocument, ShipmentStatus, VendorPayment } from '@/types/shipment'
+import {
+  SHIPMENT_STATUSES,
+  type ExtraCharge,
+  type Shipment,
+  type ShipmentDocument,
+  type ShipmentStatus,
+  type VendorPayment,
+} from '@/types/shipment'
 import type { TeamMember } from '@/types/team'
 import { archive } from './archive'
 import { mockCustomers } from './customers'
@@ -125,7 +133,10 @@ function withOwners(data: State): State {
   return { ...data, quotations, shipments }
 }
 
-const normalize = (data: State) => withOwners(renumberShipments(chargesWithVendors(data)))
+// Груз: размеры по полям и вес на единицу транспорта (правки клиента 05.11)
+const withCargoDetails = (data: State): State => ({ ...data, quotations: data.quotations.map(upgradeQuotationCargo) })
+
+const normalize = (data: State) => withCargoDetails(withOwners(renumberShipments(chargesWithVendors(data))))
 
 const initialState = (): State =>
   normalize({
@@ -183,12 +194,18 @@ function load(): State {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
       const saved = { ...initialState(), ...JSON.parse(raw) } as State
-      return normalize({ ...saved, invoices: withPayments(saved.invoices, saved.shipments) })
+      return withFreshStatuses(normalize({ ...saved, invoices: withPayments(saved.invoices, saved.shipments) }))
     }
   } catch {
     // нет доступа к localStorage или там мусор — начинаем с демо-данных
   }
-  return initialState()
+  return withFreshStatuses(initialState())
+}
+
+// Срок оплаты проходит сам по себе, без изменений в инвойсе. Поэтому при каждом открытии
+// пересчитываем статусы, иначе просроченный инвойс так и висел бы «Частично оплачен»
+function withFreshStatuses(s: State): State {
+  return { ...s, invoices: s.invoices.map((inv) => ({ ...inv, status: invoiceStatus(inv) })) }
 }
 
 let state: State = load()
@@ -293,9 +310,18 @@ export function deleteQuotation(id: string) {
 }
 
 // Кнопка «Create shipment»: шипмент получает номер котировки, маршрут и груз переносятся
+// Действующая (не отменённая) перевозка, созданная из котировки
+const linkedShipment = (shipments: Shipment[], quotationId: string) =>
+  shipments.find((s) => s.quotationId === quotationId && s.status !== 'cancelled')
+export const useLinkedShipment = (quotationId?: string) =>
+  useStore((s) => (quotationId ? linkedShipment(s.shipments, quotationId) : undefined))
+
+// Одна котировка — одна перевозка: если перевозка уже есть, возвращаем её, а не делаем дубль
 export function createShipmentFromQuotation(id: string) {
   const q = state.quotations.find((item) => item.id === id)
   if (!q) return
+  const existing = linkedShipment(state.shipments, q.id)
+  if (existing) return existing
   const shipment: Shipment = {
     id: newId(),
     number: nextShipmentNumber(),
@@ -407,11 +433,82 @@ export function deleteShipment(id: string) {
   setState((s) => ({ ...s, shipments: s.shipments.filter((item) => item.id !== id) }))
 }
 
+/*
+ * Смена статуса.
+ * Вперёд — добавляем шаг с сегодняшней датой.
+ * Назад (выбрали в списке уже пройденный статус) — откатываемся к нему: поздние шаги убираем,
+ * а даты пройденных шагов не трогаем. Раньше откат ставил сегодняшние даты (правка клиента 05.11).
+ * Отмена — только через cancelShipment, с причиной.
+ */
 export function setShipmentStatus(id: string, status: ShipmentStatus, note?: string) {
   setState((s) => ({
     ...s,
+    shipments: s.shipments.map((item) => {
+      if (item.id !== id || item.status === status) return item
+      const order = SHIPMENT_STATUSES as readonly ShipmentStatus[]
+      const back = item.status !== 'cancelled' && order.indexOf(status) < order.indexOf(item.status)
+      const last = item.history.findLastIndex((event) => event.status === status)
+      if (back && last >= 0) return { ...item, status, history: item.history.slice(0, last + 1) }
+      return { ...item, status, history: [...item.history, { status, at: now(), note }] }
+    }),
+  }))
+}
+
+// «Отменить шаг»: убираем последний шаг истории, статус возвращается к предыдущему.
+// Дважды по ошибке нажали «Следующий шаг» — дважды нажимаем «Отменить шаг»
+export function undoShipmentStatus(id: string) {
+  setState((s) => ({
+    ...s,
+    shipments: s.shipments.map((item) => {
+      if (item.id !== id || item.history.length < 2) return item
+      const history = item.history.slice(0, -1)
+      const wasCancelled = item.status === 'cancelled'
+      return {
+        ...item,
+        history,
+        status: history[history.length - 1]!.status,
+        cancelReason: wasCancelled ? undefined : item.cancelReason,
+      }
+    }),
+  }))
+}
+
+// Отмена перевозки: можно и с оплатами, но причина обязательна. После отмены перевозка закрыта
+export function cancelShipment(id: string, reason: string) {
+  setState((s) => ({
+    ...s,
     shipments: s.shipments.map((item) =>
-      item.id === id ? { ...item, status, history: [...item.history, { status, at: now(), note }] } : item,
+      item.id === id && item.status !== 'cancelled'
+        ? {
+            ...item,
+            status: 'cancelled',
+            cancelReason: reason,
+            history: [...item.history, { status: 'cancelled', at: now(), note: reason }],
+          }
+        : item,
+    ),
+  }))
+}
+
+// Доплата подрядчику сверх расчёта (с причиной)
+export function addExtraCharge(shipmentId: string, data: Omit<ExtraCharge, 'id'>) {
+  setState((s) => ({
+    ...s,
+    shipments: s.shipments.map((item) =>
+      item.id === shipmentId
+        ? { ...item, extraCharges: [...(item.extraCharges ?? []), { ...data, id: newId() }] }
+        : item,
+    ),
+  }))
+}
+
+export function removeExtraCharge(shipmentId: string, chargeId: string) {
+  setState((s) => ({
+    ...s,
+    shipments: s.shipments.map((item) =>
+      item.id === shipmentId
+        ? { ...item, extraCharges: (item.extraCharges ?? []).filter((c) => c.id !== chargeId) }
+        : item,
     ),
   }))
 }
@@ -499,13 +596,27 @@ export function deleteVendor(id: string) {
 
 export const useInvoices = () => useStore((s) => s.invoices)
 
+// Инвойсы без отменённых перевозок: отменённая перевозка пропадает из «Оплат», итогов и аналитики
+let activeCache: { invoices: Invoice[]; shipments: Shipment[]; result: Invoice[] } | undefined
+function activeInvoices(s: State) {
+  if (activeCache?.invoices === s.invoices && activeCache.shipments === s.shipments) return activeCache.result
+  const cancelled = new Set(s.shipments.filter((sh) => sh.status === 'cancelled').map((sh) => sh.id))
+  const result = s.invoices.filter((inv) => !inv.shipmentId || !cancelled.has(inv.shipmentId))
+  activeCache = { invoices: s.invoices, shipments: s.shipments, result }
+  return result
+}
+export const useActiveInvoices = () => useStore(activeInvoices)
+
 // Статус инвойса считается из оплат и срока
+// Черновик клиенту ещё не отправлен, поэтому просроченным не считается.
+// Дата берётся прямо здесь: функция нужна уже при загрузке, когда today() ниже ещё не объявлен
 function invoiceStatus(invoice: Invoice): InvoiceStatus {
   const { total, balanceDue } = invoiceTotals(invoice)
   if (total > 0 && balanceDue <= 0.005) return 'paid'
-  if (invoice.dueDate < today()) return 'overdue'
+  if (invoice.status === 'draft' && invoice.paid <= 0) return 'draft'
+  if (invoice.dueDate < new Date().toISOString().slice(0, 10)) return 'overdue'
   if (invoice.paid > 0) return 'partially_paid'
-  return invoice.status === 'draft' ? 'draft' : 'sent'
+  return 'sent'
 }
 
 // paid и discount — сумма по списку оплат; после любого изменения пересчитываем

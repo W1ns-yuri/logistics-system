@@ -47,7 +47,7 @@ type DataTableProps<TData> = {
 /*
  * Универсальная таблица на TanStack Table.
  * Умеет: поиск по всем колонкам, фильтр по значениям (например статус), сортировку по клику
- * на заголовок, скрытие колонок, пагинацию и выбор строки (клик — выбрать, двойной клик — открыть).
+ * на заголовок, скрытие колонок, пагинацию и выбор строки (клик — выбрать, двойной клик или Enter — открыть).
  * Колонки описываются снаружи (см. quotation-columns.tsx), сама таблица ничего не знает про котировки.
  */
 export function DataTable<TData>({
@@ -157,7 +157,20 @@ export function DataTable<TData>({
                 data-state={row.getIsSelected() ? 'selected' : undefined}
                 onClick={() => onSelect?.(row.getIsSelected() ? undefined : row.original)}
                 onDoubleClick={() => onOpen?.(row.original)}
-                className={cn('cursor-pointer select-none', rowClassName?.(row.original))}
+                // С клавиатуры: Tab до строки, Enter — открыть, пробел — выбрать
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget) return
+                  if (event.key === 'Enter' && onOpen) onOpen(row.original)
+                  else if (event.key === ' ') {
+                    event.preventDefault()
+                    onSelect?.(row.getIsSelected() ? undefined : row.original)
+                  }
+                }}
+                className={cn(
+                  'cursor-pointer outline-none select-none focus-visible:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset',
+                  rowClassName?.(row.original),
+                )}
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>

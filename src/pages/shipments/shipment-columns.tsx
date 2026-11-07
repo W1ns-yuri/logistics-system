@@ -1,4 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table'
+import { Link } from 'react-router'
 
 import { ShipmentStatusBadge } from '@/components/status-badge'
 import { TransportModeIcon } from '@/components/transport-mode'
@@ -38,7 +39,15 @@ export function getShipmentColumns({
       header: 'Shipment No.',
       meta: { label: 'Shipment No.' },
       enableHiding: false,
-      cell: ({ row }) => <span className="font-medium text-primary">{row.original.number}</span>,
+      cell: ({ row }) => (
+        <Link
+          to={`/shipments/${row.original.id}`}
+          onClick={(event) => event.stopPropagation()}
+          className="font-medium text-primary hover:underline"
+        >
+          {row.original.number}
+        </Link>
+      ),
     },
     {
       accessorKey: 'customer',

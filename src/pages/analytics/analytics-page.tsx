@@ -1,15 +1,27 @@
-import { ArrowDownRight, ArrowUpRight, CircleDot, MapPin, PackageCheck, Ship, Truck } from 'lucide-react'
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  ChartColumn,
+  ChartNoAxesGantt,
+  CircleDot,
+  MapPin,
+  PackageCheck,
+  Ship,
+  Truck,
+} from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 
 import { PageHeader } from '@/components/page-header'
 import { TransportModeIcon } from '@/components/transport-mode'
-import { useInvoices, useQuotations, useShipments, useVendors } from '@/data/store'
+import { usePermissions, useSession } from '@/data/auth'
+import { useActiveInvoices, useQuotations, useShipments, useVendors } from '@/data/store'
 import { t } from '@/i18n'
 import { cn } from '@/lib/utils'
 import { transportModeLabels, type TransportMode } from '@/types/logistics'
 import { buildAnalytics, PERIODS, type Period } from './analytics-data'
-import { RevenueChart, BarList, Donut, LegendRow, Sparkline } from './charts'
+import { RevenueChart, BarList, Donut, LegendRow, ProgressLines, Sparkline } from './charts'
 import { monthLabel, usd, usdShort } from './format'
+import { findStats, MyResults, TeamResultsTable } from './team-results'
 
 const modeColors: Record<TransportMode, string> = {
   road: 'var(--chart-3)',
@@ -18,12 +30,38 @@ const modeColors: Record<TransportMode, string> = {
   rail: 'var(--chart-2)',
 }
 
+type ChartView = 'lines' | 'bars'
+const CHART_VIEW_KEY = 'analytics-chart-view'
+const CHART_VIEWS: { value: ChartView; label: string; icon: typeof ChartNoAxesGantt }[] = [
+  { value: 'lines', label: 'Progress lines', icon: ChartNoAxesGantt },
+  { value: 'bars', label: 'Bars and line', icon: ChartColumn },
+]
+
+function readChartView(): ChartView {
+  try {
+    return localStorage.getItem(CHART_VIEW_KEY) === 'bars' ? 'bars' : 'lines'
+  } catch {
+    return 'lines'
+  }
+}
+
 export function AnalyticsPage() {
   const quotations = useQuotations()
   const shipments = useShipments()
-  const invoices = useInvoices()
+  const invoices = useActiveInvoices()
   const vendors = useVendors()
   const [period, setPeriod] = useState<Period>(6)
+  const [chartView, setChartView] = useState<ChartView>(readChartView)
+  const changeChartView = (view: ChartView) => {
+    setChartView(view)
+    try {
+      localStorage.setItem(CHART_VIEW_KEY, view)
+    } catch {
+      // приватный режим — просто не запоминаем
+    }
+  }
+  const { role } = usePermissions()
+  const session = useSession()
 
   const data = useMemo(
     () => buildAnalytics({ period, quotations, shipments, invoices, vendors }),
@@ -37,37 +75,51 @@ export function AnalyticsPage() {
     partial: i === data.trend.length - 1,
   }))
   const modeTotal = data.modes.reduce((acc, m) => acc + m.count, 0)
+  const periodSwitch = (
+    <div className="inline-flex rounded-lg border bg-muted/50 p-0.5" role="tablist">
+      {PERIODS.map((p) => (
+        <button
+          key={p.value}
+          type="button"
+          role="tab"
+          aria-selected={period === p.value}
+          onClick={() => setPeriod(p.value)}
+          className={cn(
+            'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+            period === p.value
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          {t(p.label)}
+        </button>
+      ))}
+    </div>
+  )
+
+  // Сотрудник не видит деньги компании — только свои результаты
+  if (role === 'employee')
+    return (
+      <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
+        <PageHeader
+          title="My results"
+          description="Your quotations and shipments for the period. Amounts are in USD at demo rates."
+          actions={periodSwitch}
+        />
+        <MyResults stats={findStats(data.members, session?.email)} />
+      </div>
+    )
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-5 p-6">
+    <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
       <PageHeader
         title="Analytics"
         description="Revenue, profit and operations at a glance. Amounts are in USD at demo rates."
-        actions={
-          <div className="inline-flex rounded-lg border bg-muted/50 p-0.5" role="tablist">
-            {PERIODS.map((p) => (
-              <button
-                key={p.value}
-                type="button"
-                role="tab"
-                aria-selected={period === p.value}
-                onClick={() => setPeriod(p.value)}
-                className={cn(
-                  'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-                  period === p.value
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {t(p.label)}
-              </button>
-            ))}
-          </div>
-        }
+        actions={periodSwitch}
       />
 
       {/* KPI */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Revenue"
           value={usd(data.kpis.revenue.value)}
@@ -99,25 +151,61 @@ export function AnalyticsPage() {
         />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-3">
         <Panel
           title="Revenue & profit by month"
           className="xl:col-span-2"
+          bodyClassName="flex flex-col"
           action={
-            <div className="flex items-center gap-4 text-xs">
+            <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 text-xs">
               <LegendRow color="var(--chart-1)" label={t('Revenue')} />
               <LegendRow color="var(--chart-2)" label={t('Gross profit')} />
+              <div
+                className="inline-flex rounded-lg border bg-muted/50 p-0.5"
+                role="radiogroup"
+                aria-label={t('Chart view')}
+              >
+                {CHART_VIEWS.map((v) => (
+                  <button
+                    key={v.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={chartView === v.value}
+                    aria-label={t(v.label)}
+                    title={t(v.label)}
+                    onClick={() => changeChartView(v.value)}
+                    className={cn(
+                      'rounded-md p-1.5 transition-colors',
+                      chartView === v.value
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    <v.icon className="size-4" />
+                  </button>
+                ))}
+              </div>
             </div>
           }
         >
-          <RevenueChart
-            data={trend}
-            height={340}
-            format={usdShort}
-            barLabel={t('Revenue')}
-            lineLabel={t('Gross profit')}
-            partialLabel={t('month in progress')}
-          />
+          {chartView === 'lines' ? (
+            <ProgressLines
+              data={trend}
+              format={usdShort}
+              barLabel={t('Revenue')}
+              lineLabel={t('Gross profit')}
+              partialLabel={t('month in progress')}
+            />
+          ) : (
+            <RevenueChart
+              data={trend}
+              height={340}
+              format={usdShort}
+              barLabel={t('Revenue')}
+              lineLabel={t('Gross profit')}
+              partialLabel={t('month in progress')}
+            />
+          )}
         </Panel>
 
         <Panel title="Shipments by mode">
@@ -152,7 +240,7 @@ export function AnalyticsPage() {
         </Panel>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2 xl:grid-cols-3">
         <Panel title="Top customers" description="By revenue in the period">
           {data.customers.length ? (
             <BarList
@@ -173,18 +261,28 @@ export function AnalyticsPage() {
         <ReceivablesPanel receivables={data.receivables} />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
+      {role === 'admin' && (
+        <Panel
+          title="Results by member"
+          description="Who created how many quotations, how many were won, and the money their shipments brought"
+          className="[&>div:last-child]:px-0 [&>div:last-child]:pb-0"
+        >
+          <TeamResultsTable members={data.members} />
+        </Panel>
+      )}
+
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-3">
         <Panel title="Top routes" className="xl:col-span-2 [&>div:last-child]:px-0 [&>div:last-child]:pb-0">
           {data.routes.length ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-y bg-muted/40 text-left text-xs text-muted-foreground">
-                    <th className="px-5 py-2.5 font-medium">{t('Route')}</th>
-                    <th className="px-3 py-2.5 text-right font-medium">{t('Shipments')}</th>
+                    <th className="px-4 py-2.5 font-medium sm:px-5">{t('Route')}</th>
+                    <th className="hidden px-3 py-2.5 text-right font-medium sm:table-cell">{t('Shipments')}</th>
                     <th className="px-3 py-2.5 text-right font-medium">{t('Revenue')}</th>
-                    <th className="px-3 py-2.5 text-right font-medium">{t('Gross profit')}</th>
-                    <th className="px-5 py-2.5 text-right font-medium">{t('Margin')}</th>
+                    <th className="hidden px-3 py-2.5 text-right font-medium sm:table-cell">{t('Gross profit')}</th>
+                    <th className="px-4 py-2.5 text-right font-medium sm:px-5">{t('Margin')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -192,8 +290,8 @@ export function AnalyticsPage() {
                     const margin = r.revenue ? (r.profit / r.revenue) * 100 : 0
                     return (
                       <tr key={`${r.from}-${r.to}`} className="border-b last:border-0 hover:bg-muted/30">
-                        <td className="px-5 py-3">
-                          <span className="flex items-center gap-2.5">
+                        <td className="px-4 py-3 sm:px-5">
+                          <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
                             <span
                               className="flex size-7 shrink-0 items-center justify-center rounded-md"
                               style={{ background: `color-mix(in oklch, ${modeColors[r.mode]} 16%, transparent)` }}
@@ -205,10 +303,10 @@ export function AnalyticsPage() {
                             <span className="font-medium">{r.to}</span>
                           </span>
                         </td>
-                        <td className="px-3 py-3 text-right tabular-nums">{r.shipments}</td>
+                        <td className="hidden px-3 py-3 text-right tabular-nums sm:table-cell">{r.shipments}</td>
                         <td className="px-3 py-3 text-right tabular-nums">{usd(r.revenue)}</td>
-                        <td className="px-3 py-3 text-right tabular-nums">{usd(r.profit)}</td>
-                        <td className="px-5 py-3 text-right">
+                        <td className="hidden px-3 py-3 text-right tabular-nums sm:table-cell">{usd(r.profit)}</td>
+                        <td className="px-4 py-3 text-right sm:px-5">
                           <MarginPill value={margin} />
                         </td>
                       </tr>
@@ -232,7 +330,7 @@ export function AnalyticsPage() {
                 return (
                   <div key={p.status} className="rounded-lg border bg-muted/30 p-2.5 text-center">
                     <Icon
-                      className={cn('mx-auto size-4', p.status === 'at_border' ? 'text-warning' : 'text-primary')}
+                      className={cn('mx-auto size-4', p.status === 'at_border' ? 'text-warning-text' : 'text-primary')}
                     />
                     <div className="mt-1.5 text-xl font-semibold tabular-nums">{p.count}</div>
                     <div className="text-[11px] leading-tight text-muted-foreground">{t(statusLabel[p.status])}</div>
@@ -270,12 +368,14 @@ export function Panel({
   description,
   action,
   className,
+  bodyClassName,
   children,
 }: {
   title: string
   description?: string
   action?: ReactNode
   className?: string
+  bodyClassName?: string
   children: ReactNode
 }) {
   return (
@@ -287,7 +387,7 @@ export function Panel({
         </div>
         {action}
       </div>
-      <div className="flex-1 px-5 pb-5">{children}</div>
+      <div className={cn('flex-1 px-5 pb-5', bodyClassName)}>{children}</div>
     </section>
   )
 }
@@ -349,7 +449,7 @@ function MarginPill({ value }: { value: number }) {
       ? 'bg-success/12 text-success'
       : value >= 8
         ? 'bg-primary/10 text-primary'
-        : 'bg-warning/15 text-amber-700 dark:text-warning'
+        : 'bg-warning/15 text-warning-text'
   return (
     <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium tabular-nums', tone)}>{value.toFixed(1)}%</span>
   )
@@ -359,10 +459,14 @@ function ConversionPanel({ funnel }: { funnel: ReturnType<typeof buildAnalytics>
   const parts = [
     { key: 'won', label: 'Won', value: funnel.won, color: 'var(--chart-2)' },
     { key: 'open', label: 'In progress', value: funnel.open, color: 'var(--chart-1)' },
-    { key: 'lost', label: 'Lost', value: funnel.lost, color: 'var(--chart-5)' },
+    { key: 'failed', label: 'Failed', value: funnel.failed, color: 'var(--chart-5)' },
+    { key: 'cancelled', label: 'Cancelled', value: funnel.cancelled, color: 'var(--muted-foreground)' },
   ]
   return (
-    <Panel title="Quotation conversion" description="Won out of decided quotations">
+    <Panel
+      title="Quotation conversion"
+      description="Won out of won + failed. Quotations we cancelled ourselves do not count"
+    >
       <div className="flex items-baseline gap-2">
         <span className="text-4xl font-semibold tracking-tight tabular-nums">{Math.round(funnel.conversion)}%</span>
         <span className="text-sm text-muted-foreground">{t('{n} quotations', { n: funnel.created })}</span>
@@ -378,7 +482,7 @@ function ConversionPanel({ funnel }: { funnel: ReturnType<typeof buildAnalytics>
           ) : null,
         )}
       </div>
-      <div className="mt-5 grid grid-cols-3 gap-3">
+      <div className="mt-5 grid grid-cols-2 gap-3">
         {parts.map((p) => (
           <div key={p.key}>
             <LegendRow color={p.color} label={t(p.label)} />

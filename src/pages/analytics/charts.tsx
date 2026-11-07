@@ -323,3 +323,66 @@ export function BarList({
     </ul>
   )
 }
+
+/**
+ * «Линии прогресса»: по строке на месяц. Полоса — выручка относительно лучшего месяца,
+ * внутри неё заливка — прибыль. Справа — суммы и маржа.
+ */
+export function ProgressLines({
+  data,
+  format,
+  barLabel,
+  lineLabel,
+  partialLabel,
+}: {
+  data: BarLinePoint[]
+  format: (value: number) => string
+  barLabel: string
+  lineLabel: string
+  partialLabel: string
+}) {
+  const max = Math.max(...data.map((d) => d.bar), 1)
+  return (
+    <ul className="flex flex-1 flex-col justify-around gap-3.5" data-testid="progress-lines">
+      {data.map((d) => {
+        const margin = d.bar ? (d.line / d.bar) * 100 : 0
+        return (
+          <li
+            key={d.label}
+            className="group grid grid-cols-[3.5rem_1fr] items-center gap-3 sm:grid-cols-[4rem_1fr_9.5rem]"
+          >
+            <span className="text-xs font-medium text-muted-foreground">
+              {d.label}
+              {d.partial && <span className="block text-[10px] font-normal opacity-70">{partialLabel}</span>}
+            </span>
+            <div
+              className="relative h-3.5 overflow-hidden rounded-full bg-muted"
+              title={`${barLabel}: ${format(d.bar)} · ${lineLabel}: ${format(d.line)}`}
+            >
+              <div
+                className={cn(
+                  'absolute inset-y-0 left-0 rounded-full transition-[width] duration-700',
+                  d.partial && 'opacity-60',
+                )}
+                style={{
+                  width: `${(d.bar / max) * 100}%`,
+                  background: 'color-mix(in oklch, var(--chart-1) 35%, transparent)',
+                }}
+              />
+              <div
+                className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-700 group-hover:brightness-110"
+                style={{ width: `${(Math.max(d.line, 0) / max) * 100}%`, background: 'var(--chart-2)' }}
+              />
+            </div>
+            <div className="col-start-2 flex items-baseline justify-between gap-2 text-xs tabular-nums sm:col-start-auto sm:justify-end">
+              <span className="font-medium text-foreground">{format(d.bar)}</span>
+              <span className="text-muted-foreground">
+                {format(d.line)} · {margin.toFixed(0)}%
+              </span>
+            </div>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}

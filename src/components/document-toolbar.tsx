@@ -16,6 +16,8 @@ type DocumentToolbarProps = {
   // Можно ли менять выбранную запись: чужую котировку или перевозку видно, но менять нельзя
   canModify?: boolean
   ownerName?: string
+  // Запись закрыта для правок (отменённая перевозка), удалить и скопировать её можно
+  editDisabled?: boolean
 }
 
 // Тулбар из презентации: New / Open / Copy / Create shipment / Delete (+ Edit).
@@ -33,6 +35,7 @@ export function DocumentToolbar({
   createShipmentDisabled,
   canModify = true,
   ownerName,
+  editDisabled,
 }: DocumentToolbarProps) {
   const { canEditOrders } = usePermissions()
   const locked = hasSelection && !canModify
@@ -53,7 +56,13 @@ export function DocumentToolbar({
         {t('Open')}
       </Button>
       {canEditOrders && onEdit && (
-        <Button size="sm" variant="outline" disabled={!hasSelection || locked} title={lockedTitle} onClick={onEdit}>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!hasSelection || locked || editDisabled}
+          title={editDisabled ? t('A cancelled shipment cannot be changed') : lockedTitle}
+          onClick={onEdit}
+        >
           <Pencil />
           {t('Edit')}
         </Button>

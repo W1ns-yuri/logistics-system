@@ -14,9 +14,9 @@ import { buildPlatformAnalytics } from './platform-analytics'
 
 const planColors: Record<Plan, string> = {
   trial: 'var(--chart-5)',
-  start: 'var(--chart-1)',
-  business: 'var(--chart-2)',
-  enterprise: 'var(--chart-4)',
+  lite: 'var(--chart-1)',
+  lite_plus: 'var(--chart-2)',
+  standard: 'var(--chart-4)',
 }
 
 // Дашборд владельца платформы: деньги, новые клиенты, конверсия из пробного периода, продления
@@ -47,7 +47,7 @@ export function PlatformDashboardPage() {
   ]
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-5 p-6">
+    <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
       <PageHeader
         title="Dashboard"
         description="How the platform earns: money from licenses, new companies and renewals. Last 12 months, USD."
@@ -84,7 +84,7 @@ export function PlatformDashboardPage() {
         />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-3">
         <Panel
           title="Revenue by month"
           description="Inner bar: first payments of new companies"
@@ -132,7 +132,7 @@ export function PlatformDashboardPage() {
         </Panel>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2 xl:grid-cols-3">
         <Panel
           title="New companies by month"
           description="Inner bar: of them started paying"
@@ -180,7 +180,7 @@ export function PlatformDashboardPage() {
         </Panel>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-3">
         <Panel
           title="Renewals"
           description="License ends within 14 days or ended recently"
@@ -201,7 +201,7 @@ export function PlatformDashboardPage() {
                 <tbody>
                   {data.renewals.map((r) => {
                     const lastPayment = r.company.payments.at(-1)
-                    const next = lastPayment?.amount ?? planPrice.start
+                    const next = lastPayment?.amount ?? planPrice.lite
                     return (
                       <tr key={r.company.id} className="border-b last:border-0 hover:bg-muted/30">
                         <td className="px-5 py-3">

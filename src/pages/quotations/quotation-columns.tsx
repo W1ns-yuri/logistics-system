@@ -1,4 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table'
+import { Link } from 'react-router'
 
 import { QuotationStatusBadge } from '@/components/status-badge'
 import { TransportModeLabel } from '@/components/transport-mode'
@@ -14,7 +15,16 @@ export const quotationColumns: ColumnDef<Quotation, unknown>[] = [
     header: 'Reference No.',
     meta: { label: 'Reference No.' },
     enableHiding: false,
-    cell: ({ row }) => <span className="font-medium text-primary">{row.original.reference}</span>,
+    // Номер — настоящая ссылка: открывается одним кликом, тапом на телефоне и с клавиатуры
+    cell: ({ row }) => (
+      <Link
+        to={`/quotations/${row.original.id}`}
+        onClick={(event) => event.stopPropagation()}
+        className="font-medium text-primary hover:underline"
+      >
+        {row.original.reference}
+      </Link>
+    ),
   },
   {
     accessorKey: 'mode',

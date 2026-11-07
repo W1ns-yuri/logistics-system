@@ -45,9 +45,9 @@ const COMPANIES: [name: string, country: string, admin: string, domain: string][
 ]
 
 function pickPlan(r: number): Plan {
-  if (r < 0.5) return 'start'
-  if (r < 0.85) return 'business'
-  return 'enterprise'
+  if (r < 0.5) return 'lite'
+  if (r < 0.85) return 'lite_plus'
+  return 'standard'
 }
 
 // Оплаченные периоды: от конца пробного до «сегодня» (или до момента ухода)
@@ -138,14 +138,14 @@ export function seedCompanies(): Company[] {
     })
   })
   // Несколько компаний в состояниях, которые точно стоит показать
-  companies[0] = make('c0', COMPANIES[0]!, addDays(today, -160), { plan: 'start', months: 1 })
+  companies[0] = make('c0', COMPANIES[0]!, addDays(today, -160), { plan: 'lite', months: 1 })
   companies[1] = make('c1', COMPANIES[1]!, addDays(today, -5))
   companies[5] = make('c5', COMPANIES[5]!, addDays(today, -17), { neverPaid: true, blocked: true, users: 1 })
-  companies[4] = make('c4', COMPANIES[4]!, addDays(today, -200), { plan: 'enterprise', months: 12, users: 27 })
+  companies[4] = make('c4', COMPANIES[4]!, addDays(today, -200), { plan: 'standard', months: 12, users: 9 })
 
   // Рабочее пространство этого браузера: демо-компания на Business, платит помесячно
   const demo = make('demo', ['Logistics', 'Turkmenistan', 'Manager', 'company.com'], addDays(today, -320), {
-    plan: 'business',
+    plan: 'lite_plus',
     months: 1,
     users: 3,
   })

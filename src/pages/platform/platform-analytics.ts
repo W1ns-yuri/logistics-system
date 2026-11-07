@@ -75,7 +75,7 @@ export function buildPlatformAnalytics(companies: Company[], today = todayIso())
     : 0
   const churned = rows.filter((r) => r.company.payments.length > 0 && r.status === 'expired')
 
-  const planCounts = (['start', 'business', 'enterprise'] as Plan[]).map((plan) => ({
+  const planCounts = (['lite', 'lite_plus', 'standard'] as Plan[]).map((plan) => ({
     plan,
     count: paying.filter((r) => r.company.plan === plan).length,
   }))

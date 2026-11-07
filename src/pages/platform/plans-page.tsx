@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 
 import { PageHeader } from '@/components/page-header'
 import {
@@ -23,21 +23,30 @@ export function PlansPage() {
       return c.plan === plan && status !== 'expired' && status !== 'blocked'
     }).length
 
-  const cards: { plan: Plan; features: string[] }[] = [
+  // Что входит. Пока это описание тарифов, в самой системе ограничения ещё не включены
+  const cards: { plan: Plan; features: string[]; missing?: string[] }[] = [
     { plan: 'trial', features: ['All features', '{n}-day free period'] },
-    { plan: 'start', features: ['All features', 'Email support'] },
-    { plan: 'business', features: ['All features', 'Priority support', 'Help with data import'] },
-    { plan: 'enterprise', features: ['All features', 'Unlimited users', 'Personal manager'] },
+    {
+      plan: 'lite',
+      features: ['Quotations and shipments', 'Customers and vendors', 'Invoices and payments', 'Email support'],
+      missing: ['Analytics', 'Results by member'],
+    },
+    {
+      plan: 'lite_plus',
+      features: ['Everything in Lite', 'Results by member', 'Invoice PDF with your logo', 'Email support'],
+      missing: ['Analytics'],
+    },
+    {
+      plan: 'standard',
+      features: ['Everything in Lite+', 'Analytics', 'Priority support', 'Help with data import'],
+    },
   ]
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5 p-6">
-      <PageHeader
-        title="Plans"
-        description="Prices are examples for the prototype. A yearly payment costs 10 months."
-      />
+    <div className="mx-auto max-w-6xl space-y-5 p-4 sm:p-6">
+      <PageHeader title="Plans" description="Price per month for the whole team. A yearly payment costs 10 months." />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {cards.map(({ plan, features }) => {
+        {cards.map(({ plan, features, missing = [] }) => {
           const seats = planSeats[plan]
           return (
             <section key={plan} className="flex flex-col rounded-xl border bg-card p-5 shadow-xs">
@@ -56,14 +65,18 @@ export function PlansPage() {
                   <Check className="mt-0.5 size-4 shrink-0 text-success" />
                   {seats === null ? t('Unlimited users') : t('Up to {n} users', { n: seats })}
                 </li>
-                {features
-                  .filter((f) => f !== 'Unlimited users')
-                  .map((f) => (
-                    <li key={f} className="flex gap-2">
-                      <Check className="mt-0.5 size-4 shrink-0 text-success" />
-                      {t(f, { n: TRIAL_DAYS })}
-                    </li>
-                  ))}
+                {features.map((f) => (
+                  <li key={f} className="flex gap-2">
+                    <Check className="mt-0.5 size-4 shrink-0 text-success" />
+                    {t(f, { n: TRIAL_DAYS })}
+                  </li>
+                ))}
+                {missing.map((f) => (
+                  <li key={f} className="flex gap-2 text-muted-foreground line-through decoration-muted-foreground/50">
+                    <X className="mt-0.5 size-4 shrink-0" />
+                    {t(f)}
+                  </li>
+                ))}
               </ul>
               <div className="mt-5 border-t pt-3 text-sm text-muted-foreground">
                 {t('{n} companies now', { n: count(plan) })}

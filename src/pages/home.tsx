@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { usePermissions } from '@/data/auth'
 import { useSettings } from '@/data/settings'
-import { useCustomers, useInvoices, useQuotations, useShipments, useTeam, useVendors } from '@/data/store'
+import { useCustomers, useActiveInvoices, useQuotations, useShipments, useTeam, useVendors } from '@/data/store'
 import { t } from '@/i18n'
 import { invoiceTotals, quotationTotals } from '@/lib/calculation'
 import { toUSD } from '@/lib/currency'
@@ -32,7 +32,7 @@ export function HomePage() {
   const navigate = useNavigate()
   const quotations = useQuotations()
   const shipments = useShipments()
-  const invoices = useInvoices()
+  const invoices = useActiveInvoices()
   const { canSeePayments } = usePermissions()
 
   const kpis = useMemo(() => {
@@ -113,7 +113,7 @@ export function HomePage() {
   }, [quotations, shipments, invoices, canSeePayments])
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-6 p-6">
+    <div className="mx-auto max-w-[1600px] space-y-6 p-4 sm:p-6">
       <PageHeader title="Home" description="Overview of quotations, shipments and payments." />
 
       {quotations.length === 0 && <GettingStarted />}
@@ -144,12 +144,12 @@ export function HomePage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-y bg-muted/50 text-left text-xs font-medium text-muted-foreground">
-                <th className="px-5 py-2.5 font-medium">{t('Reference')}</th>
-                <th className="px-5 py-2.5 font-medium">{t('Type')}</th>
-                <th className="px-5 py-2.5 font-medium">{t('Customer')}</th>
-                <th className="px-5 py-2.5 font-medium">{t('Route')}</th>
-                <th className="px-5 py-2.5 font-medium">{t('Status')}</th>
-                <th className="px-5 py-2.5 text-right font-medium">{t('Updated')}</th>
+                <th className="px-4 py-2.5 sm:px-5 font-medium">{t('Reference')}</th>
+                <th className="hidden px-4 py-2.5 sm:px-5 font-medium sm:table-cell">{t('Type')}</th>
+                <th className="px-4 py-2.5 sm:px-5 font-medium">{t('Customer')}</th>
+                <th className="hidden px-4 py-2.5 sm:px-5 font-medium md:table-cell">{t('Route')}</th>
+                <th className="px-4 py-2.5 sm:px-5 font-medium">{t('Status')}</th>
+                <th className="hidden px-4 py-2.5 sm:px-5 text-right font-medium sm:table-cell">{t('Updated')}</th>
               </tr>
             </thead>
             <tbody>
@@ -161,17 +161,17 @@ export function HomePage() {
                     onClick={() => navigate(doc.link)}
                     className="cursor-pointer border-b last:border-0 hover:bg-muted/40"
                   >
-                    <td className="px-5 py-3 font-medium text-primary">{doc.reference}</td>
-                    <td className="px-5 py-3">
+                    <td className="px-4 py-3 sm:px-5 font-medium text-primary">{doc.reference}</td>
+                    <td className="hidden px-4 py-3 sm:px-5 sm:table-cell">
                       <span className="inline-flex items-center gap-2 text-muted-foreground">
                         <Icon className="size-4" />
                         {t(doc.type)}
                       </span>
                     </td>
-                    <td className="px-5 py-3">{doc.customer}</td>
-                    <td className="px-5 py-3 text-muted-foreground">{doc.route}</td>
-                    <td className="px-5 py-3">{doc.status}</td>
-                    <td className="px-5 py-3 text-right text-muted-foreground tabular-nums">
+                    <td className="px-4 py-3 sm:px-5">{doc.customer}</td>
+                    <td className="hidden px-4 py-3 sm:px-5 text-muted-foreground md:table-cell">{doc.route}</td>
+                    <td className="px-4 py-3 sm:px-5">{doc.status}</td>
+                    <td className="hidden px-4 py-3 sm:px-5 text-right text-muted-foreground tabular-nums sm:table-cell">
                       {formatDateTime(doc.updatedAt)}
                     </td>
                   </tr>

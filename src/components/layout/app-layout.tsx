@@ -19,6 +19,7 @@ function loadCollapsed() {
 // Каркас всех страниц: слева меню, сверху шапка, в центре <Outlet /> — сюда роутер подставляет текущую страницу
 export function AppLayout() {
   const [collapsed, setCollapsed] = useState(loadCollapsed)
+  const [menuOpen, setMenuOpen] = useState(false)
   const toggle = () => {
     setCollapsed((prev) => {
       try {
@@ -33,9 +34,14 @@ export function AppLayout() {
   return (
     <TooltipProvider>
       <div className="flex h-svh overflow-hidden bg-muted/40">
-        <AppSidebar collapsed={collapsed} onToggle={toggle} />
+        <AppSidebar
+          collapsed={collapsed}
+          onToggle={toggle}
+          mobileOpen={menuOpen}
+          onMobileClose={() => setMenuOpen(false)}
+        />
         <div className="flex min-w-0 flex-1 flex-col">
-          <AppHeader />
+          <AppHeader onMenu={() => setMenuOpen(true)} />
           <LicenseBanner />
           <main className="flex-1 overflow-y-auto">
             <Outlet />

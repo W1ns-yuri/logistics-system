@@ -1,4 +1,4 @@
-import { Download, FileText, Paperclip, Pencil, Trash2, Wallet } from 'lucide-react'
+import { Download, FileText, Paperclip, Pencil, Printer, Trash2, Wallet } from 'lucide-react'
 import { useRef, useState } from 'react'
 
 import { ConfirmDelete } from '@/components/confirm-delete'
@@ -16,9 +16,18 @@ import { cn } from '@/lib/utils'
 import { paymentMethodLabels, type Invoice, type Payment } from '@/types/invoice'
 import { InvoiceFormDialog } from './invoice-form-dialog'
 import { InvoicePreview } from './invoice-preview'
+import { printInvoice } from './invoice-print-page'
 
 // Карточка инвойса как в приложении клиента: сверху остаток, ниже вкладки Details / Payments
-export function InvoicePanel({ invoice, onDeleted }: { invoice: Invoice; onDeleted: () => void }) {
+export function InvoicePanel({
+  invoice,
+  onDeleted,
+  defaultTab = 'payments',
+}: {
+  invoice: Invoice
+  onDeleted: () => void
+  defaultTab?: 'details' | 'payments'
+}) {
   const { canEditPayments, canEditInvoices } = usePermissions()
   const [paying, setPaying] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -39,6 +48,10 @@ export function InvoicePanel({ invoice, onDeleted }: { invoice: Invoice; onDelet
           <div className="text-3xl font-semibold tracking-tight tabular-nums">{money(Math.max(0, balanceDue))}</div>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={() => printInvoice(invoice.id)}>
+            <Printer />
+            {t('Print / PDF')}
+          </Button>
           {canEditInvoices && (
             <>
               <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
@@ -65,7 +78,7 @@ export function InvoicePanel({ invoice, onDeleted }: { invoice: Invoice; onDelet
         </div>
       </div>
 
-      <Tabs defaultValue="payments" className="gap-0">
+      <Tabs defaultValue={defaultTab} className="gap-0">
         <div className="border-y px-6 pt-2">
           <TabsList className="bg-transparent p-0">
             <TabsTrigger value="details">{t('Details')}</TabsTrigger>
@@ -137,7 +150,7 @@ function PaymentsList({ invoice }: { invoice: Invoice }) {
               <div className="text-sm text-muted-foreground">
                 {t(paymentMethodLabels[p.method])}
                 {p.discount > 0 && (
-                  <span className="ml-1 text-amber-600 dark:text-warning">
+                  <span className="ml-1 text-warning-text">
                     · {t('discount')} {money(p.discount)}
                   </span>
                 )}

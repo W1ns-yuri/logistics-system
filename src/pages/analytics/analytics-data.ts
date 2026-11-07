@@ -153,15 +153,32 @@ export function buildAnalytics({
 
   // Воронка котировок за период
   const periodQuotations = quotations.filter((q) => months.includes(monthKey(q.createdAt)))
-  const won = periodQuotations.filter((q) => q.status === 'shipment_created' || q.status === 'completed')
-  const lost = periodQuotations.filter((q) => q.status === 'failed' || q.status === 'cancelled')
-  const funnel = {
-    created: periodQuotations.length,
-    won: won.length,
-    lost: lost.length,
-    open: periodQuotations.length - won.length - lost.length,
-    conversion: won.length + lost.length ? (won.length / (won.length + lost.length)) * 100 : 0,
+  const funnel = quotationFunnel(periodQuotations)
+
+  // Результаты по сотрудникам: кто сколько котировок сделал, выиграл и сколько заработал
+  const people = new Map<string, MemberStats>()
+  const row = (email = '') => {
+    const key = email.toLowerCase()
+    let r = people.get(key)
+    if (!r) {
+      r = { email: key, ...quotationFunnel([]), shipments: 0, closed: 0, revenue: 0, profit: 0, margin: 0 }
+      people.set(key, r)
+    }
+    return r
   }
+  for (const q of periodQuotations) row(q.createdBy)
+  for (const r of people.values())
+    Object.assign(r, quotationFunnel(periodQuotations.filter((q) => (q.createdBy ?? '').toLowerCase() === r.email)))
+  for (const s of inPeriod) {
+    const r = row(s.createdBy)
+    const m = money(s)
+    r.shipments += 1
+    if (s.status === 'completed') r.closed += 1
+    r.revenue += m.revenue
+    r.profit += m.profit
+  }
+  for (const r of people.values()) r.margin = r.revenue ? (r.profit / r.revenue) * 100 : 0
+  const members = [...people.values()].sort((a, b) => b.revenue - a.revenue || b.created - a.created)
 
   // Дебиторка: кто сколько должен прямо сейчас, по срокам просрочки
   const todayIso = today.toISOString().slice(0, 10)
@@ -175,7 +192,8 @@ export function buildAnalytics({
   for (const inv of invoices) {
     const balance = toUSD(invoiceTotals(inv).balanceDue, inv.currency)
     if (balance <= 0.5) continue
-    const late = daysLate(inv.dueDate)
+    // Черновик ещё не отправлен клиенту — не просрочка (так же считает статус инвойса)
+    const late = inv.status === 'draft' ? 0 : daysLate(inv.dueDate)
     const bucket = late <= 0 ? buckets[0] : late <= 30 ? buckets[1] : late <= 60 ? buckets[2] : buckets[3]
     bucket!.amount += balance
     bucket!.count += 1
@@ -189,7 +207,37 @@ export function buildAnalytics({
     count: shipments.filter((s) => s.status === status).length,
   }))
 
-  return { months, trend, kpis, modes, customers, routes, vendors: vendorRows, funnel, receivables, pipeline }
+  return { months, trend, kpis, modes, customers, routes, vendors: vendorRows, funnel, receivables, pipeline, members }
 }
 
 export type Analytics = ReturnType<typeof buildAnalytics>
+
+/*
+ * Воронка котировок.
+ * Выиграна — по ней создана перевозка (или она завершена).
+ * Провалена — клиент не взял наше предложение. Отменена — отказались мы сами.
+ * Конверсия = выиграно / (выиграно + провалено): отменённые нами не портят показатель продаж.
+ */
+export function quotationFunnel(list: Quotation[]) {
+  const count = (...statuses: Quotation['status'][]) => list.filter((q) => statuses.includes(q.status)).length
+  const won = count('shipment_created', 'completed')
+  const failed = count('failed')
+  const cancelled = count('cancelled')
+  return {
+    created: list.length,
+    won,
+    failed,
+    cancelled,
+    open: list.length - won - failed - cancelled,
+    conversion: won + failed ? (won / (won + failed)) * 100 : 0,
+  }
+}
+
+export type MemberStats = ReturnType<typeof quotationFunnel> & {
+  email: string
+  shipments: number
+  closed: number // перевозки в статусе «Завершена»
+  revenue: number
+  profit: number
+  margin: number
+}

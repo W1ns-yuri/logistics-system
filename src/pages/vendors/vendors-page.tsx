@@ -1,13 +1,15 @@
-import { useMemo, useState } from 'react'
+import { Plus } from 'lucide-react'
+import { useMemo } from 'react'
+import { Link, useNavigate } from 'react-router'
 import type { ColumnDef } from '@tanstack/react-table'
 
-import { ConfirmDelete } from '@/components/confirm-delete'
 import { DataTable } from '@/components/data-table/data-table'
-import { DirectoryActions } from '@/components/directory-actions'
 import { PageHeader } from '@/components/page-header'
+import { Button } from '@/components/ui/button'
+import { usePermissions } from '@/data/auth'
 import { TransportModeIcon } from '@/components/transport-mode'
 import { Badge } from '@/components/ui/badge'
-import { deleteVendor, useShipments, useVendors } from '@/data/store'
+import { useShipments, useVendors } from '@/data/store'
 import { useFormMode } from '@/hooks/use-form-mode'
 import { t } from '@/i18n'
 import { countryLabel } from '@/lib/countries'
@@ -29,7 +31,11 @@ const columns: ColumnDef<VendorRow, unknown>[] = [
     header: 'Vendor',
     meta: { label: 'Vendor' },
     enableHiding: false,
-    cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+    cell: ({ row }) => (
+      <Link to={`/vendors/${row.original.id}`} className="font-medium text-primary hover:underline">
+        {row.original.name}
+      </Link>
+    ),
   },
   {
     accessorKey: 'type',
@@ -80,8 +86,8 @@ const typeOptions = VENDOR_TYPES.map((value) => ({ value, label: vendorTypeLabel
 export function VendorsPage() {
   const vendors = useVendors()
   const shipments = useShipments()
-  const [selectedId, setSelectedId] = useState<string>()
-  const [confirmOpen, setConfirmOpen] = useState(false)
+  const navigate = useNavigate()
+  const { canEditOrders } = usePermissions()
   const { mode, setMode, close } = useFormMode()
 
   // Сколько шипментов реально вёз этот вендор (поле Vendor у шипмента)
@@ -89,49 +95,37 @@ export function VendorsPage() {
     () => vendors.map((v) => ({ ...v, shipmentCount: shipments.filter((s) => s.vendorId === v.id).length })),
     [vendors, shipments],
   )
-  const selected = rows.find((row) => row.id === selectedId)
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-4 p-6">
+    <div className="mx-auto max-w-[1600px] space-y-4 p-4 sm:p-6">
       <PageHeader
         title="Vendors"
         description="Airlines, shipping lines, trucking and rail operators you buy services from."
         actions={
-          <DirectoryActions
-            hasSelection={!!selected}
-            onNew={() => setMode('new')}
-            onEdit={() => setMode('edit')}
-            onDelete={() => setConfirmOpen(true)}
-          />
+          canEditOrders && (
+            <Button size="sm" onClick={() => setMode('new')}>
+              <Plus />
+              {t('New')}
+            </Button>
+          )
         }
       />
       <DataTable
         columns={columns}
         data={rows}
         getRowId={(row) => row.id}
-        selectedId={selected?.id}
-        onSelect={(row) => setSelectedId(row?.id)}
+        onSelect={(row) => row && navigate(`/vendors/${row.id}`)}
+        onOpen={(row) => navigate(`/vendors/${row.id}`)}
         searchPlaceholder="Search vendor, country, contact..."
         facetFilters={[{ columnId: 'type', title: 'Type', options: typeOptions }]}
         initialSorting={[{ id: 'shipmentCount', desc: true }]}
       />
-      <p className="px-1 text-xs text-muted-foreground">{t('Click a row to select it.')}</p>
+      <p className="px-1 text-xs text-muted-foreground">{t('Click a vendor to open the card.')}</p>
 
       <VendorFormDialog
         open={!!mode}
         onOpenChange={(value) => !value && close()}
-        vendor={mode === 'edit' ? selected : undefined}
-        onSaved={(v) => setSelectedId(v.id)}
-      />
-      <ConfirmDelete
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-        title={t('Delete vendor {name}?', { name: selected?.name ?? '' })}
-        description="The vendor card will be removed. Shipments keep their data."
-        onConfirm={() => {
-          if (selected) deleteVendor(selected.id)
-          setSelectedId(undefined)
-        }}
+        onSaved={(v) => navigate(`/vendors/${v.id}`)}
       />
     </div>
   )

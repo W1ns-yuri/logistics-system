@@ -40,7 +40,7 @@ export function ShipmentsPage() {
   )
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-4 p-6">
+    <div className="mx-auto max-w-[1600px] space-y-4 p-4 sm:p-6">
       <PageHeader
         title="Shipments"
         description="Active and completed shipments with ETD, ETA and status tracking."
@@ -49,6 +49,7 @@ export function ShipmentsPage() {
             hasSelection={!!selected}
             canModify={canModify}
             ownerName={ownerName}
+            editDisabled={selected?.status === 'cancelled'}
             onNew={() => setFormMode('new')}
             onOpen={() => selected && open(selected)}
             onEdit={() => setFormMode('edit')}
@@ -79,7 +80,7 @@ export function ShipmentsPage() {
       />
 
       <p className="px-1 text-xs text-muted-foreground">
-        {t('Click a row to select it, double-click to open the shipment.')}
+        {t('Click the number to open a shipment. Click a row to select it for the buttons above.')}
       </p>
 
       <ShipmentFormDialog

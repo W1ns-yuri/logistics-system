@@ -49,7 +49,7 @@ export function SettingsPage() {
   const tab: Tab = tabs.find((item) => item.value === wanted)?.value ?? 'company'
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5 p-6">
+    <div className="mx-auto max-w-5xl space-y-5 p-4 sm:p-6">
       <PageHeader title="Settings" description="Company details, team, subscription and personal preferences." />
 
       <Tabs

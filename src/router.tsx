@@ -3,10 +3,13 @@ import { createBrowserRouter } from 'react-router'
 import { AppLayout } from '@/components/layout/app-layout'
 import { RequireAuth, RequirePayments } from '@/components/require-auth'
 import { AnalyticsPage } from '@/pages/analytics/analytics-page'
+import { CustomerDetailPage } from '@/pages/customers/customer-detail-page'
 import { CustomersPage } from '@/pages/customers/customers-page'
 import { HomePage } from '@/pages/home'
 import { LoginPage } from '@/pages/login/login-page'
 import { NotFoundPage } from '@/pages/not-found'
+import { InvoicePage } from '@/pages/payments/invoice-page'
+import { InvoicePrintPage } from '@/pages/payments/invoice-print-page'
 import { PaymentsPage } from '@/pages/payments/payments-page'
 import { CompaniesPage } from '@/pages/platform/companies-page'
 import { CompanyPage } from '@/pages/platform/company-page'
@@ -22,6 +25,7 @@ import { SignupPage } from '@/pages/signup/signup-page'
 import { ShipmentDetailPage } from '@/pages/shipments/shipment-detail-page'
 import { ShipmentsPage } from '@/pages/shipments/shipments-page'
 import { SupportPage } from '@/pages/support'
+import { VendorDetailPage } from '@/pages/vendors/vendor-detail-page'
 import { VendorsPage } from '@/pages/vendors/vendors-page'
 
 // Все страницы — дети AppLayout, поэтому меню и шапка остаются на месте при переходах
@@ -40,6 +44,17 @@ export const router = createBrowserRouter([
       { path: 'plans', element: <PlansPage /> },
     ],
   },
+  // Инвойс на печать: без меню и шапки, только документ
+  {
+    path: '/invoices/:id/print',
+    element: (
+      <RequireAuth>
+        <RequirePayments>
+          <InvoicePrintPage />
+        </RequirePayments>
+      </RequireAuth>
+    ),
+  },
   {
     path: '/',
     element: (
@@ -56,7 +71,9 @@ export const router = createBrowserRouter([
       { path: 'shipments', element: <ShipmentsPage /> },
       { path: 'shipments/:id', element: <ShipmentDetailPage /> },
       { path: 'customers', element: <CustomersPage /> },
+      { path: 'customers/:id', element: <CustomerDetailPage /> },
       { path: 'vendors', element: <VendorsPage /> },
+      { path: 'vendors/:id', element: <VendorDetailPage /> },
       {
         path: 'payments',
         element: (
@@ -66,12 +83,17 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'analytics',
+        path: 'payments/:id',
         element: (
           <RequirePayments>
-            <AnalyticsPage />
+            <InvoicePage />
           </RequirePayments>
         ),
+      },
+      {
+        // Сотрудник тоже заходит: видит только свои цифры (см. AnalyticsPage)
+        path: 'analytics',
+        element: <AnalyticsPage />,
       },
       { path: 'settings', element: <SettingsPage /> },
       { path: 'support', element: <SupportPage /> },

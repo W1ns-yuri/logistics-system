@@ -3,13 +3,18 @@ import type { Currency, EquipmentType, Incoterm, Movement, TransportMode } from 
 export const QUOTATION_STATUSES = ['in_progress', 'shipment_created', 'completed', 'failed', 'cancelled'] as const
 export type QuotationStatus = (typeof QUOTATION_STATUSES)[number]
 
+// Строка груза (упаковочный лист). Размеры и вес — одного места, итоги строки считаются из количества мест
 export type CargoLine = {
   pieces: number
   packageType: string
   natureOfGoods: string
-  dimensions: string // "12 x 19 x 40 cm"
-  weightKg: number
-  volumeM3: number
+  dimensions: string // "12 x 19 x 40 cm" — для печати; старые строки хранили только его
+  lengthCm?: number
+  widthCm?: number
+  heightCm?: number
+  weightPerPieceKg?: number
+  weightKg: number // вес всей строки
+  volumeM3: number // объём всей строки
 }
 
 // Строка калькуляции (вкладка Calculation): сколько берём с клиента и сколько платим вендору
@@ -45,6 +50,7 @@ export type Quotation = {
 
   equipment: EquipmentType
   transportQuantity: number
+  weightPerUnitKg?: number // вес на одну машину/контейнер; weightKg — итог за все
   weightKg: number
   volumeM3?: number // необязательно
   chargeableWeightKg?: number

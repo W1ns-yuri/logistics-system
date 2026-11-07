@@ -2,6 +2,7 @@ import { InfoField } from '@/components/info-field'
 import { SectionCard } from '@/components/section-card'
 import { TransportModeLabel } from '@/components/transport-mode'
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { cargoTotals, upgradeQuotationCargo, weightsDiffer } from '@/lib/cargo'
 import { formatWeight } from '@/lib/format'
 import { movementLabels, needsPorts } from '@/types/logistics'
 import type { Quotation } from '@/types/quotation'
@@ -9,11 +10,13 @@ import { t } from '@/i18n'
 import { terminalLabels } from '@/lib/terminals'
 
 // Вкладка General: поля со слайда 3 презентации, сгруппированы по смыслу
-export function QuotationGeneralTab({ quotation: q }: { quotation: Quotation }) {
-  const totalPieces = q.cargo.reduce((sum, line) => sum + line.pieces, 0)
+export function QuotationGeneralTab({ quotation }: { quotation: Quotation }) {
+  const q = upgradeQuotationCargo(quotation)
+  const cargo = cargoTotals(q.cargo)
+  const perUnit = q.weightPerUnitKg ?? q.weightKg
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-3">
       <SectionCard title="Customer">
         <div className="space-y-4">
           <InfoField label="Quotation #">
@@ -50,7 +53,11 @@ export function QuotationGeneralTab({ quotation: q }: { quotation: Quotation }) 
           <InfoField label="Equipment">{q.equipment}</InfoField>
           <InfoField label="Quantity">{q.transportQuantity}</InfoField>
           <InfoField label="Nature of goods">{q.natureOfGoods}</InfoField>
-          <InfoField label="Gross weight">{formatWeight(q.weightKg)}</InfoField>
+          <InfoField label="Weight per unit">{formatWeight(perUnit)}</InfoField>
+          <InfoField label="Gross weight">
+            {q.transportQuantity > 1 ? `${q.transportQuantity} × ${formatWeight(perUnit)} = ` : ''}
+            {formatWeight(q.weightKg)}
+          </InfoField>
           <InfoField label="Volume">{q.volumeM3 != null ? `${q.volumeM3} m³` : ''}</InfoField>
           {(q.mode === 'air' || !!q.chargeableWeightKg) && (
             <InfoField label="Chargeable weight, kg">
@@ -87,12 +94,17 @@ export function QuotationGeneralTab({ quotation: q }: { quotation: Quotation }) 
             </TableBody>
             <TableFooter>
               <TableRow className="hover:bg-transparent">
-                <TableCell className="pl-5 tabular-nums">{totalPieces}</TableCell>
-                <TableCell colSpan={3}>{t('Total')}</TableCell>
-                <TableCell className="text-right tabular-nums">{formatWeight(q.weightKg)}</TableCell>
-                <TableCell className="pr-5 text-right tabular-nums">
-                  {q.volumeM3 != null ? `${q.volumeM3} m³` : '—'}
+                <TableCell className="pl-5 tabular-nums">{cargo.pieces}</TableCell>
+                <TableCell colSpan={3}>
+                  {t('Total cargo')}
+                  {weightsDiffer(cargo.weightKg, q.weightKg) && (
+                    <span className="ml-2 text-xs font-normal text-warning-text">
+                      {t('Differs from the transport weight ({kg})', { kg: formatWeight(q.weightKg) })}
+                    </span>
+                  )}
                 </TableCell>
+                <TableCell className="text-right tabular-nums">{formatWeight(cargo.weightKg)}</TableCell>
+                <TableCell className="pr-5 text-right tabular-nums">{cargo.volumeM3} m³</TableCell>
               </TableRow>
             </TableFooter>
           </Table>

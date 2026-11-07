@@ -48,6 +48,16 @@ export type VendorPayment = {
   receipt?: PaymentReceipt
 }
 
+// Доплата подрядчику сверх расчёта: штраф, простой, перевес. Увеличивает долг подрядчику
+export type ExtraCharge = {
+  id: string
+  vendorId?: string
+  amount: number
+  currency: Currency
+  reason: string // «Штраф за просроченный сертификат»
+  date: string
+}
+
 export type Shipment = {
   id: string
   number: string // тот же номер, что у котировки, из которой создан (как на слайде 5)
@@ -69,5 +79,7 @@ export type Shipment = {
   history: ShipmentEvent[]
   documents: ShipmentDocument[]
   vendorPayments?: VendorPayment[]
+  extraCharges?: ExtraCharge[]
+  cancelReason?: string // почему отменили: видно в карточке и в истории
   notes?: string
 }

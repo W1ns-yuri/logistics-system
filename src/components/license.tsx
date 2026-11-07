@@ -30,7 +30,7 @@ export function DaysLeft({ days, className }: { days: number; className?: string
     <span
       className={cn(
         'tabular-nums',
-        days < 0 ? 'text-destructive' : days <= EXPIRING_DAYS ? 'text-warning' : 'text-muted-foreground',
+        days < 0 ? 'text-destructive' : days <= EXPIRING_DAYS ? 'text-warning-text' : 'text-muted-foreground',
         className,
       )}
     >
@@ -57,7 +57,7 @@ export function LicenseBanner() {
         'flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-6 py-2 text-sm',
         expired
           ? 'border-destructive/20 bg-destructive/10 text-destructive'
-          : 'border-warning/20 bg-warning/10 text-warning',
+          : 'border-warning/20 bg-warning/10 text-warning-text',
       )}
     >
       {expired ? <Lock className="size-4 shrink-0" /> : <AlertTriangle className="size-4 shrink-0" />}

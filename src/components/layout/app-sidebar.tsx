@@ -1,10 +1,12 @@
-import { ChevronsLeft, Container, type LucideIcon } from 'lucide-react'
+import { ChevronsLeft, Container, X, type LucideIcon } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 import { matchPath, NavLink, useLocation } from 'react-router'
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { navigation, settingsItem, supportItem, type NavGroup, type NavItem } from '@/config/navigation'
 import { usePermissions } from '@/data/auth'
 import { useSettings } from '@/data/settings'
+import { PRODUCT_NAME } from '@/lib/brand'
 import { cn } from '@/lib/utils'
 import { t } from '@/i18n'
 
@@ -13,10 +15,73 @@ type AppSidebarProps = {
   onToggle: () => void
   // Админка платформы передаёт своё меню и шапку; рабочее приложение берёт их из настроек
   nav?: { groups: NavGroup[]; footer: NavItem[]; title: string; subtitle: string; icon: LucideIcon }
+  // На телефоне меню не стоит сбоку, а выезжает шторкой по кнопке в шапке
+  mobileOpen?: boolean
+  onMobileClose?: () => void
 }
 
-export function AppSidebar({ collapsed, onToggle, nav }: AppSidebarProps) {
-  const { companyName, companyTagline } = useSettings()
+// На компьютере меню всегда слева, на телефоне (уже md) прячется и открывается шторкой поверх страницы
+export function AppSidebar({ collapsed, onToggle, nav, mobileOpen = false, onMobileClose }: AppSidebarProps) {
+  const { pathname } = useLocation()
+  const close = useRef(onMobileClose)
+  close.current = onMobileClose
+
+  // Перешли по ссылке — шторка закрывается сама
+  useEffect(() => {
+    close.current?.()
+  }, [pathname])
+
+  useEffect(() => {
+    if (!mobileOpen) return
+    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && close.current?.()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [mobileOpen])
+
+  return (
+    <>
+      <aside
+        className={cn(
+          'hidden h-svh shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 md:flex',
+          collapsed ? 'w-16' : 'w-60',
+        )}
+      >
+        <SidebarBody nav={nav} collapsed={collapsed} onToggle={onToggle} />
+      </aside>
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <button
+            type="button"
+            aria-label={t('Close menu')}
+            className="absolute inset-0 animate-in bg-black/50 fade-in-0"
+            onClick={onMobileClose}
+          />
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('Menu')}
+            className="relative flex h-full w-72 max-w-[85vw] animate-in flex-col bg-sidebar text-sidebar-foreground shadow-xl slide-in-from-left"
+          >
+            <SidebarBody nav={nav} collapsed={false} onClose={onMobileClose} />
+          </aside>
+        </div>
+      )}
+    </>
+  )
+}
+
+function SidebarBody({
+  nav,
+  collapsed,
+  onToggle,
+  onClose,
+}: {
+  nav: AppSidebarProps['nav']
+  collapsed: boolean
+  onToggle?: () => void
+  onClose?: () => void
+}) {
+  const { companyName } = useSettings()
   const { canSeePayments } = usePermissions()
   // Сотрудник не видит разделы с деньгами
   const groups = (nav?.groups ?? navigation)
@@ -25,15 +90,11 @@ export function AppSidebar({ collapsed, onToggle, nav }: AppSidebarProps) {
   const footer = nav?.footer ?? [settingsItem, supportItem]
   const Logo = nav?.icon ?? Container
   const title = nav ? t(nav.title) : companyName
-  const subtitle = nav ? t(nav.subtitle) : companyTagline
+  // Сверху название компании клиента, под ним наш продукт — как на странице входа
+  const subtitle = nav ? t(nav.subtitle) : PRODUCT_NAME
 
   return (
-    <aside
-      className={cn(
-        'flex h-svh shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200',
-        collapsed ? 'w-16' : 'w-60',
-      )}
-    >
+    <>
       {/* Логотип компании */}
       <div
         className={cn(
@@ -50,6 +111,16 @@ export function AppSidebar({ collapsed, onToggle, nav }: AppSidebarProps) {
             <div className="truncate text-xs text-sidebar-foreground/60">{subtitle}</div>
           </div>
         )}
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t('Close menu')}
+            className="ml-auto flex size-9 items-center justify-center rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          >
+            <X className="size-4" />
+          </button>
+        )}
       </div>
 
       <nav className={cn('flex-1 overflow-y-auto px-3 py-4', collapsed ? 'space-y-1' : 'space-y-5')}>
@@ -58,7 +129,7 @@ export function AppSidebar({ collapsed, onToggle, nav }: AppSidebarProps) {
             {/* В свёрнутом виде вместо подписей групп — тонкий разделитель */}
             {collapsed && index > 0 && <div className="mx-auto mb-1 h-px w-6 bg-sidebar-border" />}
             {!collapsed && (
-              <div className="mb-1.5 px-2 text-[11px] font-medium tracking-wider text-sidebar-foreground/50 uppercase">
+              <div className="mb-1.5 px-2 text-[11px] font-medium tracking-wider text-sidebar-foreground/65 uppercase">
                 {t(group.label)}
               </div>
             )}
@@ -77,20 +148,22 @@ export function AppSidebar({ collapsed, onToggle, nav }: AppSidebarProps) {
         {footer.map((item) => (
           <SidebarLink key={item.path} item={item} collapsed={collapsed} />
         ))}
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-label={t(collapsed ? 'Expand sidebar' : 'Collapse sidebar')}
-          className={cn(
-            'flex h-9 items-center gap-3 rounded-md text-sm text-sidebar-foreground/70 outline-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring',
-            collapsed ? 'mx-auto w-10 justify-center' : 'w-full px-2.5',
-          )}
-        >
-          <ChevronsLeft className={cn('size-4 shrink-0 transition-transform', collapsed && 'rotate-180')} />
-          {!collapsed && <span>{t('Collapse')}</span>}
-        </button>
+        {onToggle && (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={t(collapsed ? 'Expand sidebar' : 'Collapse sidebar')}
+            className={cn(
+              'flex h-9 items-center gap-3 rounded-md text-sm text-sidebar-foreground/70 outline-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring',
+              collapsed ? 'mx-auto w-10 justify-center' : 'w-full px-2.5',
+            )}
+          >
+            <ChevronsLeft className={cn('size-4 shrink-0 transition-transform', collapsed && 'rotate-180')} />
+            {!collapsed && <span>{t('Collapse')}</span>}
+          </button>
+        )}
       </div>
-    </aside>
+    </>
   )
 }
 
