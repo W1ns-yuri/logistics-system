@@ -165,7 +165,7 @@ export function ShipmentDetailPage() {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <SectionCard title="Route & dates">
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3">

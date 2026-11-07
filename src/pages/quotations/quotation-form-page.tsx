@@ -419,7 +419,7 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
 
         {/* ---------- General ---------- */}
         <TabsContent value="general" className="space-y-5">
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
             <SectionCard title="Customer">
               <div className="grid gap-4 sm:grid-cols-2">
                 <FormField

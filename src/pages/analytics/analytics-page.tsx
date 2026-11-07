@@ -119,7 +119,7 @@ export function AnalyticsPage() {
       />
 
       {/* KPI */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Revenue"
           value={usd(data.kpis.revenue.value)}
@@ -151,7 +151,7 @@ export function AnalyticsPage() {
         />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-3">
         <Panel
           title="Revenue & profit by month"
           className="xl:col-span-2"
@@ -240,7 +240,7 @@ export function AnalyticsPage() {
         </Panel>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2 xl:grid-cols-3">
         <Panel title="Top customers" description="By revenue in the period">
           {data.customers.length ? (
             <BarList
@@ -271,18 +271,18 @@ export function AnalyticsPage() {
         </Panel>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-3">
         <Panel title="Top routes" className="xl:col-span-2 [&>div:last-child]:px-0 [&>div:last-child]:pb-0">
           {data.routes.length ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-y bg-muted/40 text-left text-xs text-muted-foreground">
-                    <th className="px-5 py-2.5 font-medium">{t('Route')}</th>
-                    <th className="px-3 py-2.5 text-right font-medium">{t('Shipments')}</th>
+                    <th className="px-4 py-2.5 font-medium sm:px-5">{t('Route')}</th>
+                    <th className="hidden px-3 py-2.5 text-right font-medium sm:table-cell">{t('Shipments')}</th>
                     <th className="px-3 py-2.5 text-right font-medium">{t('Revenue')}</th>
-                    <th className="px-3 py-2.5 text-right font-medium">{t('Gross profit')}</th>
-                    <th className="px-5 py-2.5 text-right font-medium">{t('Margin')}</th>
+                    <th className="hidden px-3 py-2.5 text-right font-medium sm:table-cell">{t('Gross profit')}</th>
+                    <th className="px-4 py-2.5 text-right font-medium sm:px-5">{t('Margin')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -290,8 +290,8 @@ export function AnalyticsPage() {
                     const margin = r.revenue ? (r.profit / r.revenue) * 100 : 0
                     return (
                       <tr key={`${r.from}-${r.to}`} className="border-b last:border-0 hover:bg-muted/30">
-                        <td className="px-5 py-3">
-                          <span className="flex items-center gap-2.5">
+                        <td className="px-4 py-3 sm:px-5">
+                          <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
                             <span
                               className="flex size-7 shrink-0 items-center justify-center rounded-md"
                               style={{ background: `color-mix(in oklch, ${modeColors[r.mode]} 16%, transparent)` }}
@@ -303,10 +303,10 @@ export function AnalyticsPage() {
                             <span className="font-medium">{r.to}</span>
                           </span>
                         </td>
-                        <td className="px-3 py-3 text-right tabular-nums">{r.shipments}</td>
+                        <td className="hidden px-3 py-3 text-right tabular-nums sm:table-cell">{r.shipments}</td>
                         <td className="px-3 py-3 text-right tabular-nums">{usd(r.revenue)}</td>
-                        <td className="px-3 py-3 text-right tabular-nums">{usd(r.profit)}</td>
-                        <td className="px-5 py-3 text-right">
+                        <td className="hidden px-3 py-3 text-right tabular-nums sm:table-cell">{usd(r.profit)}</td>
+                        <td className="px-4 py-3 text-right sm:px-5">
                           <MarginPill value={margin} />
                         </td>
                       </tr>

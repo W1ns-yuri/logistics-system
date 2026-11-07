@@ -11,8 +11,8 @@ export const planLabels: Record<Plan, string> = {
   lite_plus: 'Lite+',
   standard: 'Standard',
 }
-// Цена в месяц, USD. Lite — от клиента, Lite+ и Standard — наше предложение, обсудим
-export const planPrice: Record<Plan, number> = { trial: 0, lite: 10, lite_plus: 20, standard: 35 }
+// Цена в месяц, USD — от клиента (07.11)
+export const planPrice: Record<Plan, number> = { trial: 0, lite: 10, lite_plus: 15, standard: 20 }
 
 // Старые id тарифов (до 06.11) → новые, для данных, сохранённых в браузере
 export const LEGACY_PLANS: Record<string, Plan> = { start: 'lite', business: 'lite_plus', enterprise: 'standard' }

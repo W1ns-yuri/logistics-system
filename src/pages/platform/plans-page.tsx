@@ -44,10 +44,7 @@ export function PlansPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-5 p-4 sm:p-6">
-      <PageHeader
-        title="Plans"
-        description="Lite price is from the client, Lite+ and Standard are our proposal. A yearly payment costs 10 months."
-      />
+      <PageHeader title="Plans" description="Price per month for the whole team. A yearly payment costs 10 months." />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map(({ plan, features, missing = [] }) => {
           const seats = planSeats[plan]

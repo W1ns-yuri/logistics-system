@@ -84,7 +84,7 @@ export function PlatformDashboardPage() {
         />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-3">
         <Panel
           title="Revenue by month"
           description="Inner bar: first payments of new companies"
@@ -132,7 +132,7 @@ export function PlatformDashboardPage() {
         </Panel>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2 xl:grid-cols-3">
         <Panel
           title="New companies by month"
           description="Inner bar: of them started paying"
@@ -180,7 +180,7 @@ export function PlatformDashboardPage() {
         </Panel>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-3">
         <Panel
           title="Renewals"
           description="License ends within 14 days or ended recently"

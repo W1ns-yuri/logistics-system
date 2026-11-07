@@ -957,8 +957,8 @@ export const ru: Record<string, string> = {
   'Chart view': 'Вид графика',
   'Progress lines': 'Линии прогресса',
   'Bars and line': 'Столбцы и линия',
-  'Lite price is from the client, Lite+ and Standard are our proposal. A yearly payment costs 10 months.':
-    'Цена Lite — от заказчика, Lite+ и Standard — наше предложение. Год стоит как 10 месяцев.',
+  'Price per month for the whole team. A yearly payment costs 10 months.':
+    'Цена в месяц за всю команду. Год стоит как 10 месяцев.',
   'No analytics': 'Без аналитики',
   'With analytics': 'С аналитикой',
   'Quotations and shipments': 'Котировки и перевозки',

@@ -33,42 +33,78 @@ export function TeamResultsTable({ members }: { members: MemberStats[] }) {
   ].sort((a, b) => b.stats.revenue - a.stats.revenue || b.stats.created - a.stats.created)
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[900px] text-sm" data-testid="team-results">
-        <thead>
-          <tr className="border-y bg-muted/50 text-xs text-muted-foreground">
-            <th className="px-5 py-2 text-left font-medium">{t('Member')}</th>
-            {columns.map((c) => (
-              <th key={c.key} title={c.hint ? t(c.hint) : undefined} className="px-3 py-2 text-right font-medium">
-                {t(c.label)}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.name} className="border-b last:border-0">
-              <td className="px-5 py-2.5">
-                <div className="font-medium">{row.name}</div>
+    <>
+      {/* Телефон: карточка на сотрудника, без горизонтального скролла */}
+      <ul className="space-y-3 md:hidden" data-testid="team-results-cards">
+        {rows.map((row) => (
+          <li key={row.name} className="rounded-lg border p-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <div className="min-w-0">
+                <div className="truncate font-medium">{row.name}</div>
                 <div className="text-xs text-muted-foreground">{row.role}</div>
-              </td>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="font-semibold tabular-nums">{usd(row.stats.revenue)}</div>
+                <div className="text-xs text-muted-foreground">{t('Revenue')}</div>
+              </div>
+            </div>
+            <dl className="mt-3 grid grid-cols-3 gap-x-3 gap-y-2 text-xs">
+              {columns
+                .filter((c) => c.key !== 'revenue')
+                .map((c) => (
+                  <div key={c.key} className="min-w-0">
+                    <dt className="truncate text-muted-foreground">{t(c.label)}</dt>
+                    <dd
+                      className={cn(
+                        'font-medium tabular-nums',
+                        c.key === 'failed' && row.stats.failed > 0 && 'text-destructive',
+                      )}
+                    >
+                      {(c.format ?? String)(row.stats[c.key] as number)}
+                    </dd>
+                  </div>
+                ))}
+            </dl>
+          </li>
+        ))}
+      </ul>
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full min-w-[900px] text-sm" data-testid="team-results">
+          <thead>
+            <tr className="border-y bg-muted/50 text-xs text-muted-foreground">
+              <th className="px-5 py-2 text-left font-medium">{t('Member')}</th>
               {columns.map((c) => (
-                <td
-                  key={c.key}
-                  className={cn(
-                    'px-3 py-2.5 text-right tabular-nums',
-                    c.key === 'failed' && row.stats.failed > 0 && 'text-destructive',
-                    !row.stats[c.key] && 'text-muted-foreground',
-                  )}
-                >
-                  {(c.format ?? String)(row.stats[c.key] as number)}
-                </td>
+                <th key={c.key} title={c.hint ? t(c.hint) : undefined} className="px-3 py-2 text-right font-medium">
+                  {t(c.label)}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.name} className="border-b last:border-0">
+                <td className="px-5 py-2.5">
+                  <div className="font-medium">{row.name}</div>
+                  <div className="text-xs text-muted-foreground">{row.role}</div>
+                </td>
+                {columns.map((c) => (
+                  <td
+                    key={c.key}
+                    className={cn(
+                      'px-3 py-2.5 text-right tabular-nums',
+                      c.key === 'failed' && row.stats.failed > 0 && 'text-destructive',
+                      !row.stats[c.key] && 'text-muted-foreground',
+                    )}
+                  >
+                    {(c.format ?? String)(row.stats[c.key] as number)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   )
 }
 
