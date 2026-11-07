@@ -154,6 +154,14 @@ export function buildAnalytics({
   // Воронка котировок за период
   const periodQuotations = quotations.filter((q) => months.includes(monthKey(q.createdAt)))
   const funnel = quotationFunnel(periodQuotations)
+  // Почему проигрываем: причины у проваленных котировок периода, частые сверху
+  const reasonCounts = new Map<string, number>()
+  for (const q of periodQuotations)
+    if (q.status === 'failed') {
+      const reason = q.lostReason ?? 'unknown'
+      reasonCounts.set(reason, (reasonCounts.get(reason) ?? 0) + 1)
+    }
+  const lossReasons = [...reasonCounts].map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count)
 
   // Результаты по сотрудникам: кто сколько котировок сделал, выиграл и сколько заработал
   const people = new Map<string, MemberStats>()
@@ -207,7 +215,7 @@ export function buildAnalytics({
     count: shipments.filter((s) => s.status === status).length,
   }))
 
-  return { months, trend, kpis, modes, customers, routes, vendors: vendorRows, funnel, receivables, pipeline, members }
+  return { months, trend, kpis, modes, customers, routes, vendors: vendorRows, funnel, lossReasons, receivables, pipeline, members }
 }
 
 export type Analytics = ReturnType<typeof buildAnalytics>

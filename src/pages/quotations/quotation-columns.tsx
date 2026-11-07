@@ -1,7 +1,9 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { Link } from 'react-router'
 
-import { QuotationStatusBadge } from '@/components/status-badge'
+import { QuotationStatusBadge, quotationStatuses } from '@/components/status-badge'
+import { t } from '@/i18n'
+import { transportModeLabels } from '@/types/logistics'
 import { TransportModeLabel } from '@/components/transport-mode'
 import { useMemberName } from '@/data/store'
 import { formatDate, formatWeight } from '@/lib/format'
@@ -29,7 +31,7 @@ export const quotationColumns: ColumnDef<Quotation, unknown>[] = [
   {
     accessorKey: 'mode',
     header: 'Mode',
-    meta: { label: 'Mode of transport' },
+    meta: { label: 'Mode of transport', exportValue: (q) => t(transportModeLabels[q.mode]) },
     filterFn: 'arrIncludesSome',
     cell: ({ row }) => <TransportModeLabel mode={row.original.mode} />,
   },
@@ -69,7 +71,7 @@ export const quotationColumns: ColumnDef<Quotation, unknown>[] = [
   {
     accessorKey: 'status',
     header: 'Status',
-    meta: { label: 'Status' },
+    meta: { label: 'Status', exportValue: (q) => t(quotationStatuses[q.status].label) },
     filterFn: 'arrIncludesSome',
     cell: ({ row }) => <QuotationStatusBadge status={row.original.status} />,
   },

@@ -300,6 +300,9 @@ export function copyQuotation(id: string) {
     status: 'in_progress',
     createdAt: today(),
     createdBy: author(),
+    // Даты и итог прошлой сделки не копируем: у новой котировки свой срок и своя судьба
+    validTo: undefined,
+    lostReason: undefined,
   }
   setState((s) => ({ ...s, quotations: [copy, ...s.quotations] }))
   return copy

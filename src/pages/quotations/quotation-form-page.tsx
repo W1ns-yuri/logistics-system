@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { AlertTriangle, ArrowLeft, Calculator, FileText, Plus, Save, Trash2 } from 'lucide-react'
 import { Link, Navigate, useBlocker, useNavigate, useParams, useSearchParams } from 'react-router'
 
@@ -966,10 +966,18 @@ function CargoLines({
   size: (value: string) => number | undefined
 }) {
   const totals = cargoTotals(lines)
-  const columns = 'grid min-w-[1100px] grid-cols-[72px_1fr_1.3fr_84px_84px_84px_112px_96px_96px_36px] gap-2'
+  // Компьютер: строки в виде таблицы. Телефон и планшет: каждая строка — карточка с подписями, без прокрутки вбок
+  const columns = 'lg:grid lg:min-w-[1100px] lg:grid-cols-[72px_1fr_1.3fr_84px_84px_84px_112px_96px_96px_36px] lg:gap-2'
+  // Подпись над полем видна только в карточке; в таблице её заменяет шапка
+  const field = (label: string, control: ReactNode, className?: string) => (
+    <label className={cn('min-w-0 space-y-1 lg:space-y-0', className)}>
+      <span className="block text-xs text-muted-foreground lg:hidden">{t(label)}</span>
+      {control}
+    </label>
+  )
   return (
-    <div className="-mx-1 mt-4 space-y-2 overflow-x-auto px-1 py-1">
-      <div className={cn(columns, 'text-xs whitespace-nowrap text-muted-foreground')}>
+    <div className="mt-4 space-y-2 lg:-mx-1 lg:overflow-x-auto lg:px-1 lg:py-1">
+      <div className={cn(columns, 'hidden text-xs whitespace-nowrap text-muted-foreground')}>
         <span>{t('Pieces')}</span>
         <span>{t('Package type')}</span>
         <span>{t('Nature of goods')}</span>
@@ -982,76 +990,115 @@ function CargoLines({
         <span />
       </div>
       {lines.map((line, index) => (
-        <div key={index} className={cn(columns, 'items-center')}>
-          <Input
-            type="number"
-            min={1}
-            step={1}
-            aria-label={t('Pieces')}
-            placeholder="1"
-            value={line.pieces || ''}
-            // Мест не может быть меньше одного: минус и ноль не пускаем, пустое поле — пока печатают
-            onChange={(e) =>
-              e.target.value === ''
-                ? onChange(index, { pieces: 0 })
-                : onChange(index, { pieces: Math.max(1, Math.floor(Math.abs(Number(e.target.value))) || 1) })
-            }
-            onBlur={() => !line.pieces && onChange(index, { pieces: 1 })}
-          />
-          <Input
-            aria-label={t('Package type')}
-            placeholder={t('Box, pallet, bag')}
-            value={line.packageType}
-            onChange={(e) => onChange(index, { packageType: e.target.value })}
-          />
-          <Input
-            aria-label={t('Nature of goods')}
-            placeholder={t('e.g. Cotton yarn')}
-            value={line.natureOfGoods}
-            onChange={(e) => onChange(index, { natureOfGoods: e.target.value })}
-          />
-          {(['lengthCm', 'widthCm', 'heightCm'] as const).map((key) => (
-            <Input
-              key={key}
-              type="number"
-              min={0}
-              step="any"
-              aria-label={t({ lengthCm: 'Length, cm', widthCm: 'Width, cm', heightCm: 'Height, cm' }[key])}
-              placeholder={{ lengthCm: '120', widthCm: '80', heightCm: '100' }[key]}
-              value={line[key] ?? ''}
-              onChange={(e) => onChange(index, { [key]: size(e.target.value) })}
-            />
-          ))}
-          <Input
-            type="number"
-            min={0}
-            step="any"
-            aria-label={t('Weight of 1 piece, kg')}
-            placeholder="25"
-            value={line.weightPerPieceKg ?? ''}
-            onChange={(e) => onChange(index, { weightPerPieceKg: size(e.target.value) })}
-          />
-          <span className="text-right text-sm tabular-nums">{number(line.weightKg || 0)}</span>
-          {/* Объём считается по размерам. Если размеров нет — его можно вписать вручную */}
-          {hasDimensions(line) ? (
-            <span className="text-right text-sm tabular-nums">{number(line.volumeM3 || 0)}</span>
-          ) : (
-            <Input
-              type="number"
-              min={0}
-              step="any"
-              aria-label={t('Volume, m³')}
-              value={line.volumeM3 || ''}
-              placeholder="0"
-              onChange={(e) => onChange(index, { volumeM3: size(e.target.value) ?? 0 })}
-            />
+        <div
+          key={index}
+          data-testid="cargo-line"
+          className={cn(
+            columns,
+            'grid grid-cols-2 gap-2 rounded-lg border p-3 sm:grid-cols-3 lg:items-center lg:rounded-none lg:border-0 lg:p-0',
           )}
+        >
+          {field(
+            'Pieces',
+            <Input
+              type="number"
+              min={1}
+              step={1}
+              aria-label={t('Pieces')}
+              placeholder="1"
+              value={line.pieces || ''}
+              // Мест не может быть меньше одного: минус и ноль не пускаем, пустое поле — пока печатают
+              onChange={(e) =>
+                e.target.value === ''
+                  ? onChange(index, { pieces: 0 })
+                  : onChange(index, { pieces: Math.max(1, Math.floor(Math.abs(Number(e.target.value))) || 1) })
+              }
+              onBlur={() => !line.pieces && onChange(index, { pieces: 1 })}
+            />,
+          )}
+          {field(
+            'Package type',
+            <Input
+              aria-label={t('Package type')}
+              placeholder={t('Box, pallet, bag')}
+              value={line.packageType}
+              onChange={(e) => onChange(index, { packageType: e.target.value })}
+            />,
+          )}
+          {field(
+            'Nature of goods',
+            <Input
+              aria-label={t('Nature of goods')}
+              placeholder={t('e.g. Cotton yarn')}
+              value={line.natureOfGoods}
+              onChange={(e) => onChange(index, { natureOfGoods: e.target.value })}
+            />,
+            'col-span-2 sm:col-span-1',
+          )}
+          {(['lengthCm', 'widthCm', 'heightCm'] as const).map((key) => {
+            const label = { lengthCm: 'Length, cm', widthCm: 'Width, cm', heightCm: 'Height, cm' }[key]
+            return (
+              <Fragment key={key}>
+                {field(
+                  label,
+                  <Input
+                    type="number"
+                    min={0}
+                    step="any"
+                    aria-label={t(label)}
+                    placeholder={{ lengthCm: '120', widthCm: '80', heightCm: '100' }[key]}
+                    value={line[key] ?? ''}
+                    onChange={(e) => onChange(index, { [key]: size(e.target.value) })}
+                  />,
+                )}
+              </Fragment>
+            )
+          })}
+          {field(
+            'Weight of 1 piece, kg',
+            <Input
+              type="number"
+              min={0}
+              step="any"
+              aria-label={t('Weight of 1 piece, kg')}
+              placeholder="25"
+              value={line.weightPerPieceKg ?? ''}
+              onChange={(e) => onChange(index, { weightPerPieceKg: size(e.target.value) })}
+            />,
+          )}
+          {field(
+            'Weight, kg',
+            <span className="flex h-9 items-center text-sm font-medium tabular-nums lg:h-auto lg:justify-end lg:font-normal">
+              {number(line.weightKg || 0)}
+            </span>,
+          )}
+          {/* Объём считается по размерам. Если размеров нет — его можно вписать вручную */}
+          {hasDimensions(line)
+            ? field(
+                'Volume, m³',
+                <span className="flex h-9 items-center text-sm font-medium tabular-nums lg:h-auto lg:justify-end lg:font-normal">
+                  {number(line.volumeM3 || 0)}
+                </span>,
+              )
+            : field(
+                'Volume, m³',
+                <Input
+                  type="number"
+                  min={0}
+                  step="any"
+                  aria-label={t('Volume, m³')}
+                  value={line.volumeM3 || ''}
+                  placeholder="0"
+                  onChange={(e) => onChange(index, { volumeM3: size(e.target.value) ?? 0 })}
+                />,
+              )}
           <Button
             type="button"
             variant="ghost"
             size="icon-sm"
             aria-label={t('Remove line')}
             onClick={() => onRemove(index)}
+            className="col-span-2 justify-self-end sm:col-span-3 lg:col-span-1 lg:justify-self-auto"
           >
             <Trash2 />
           </Button>
@@ -1059,14 +1106,26 @@ function CargoLines({
       ))}
       {/* Итог по всем строкам */}
       <div
-        className={cn(columns, 'items-center border-t pt-2 text-sm font-medium tabular-nums')}
+        className={cn(
+          columns,
+          'flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-2 text-sm font-medium tabular-nums lg:items-center',
+        )}
         data-testid="cargo-totals"
       >
-        <span>{totals.pieces}</span>
-        <span className="col-span-6 text-muted-foreground">{t('Total cargo')}</span>
-        <span className="text-right">{number(totals.weightKg)}</span>
-        <span className="text-right">{number(totals.volumeM3)}</span>
-        <span />
+        <span>
+          {totals.pieces}
+          <span className="font-normal text-muted-foreground lg:hidden"> {t('Pieces').toLowerCase()}</span>
+        </span>
+        <span className="text-muted-foreground lg:col-span-6">{t('Total cargo')}</span>
+        <span className="lg:text-right">
+          {number(totals.weightKg)}
+          <span className="font-normal text-muted-foreground lg:hidden"> kg</span>
+        </span>
+        <span className="lg:text-right">
+          {number(totals.volumeM3)}
+          <span className="font-normal text-muted-foreground lg:hidden"> m³</span>
+        </span>
+        <span className="hidden lg:block" />
       </div>
     </div>
   )

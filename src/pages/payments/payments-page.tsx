@@ -37,7 +37,7 @@ const columns: ColumnDef<InvoiceRow, unknown>[] = [
   {
     accessorKey: 'status',
     header: 'Status',
-    meta: { label: 'Status' },
+    meta: { label: 'Status', exportValue: (i) => t(invoiceStatuses[i.status].label) },
     filterFn: 'arrIncludesSome',
     cell: ({ row }) => <InvoiceStatusBadge status={row.original.status} />,
   },
@@ -140,6 +140,7 @@ export function PaymentsPage() {
       </div>
 
       <DataTable
+        exportName="Payments"
         columns={columns}
         data={rows}
         getRowId={(row) => row.id}

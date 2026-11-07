@@ -65,4 +65,17 @@ export type Quotation = {
   charges: Charge[]
   termsAndConditions?: string
   notes?: string
+  lostReason?: string // почему клиент не взял: спрашиваем, когда ставят «Провалена»
 }
+
+// Причины проигрыша: выбор в один клик, «Другое» — своими словами
+export const LOST_REASONS = ['price', 'competitor', 'timing', 'no_answer'] as const
+export const lostReasonLabels: Record<(typeof LOST_REASONS)[number], string> = {
+  price: 'Price too high',
+  competitor: 'Chose another forwarder',
+  timing: 'Dates did not fit',
+  no_answer: 'Customer stopped answering',
+}
+// Подпись причины: известная — переводим, своя — как написали
+export const lostReasonText = (reason: string) =>
+  reason in lostReasonLabels ? lostReasonLabels[reason as keyof typeof lostReasonLabels] : reason
