@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm'
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import { z } from 'zod'
 
-import { isBlocked, recordFailure, resetAttempts } from '../auth/rate-limit.ts'
+import { createLimiter, MINUTE } from '../auth/rate-limit.ts'
 import { createSession, deleteSession, findViewer, SESSION_COOKIE } from '../auth/session.ts'
 import { companies, memberships, users } from '../db/schema.ts'
 
@@ -29,8 +29,16 @@ const loginBody = z.object({ email, password: z.string().min(1).max(200) })
 
 const isoDate = (d: Date) => d.toISOString().slice(0, 10)
 
+// Хэш несуществующего пароля. Если email не найден, всё равно проверяем пароль против него:
+// так ответ приходит за то же время, и по скорости нельзя понять, есть ли такой email в системе
+const dummyHash = hash('dummy-password-for-timing')
+
 export async function authRoutes(app: FastifyInstance) {
   const { db } = app
+  // Лимиты живут вместе с приложением (у каждого теста свои)
+  const loginByEmail = createLimiter({ limit: 10, windowMs: 15 * MINUTE }) // 10 неверных паролей на «email + IP»
+  const loginByIp = createLimiter({ limit: 50, windowMs: 15 * MINUTE }) // и 50 с одного IP на любые email
+  const signupByIp = createLimiter({ limit: 5, windowMs: 60 * MINUTE }) // 5 регистраций с IP в час, чтобы не засорили базу
 
   const setCookie = (reply: FastifyReply, token: string, expiresAt: Date) =>
     reply.setCookie(SESSION_COOKIE, token, {
@@ -43,6 +51,8 @@ export async function authRoutes(app: FastifyInstance) {
 
   app.post('/api/auth/signup', async (request, reply) => {
     const body = signupBody.parse(request.body)
+    if (signupByIp.isBlocked(request.ip)) return reply.code(429).send({ error: 'too_many_attempts' })
+    signupByIp.hit(request.ip)
     const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, body.email)).limit(1)
     if (existing) return reply.code(409).send({ error: 'email_taken' })
 
@@ -71,16 +81,19 @@ export async function authRoutes(app: FastifyInstance) {
   app.post('/api/auth/login', async (request, reply) => {
     const body = loginBody.parse(request.body)
     const key = `${body.email}|${request.ip}`
-    if (isBlocked(key)) return reply.code(429).send({ error: 'too_many_attempts' })
+    if (loginByEmail.isBlocked(key) || loginByIp.isBlocked(request.ip))
+      return reply.code(429).send({ error: 'too_many_attempts' })
 
     const [user] = await db.select().from(users).where(eq(users.email, body.email)).limit(1)
-    // Одна и та же ошибка для «нет такого email» и «неверный пароль» — не подсказываем, какие email есть в системе
-    const ok = user ? await verify(user.passwordHash, body.password) : false
+    // Одна и та же ошибка и одно и то же время ответа для «нет такого email» и «неверный пароль»:
+    // не подсказываем, какие email есть в системе
+    const ok = await verify(user?.passwordHash ?? (await dummyHash), body.password)
     if (!user || !ok) {
-      recordFailure(key)
+      loginByEmail.hit(key)
+      loginByIp.hit(request.ip)
       return reply.code(401).send({ error: 'invalid_credentials' })
     }
-    resetAttempts(key)
+    loginByEmail.reset(key)
 
     // Пока входим в первую компанию человека; переключение между компаниями добавим, когда понадобится
     const [membership] = await db.select().from(memberships).where(eq(memberships.userId, user.id)).limit(1)

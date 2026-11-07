@@ -1,6 +1,6 @@
 // Сессии: создать при входе, найти по cookie, удалить при выходе
 import { createHash, randomBytes } from 'node:crypto'
-import { and, eq, gt } from 'drizzle-orm'
+import { and, eq, gt, lte } from 'drizzle-orm'
 
 import type { Db } from '../db/client.ts'
 import { companies, memberships, sessions, users } from '../db/schema.ts'
@@ -15,6 +15,8 @@ export async function createSession(db: Db, userId: string, companyId: string) {
   const token = randomBytes(32).toString('base64url')
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000)
   await db.insert(sessions).values({ tokenHash: hash(token), userId, companyId, expiresAt })
+  // Заодно убираем протухшие сессии этого человека, чтобы таблица не росла вечно
+  await db.delete(sessions).where(and(eq(sessions.userId, userId), lte(sessions.expiresAt, new Date())))
   return { token, expiresAt }
 }
 

@@ -5,4 +5,4 @@ import { env } from './env.ts'
 
 const { db } = createDb(env.DATABASE_URL)
 const app = await buildApp({ db, config: env, logger: true })
-await app.listen({ port: env.PORT, host: '0.0.0.0' })
+await app.listen({ port: env.PORT, host: env.HOST })

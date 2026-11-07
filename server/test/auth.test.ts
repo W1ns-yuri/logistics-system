@@ -104,3 +104,58 @@ test('после 10 неудачных попыток вход блокируе�
   })
   assert.equal(res.statusCode, 429)
 })
+
+test('запрос с чужого сайта (Origin) отклоняется — защита от CSRF', async () => {
+  const res = await ctx.app.inject({
+    method: 'POST',
+    url: '/api/auth/logout',
+    headers: { origin: 'https://evil.example', host: 'omniroute.tm' },
+  })
+  assert.equal(res.statusCode, 403)
+  const own = await ctx.app.inject({
+    method: 'POST',
+    url: '/api/auth/logout',
+    headers: { origin: 'https://omniroute.tm', host: 'omniroute.tm' },
+  })
+  assert.equal(own.statusCode, 204)
+})
+
+test('ответы API с защитными заголовками и без кэша', async () => {
+  const res = await ctx.app.inject({ method: 'GET', url: '/api/health' })
+  assert.equal(res.headers['x-content-type-options'], 'nosniff')
+  assert.equal(res.headers['cache-control'], 'no-store')
+})
+
+test('подставной X-Forwarded-For не обходит лимит попыток', async () => {
+  const payload = { email: 'spoof@company.com', password: 'bad-password' }
+  for (let i = 0; i < 10; i++)
+    await ctx.app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload,
+      remoteAddress: '203.0.113.7',
+      headers: { 'x-forwarded-for': `10.0.0.${i}` },
+    })
+  const res = await ctx.app.inject({
+    method: 'POST',
+    url: '/api/auth/login',
+    payload,
+    remoteAddress: '203.0.113.7',
+    headers: { 'x-forwarded-for': '10.0.0.99' },
+  })
+  assert.equal(res.statusCode, 429)
+})
+
+test('с одного IP не больше 5 регистраций в час', async () => {
+  const codes = []
+  for (let i = 0; i < 6; i++) {
+    const res = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/auth/signup',
+      payload: { ...signupPayload, email: `spam${i}@company.com` },
+      remoteAddress: '198.51.100.5',
+    })
+    codes.push(res.statusCode)
+  }
+  assert.deepEqual(codes, [201, 201, 201, 201, 201, 429])
+})

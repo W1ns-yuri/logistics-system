@@ -12,7 +12,7 @@ export async function setup() {
   // Сносим всё и накатываем миграции заново — тесты не зависят друг от друга
   await db.execute(sql`drop schema if exists public cascade; drop schema if exists drizzle cascade; create schema public;`)
   await runMigrations(url)
-  const app = await buildApp({ db, config: { DATABASE_URL: url, PORT: 0, COOKIE_SECURE: false } })
+  const app = await buildApp({ db, config: { DATABASE_URL: url, PORT: 0, HOST: '127.0.0.1', TRUST_PROXY: 'loopback', COOKIE_SECURE: false } })
   return {
     app,
     db,

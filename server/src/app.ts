@@ -16,10 +16,33 @@ declare module 'fastify' {
 }
 
 export async function buildApp({ db, config, logger = false }: { db: Db; config: Env; logger?: boolean }) {
-  const app = Fastify({ logger, trustProxy: true })
+  const app = Fastify({ logger, trustProxy: config.TRUST_PROXY, bodyLimit: 1024 * 1024 })
   app.decorate('db', db)
   app.decorate('config', config)
   await app.register(cookie)
+
+  // Защитные заголовки на каждый ответ API
+  app.addHook('onSend', async (_request, reply) => {
+    reply.header('X-Content-Type-Options', 'nosniff') // браузер не угадывает тип файла
+    reply.header('X-Frame-Options', 'DENY') // API нельзя встроить в чужую страницу
+    reply.header('Cache-Control', 'no-store') // данные компании не оседают в кэше браузера и прокси
+    reply.header('Referrer-Policy', 'no-referrer')
+  })
+
+  // Защита от CSRF: запрос, который что-то меняет, принимаем только со своего сайта.
+  // Браузер всегда шлёт Origin у POST/PUT/PATCH/DELETE, и подделать его чужая страница не может.
+  app.addHook('onRequest', async (request, reply) => {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return
+    const origin = request.headers.origin
+    if (!origin) return // не браузер (curl, тесты) — там нет чужих cookie, которые можно украсть
+    let host = ''
+    try {
+      host = new URL(origin).host
+    } catch {
+      // Origin: null или мусор — считаем чужим
+    }
+    if (host !== request.host) return reply.code(403).send({ error: 'bad_origin' })
+  })
 
   // Ошибка проверки данных → 400 с понятным списком полей, а не 500
   app.setErrorHandler((error, request, reply) => {
