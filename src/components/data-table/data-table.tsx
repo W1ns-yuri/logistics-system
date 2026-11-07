@@ -12,9 +12,13 @@ import {
   type ColumnFiltersState,
   type HeaderContext,
   type SortingState,
+  type RowData,
   type VisibilityState,
 } from '@tanstack/react-table'
-import { ArrowDown, ArrowUp, ChevronsUpDown, Search } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronsUpDown, FileSpreadsheet, Search } from 'lucide-react'
+
+import { Button } from '@/components/ui/button'
+import { buildXlsx, downloadBlob, type Cell } from '@/lib/xlsx'
 
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -23,6 +27,16 @@ import { DataTableFacetFilter, type FacetOption } from './data-table-facet-filte
 import { DataTablePagination } from './data-table-pagination'
 import { DataTableViewOptions } from './data-table-view-options'
 import { t } from '@/i18n'
+
+// Что ещё можно сказать про колонку: подпись (для меню колонок и Excel) и значение для выгрузки
+declare module '@tanstack/react-table' {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface ColumnMeta<TData extends RowData, TValue> {
+    label?: string
+    // Как записать ячейку в Excel. Если нет — берём значение колонки как есть
+    exportValue?: (row: TData) => Cell
+  }
+}
 
 export type FacetFilterConfig = {
   columnId: string
@@ -42,6 +56,8 @@ type DataTableProps<TData> = {
   actions?: ReactNode
   initialSorting?: SortingState
   rowClassName?: (row: TData) => string | undefined
+  // Имя файла для кнопки «Excel»; без него кнопки нет
+  exportName?: string
 }
 
 /*
@@ -62,6 +78,7 @@ export function DataTable<TData>({
   actions,
   initialSorting = [],
   rowClassName,
+  exportName,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>(initialSorting)
   const [globalFilter, setGlobalFilter] = useState('')
@@ -91,6 +108,24 @@ export function DataTable<TData>({
 
   const rows = table.getRowModel().rows
 
+  // Выгружаем то, что человек сейчас видит: с поиском, фильтрами, сортировкой и видимыми колонками, но все страницы
+  const exportToExcel = () => {
+    const columns = table
+      .getVisibleLeafColumns()
+      .filter((c) => c.columnDef.meta?.label || typeof c.columnDef.header === 'string')
+    const header = columns.map((c) => t(c.columnDef.meta?.label ?? String(c.columnDef.header)))
+    const body = table.getPrePaginationRowModel().rows.map((row) =>
+      columns.map((c) => {
+        const custom = c.columnDef.meta?.exportValue
+        if (custom) return custom(row.original)
+        const value = row.getValue(c.id)
+        return typeof value === 'number' || typeof value === 'string' ? value : ''
+      }),
+    )
+    const date = new Date().toISOString().slice(0, 10)
+    downloadBlob(buildXlsx(header, body, t(exportName!)), `${t(exportName!)} ${date}.xlsx`)
+  }
+
   return (
     <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
       {/* Верхняя панель: поиск, фильтры, действия */}
@@ -112,6 +147,18 @@ export function DataTable<TData>({
         })}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {actions}
+          {exportName && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={exportToExcel}
+              title={t('Download what is shown as an Excel file')}
+            >
+              <FileSpreadsheet />
+              Excel
+            </Button>
+          )}
           <DataTableViewOptions table={table} />
         </div>
       </div>

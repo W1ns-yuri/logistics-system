@@ -20,7 +20,7 @@ export function SectionCard({
 }) {
   return (
     <section className={cn('rounded-xl border bg-card shadow-xs', className)}>
-      <div className="flex items-center justify-between gap-3 border-b px-5 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold">{t(title)}</h2>
           {description && <p className="mt-0.5 text-xs text-muted-foreground">{t(description)}</p>}

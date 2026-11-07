@@ -1,7 +1,8 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { Link } from 'react-router'
 
-import { ShipmentStatusBadge } from '@/components/status-badge'
+import { LateBadge } from '@/components/late-badge'
+import { ShipmentStatusBadge, shipmentStatuses } from '@/components/status-badge'
 import { TransportModeIcon } from '@/components/transport-mode'
 import { shipmentPayment } from '@/data/store'
 import { t } from '@/i18n'
@@ -9,7 +10,7 @@ import { formatDate, formatMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { transportModeLabels } from '@/types/logistics'
 import type { Invoice } from '@/types/invoice'
-import type { Shipment } from '@/types/shipment'
+import { daysLate, type Shipment } from '@/types/shipment'
 
 // Колонки таблицы шипментов — как на слайде 5 презентации.
 // Колонку Payment видят только роли с доступом к оплатам (сотрудник её не видит).
@@ -24,7 +25,7 @@ export function getShipmentColumns({
     {
       accessorKey: 'mode',
       header: '',
-      meta: { label: 'Sign' },
+      meta: { label: 'Mode of transport', exportValue: (s) => t(transportModeLabels[s.mode]) },
       size: 40,
       enableSorting: false,
       filterFn: 'arrIncludesSome',
@@ -67,7 +68,7 @@ export function getShipmentColumns({
       // ETD и ETA в одной колонке, чтобы таблица влезала в экран
       accessorKey: 'etd',
       header: 'ETD / ETA',
-      meta: { label: 'ETD / ETA' },
+      meta: { label: 'ETD / ETA', exportValue: (s) => [s.etd, s.eta].map((d) => d ?? '—').join(' / ') },
       cell: ({ row }) => (
         <div className="text-xs leading-tight whitespace-nowrap tabular-nums">
           <div>{formatDate(row.original.etd)}</div>
@@ -78,7 +79,10 @@ export function getShipmentColumns({
     {
       accessorKey: 'equipment',
       header: 'Equipment',
-      meta: { label: 'Equipment' },
+      meta: {
+        label: 'Equipment',
+        exportValue: (s) => (s.transportQuantity > 1 ? `${s.transportQuantity} × ` : '') + s.equipment,
+      },
       cell: ({ row }) => (
         <span>
           {row.original.transportQuantity > 1 && `${row.original.transportQuantity} × `}
@@ -92,7 +96,13 @@ export function getShipmentColumns({
     columns.push({
       id: 'payment',
       header: 'Payment',
-      meta: { label: 'Payment' },
+      meta: {
+        label: 'Payment',
+        exportValue: (s) => {
+          const p = shipmentPayment(s.id, invoices)
+          return p.total ? `${p.paid} / ${p.total} ${p.currency}` : ''
+        },
+      },
       // Сортируем по доле оплаченного
       accessorFn: (s) => {
         const p = shipmentPayment(s.id, invoices)
@@ -105,9 +115,20 @@ export function getShipmentColumns({
   columns.push({
     accessorKey: 'status',
     header: 'Status',
-    meta: { label: 'Status' },
+    meta: {
+      label: 'Status',
+      exportValue: (s) => {
+        const late = daysLate(s)
+        return t(shipmentStatuses[s.status].label) + (late ? ` · ${t('Late by {n} d.', { n: late })}` : '')
+      },
+    },
     filterFn: 'arrIncludesSome',
-    cell: ({ row }) => <ShipmentStatusBadge status={row.original.status} />,
+    cell: ({ row }) => (
+      <div className="flex flex-col items-start gap-1">
+        <ShipmentStatusBadge status={row.original.status} />
+        <LateBadge shipment={row.original} />
+      </div>
+    ),
   })
 
   return columns
