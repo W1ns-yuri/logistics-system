@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Database, Monitor, Moon, Pencil, RotateCcw, Sun, Trash2, UserPlus, Wand2 } from 'lucide-react'
+import { Database, ImageUp, Monitor, Moon, Pencil, RotateCcw, Sun, Trash2, UserPlus, Wand2 } from 'lucide-react'
 import { useSearchParams } from 'react-router'
 
 import { ConfirmDelete } from '@/components/confirm-delete'
@@ -19,6 +19,7 @@ import { daysLeft, licenseStatus, planLabels, seatLimit, switchToDemoCompany, us
 import { prefixFromName, resetSettings, updateSettings, useSettings, type Settings, type Theme } from '@/data/settings'
 import { addTeamMember, removeTeamMember, resetDemoData, updateTeamMember, useTeam } from '@/data/store'
 import { LANGUAGES, t, type Language } from '@/i18n'
+import { acceptFor, fileError, LOGO_TYPES, logoDataUrl } from '@/lib/files'
 import { formatDate } from '@/lib/format'
 import { isValidEmail, isValidPhone } from '@/lib/input-rules'
 import { phoneExample } from '@/lib/phone'
@@ -65,6 +66,7 @@ export function SettingsPage() {
         </TabsList>
         <TabsContent value="company" className="mt-5 space-y-5">
           <CompanySection />
+          <LogoSection />
           <NumbersSection />
         </TabsContent>
         {canManageTeam && (
@@ -215,6 +217,86 @@ function CompanySection() {
             <Button type="submit">{t('Save changes')}</Button>
           </div>
         </form>
+      )}
+    </SectionCard>
+  )
+}
+
+// Логотип для шапки PDF: сохраняется сразу после выбора файла, без отдельной кнопки «Сохранить»
+function LogoSection() {
+  const settings = useSettings()
+  const { canManageTeam } = usePermissions()
+  const [error, setError] = useState<string>()
+  const [busy, setBusy] = useState(false)
+
+  const pick = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = '' // чтобы тот же файл можно было выбрать ещё раз
+    if (!file) return
+    setError(undefined)
+    const problem = await fileError(file, LOGO_TYPES)
+    if (problem) return setError(problem)
+    setBusy(true)
+    try {
+      updateSettings({ companyLogo: await logoDataUrl(file) })
+    } catch {
+      setError(t('Could not open this image. Try another file.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <SectionCard title="Logo">
+      <p className="mb-4 text-sm text-muted-foreground">
+        {t('Shown at the top of quotation and invoice PDFs. Without a logo the company name is printed instead.')}
+      </p>
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex h-20 w-56 items-center justify-center rounded-lg border bg-white p-2">
+          {settings.companyLogo ? (
+            <img
+              src={settings.companyLogo}
+              alt={settings.companyName}
+              className="max-h-full max-w-full object-contain"
+              data-testid="settings-logo"
+            />
+          ) : (
+            <span className="text-xs text-neutral-500">{t('No logo yet')}</span>
+          )}
+        </div>
+        {canManageTeam && (
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline" disabled={busy}>
+              <label className="cursor-pointer">
+                <ImageUp />
+                {t(settings.companyLogo ? 'Replace logo' : 'Upload logo')}
+                <input
+                  type="file"
+                  accept={acceptFor(LOGO_TYPES)}
+                  className="sr-only"
+                  onChange={pick}
+                  data-testid="logo-input"
+                />
+              </label>
+            </Button>
+            {settings.companyLogo && (
+              <Button size="sm" variant="ghost" onClick={() => updateSettings({ companyLogo: '' })}>
+                <Trash2 />
+                {t('Remove')}
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+      {canManageTeam && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          {t('PNG, JPG or WebP. A logo on a transparent or white background looks best.')}
+        </p>
+      )}
+      {error && (
+        <p className="mt-2 text-sm text-destructive" role="alert">
+          {error}
+        </p>
       )}
     </SectionCard>
   )

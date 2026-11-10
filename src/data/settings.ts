@@ -19,6 +19,8 @@ export type Settings = {
   // Реквизиты для документов: заполняются после регистрации в Settings
   companyTaxId: string
   companyWebsite: string
+  // Логотип для шапки PDF: картинка, уменьшенная и сохранённая прямо в настройках (data URL). '' — нет логотипа
+  companyLogo: string
   // Первые буквы номера документов: компания Win Fin → WF000001
   documentPrefix: string
   language: Language
@@ -38,6 +40,7 @@ export const defaultSettings: Settings = {
   companyPhone: '+993 00 000000',
   companyTaxId: '',
   companyWebsite: '',
+  companyLogo: '',
   documentPrefix: 'AT',
   language: 'en',
   defaultCurrency: 'USD',

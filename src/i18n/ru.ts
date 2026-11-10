@@ -992,4 +992,13 @@ export const ru: Record<string, string> = {
   'Photo': 'Фото',
   'And {n} more in the table': 'И ещё {n} в таблице',
   'Quotation#': '№ котировки',
+  Logo: 'Логотип',
+  'Shown at the top of quotation and invoice PDFs. Without a logo the company name is printed instead.':
+    'Печатается вверху котировок и инвойсов в PDF. Без логотипа там будет название компании.',
+  'No logo yet': 'Логотипа пока нет',
+  'Upload logo': 'Загрузить логотип',
+  'Replace logo': 'Заменить логотип',
+  'PNG, JPG or WebP. A logo on a transparent or white background looks best.':
+    'PNG, JPG или WebP. Лучше всего смотрится логотип на прозрачном или белом фоне.',
+  'Could not open this image. Try another file.': 'Не получилось открыть картинку. Попробуйте другой файл.',
 }
