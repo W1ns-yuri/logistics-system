@@ -102,3 +102,22 @@ export async function shrinkImage(file: File, maxSide = 1600): Promise<File> {
     return file // браузер не смог открыть картинку — сохраняем как есть
   }
 }
+
+/*
+ * Логотип для шапки PDF. Храним его в настройках браузера, поэтому уменьшаем:
+ * не больше 600×200 px, этого хватает для чёткой печати шапки высотой 2 см.
+ * Сохраняем в WebP (или PNG, если браузер WebP не умеет): у обоих есть прозрачность,
+ * а JPEG залил бы прозрачный фон логотипа чёрным.
+ */
+export const LOGO_TYPES = IMAGES
+
+export async function logoDataUrl(file: File, maxWidth = 600, maxHeight = 200): Promise<string> {
+  const bitmap = await createImageBitmap(file)
+  const scale = Math.min(1, maxWidth / bitmap.width, maxHeight / bitmap.height)
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+  canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+  bitmap.close()
+  return canvas.toDataURL('image/webp', 0.92)
+}

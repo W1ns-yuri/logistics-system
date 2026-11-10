@@ -1,3 +1,4 @@
+import { CompanyMark } from '@/components/company-mark'
 import { useSettings } from '@/data/settings'
 import { t } from '@/i18n'
 import { invoiceTotals } from '@/lib/calculation'
@@ -27,9 +28,9 @@ export function InvoicePreview({ invoice, className }: { invoice: Invoice; class
       )}
       data-testid="invoice-document"
     >
-      {/* Шапка: название компании слева, реквизиты справа */}
+      {/* Шапка: логотип (или название) компании слева, реквизиты справа */}
       <div className="flex flex-wrap items-start justify-between gap-6">
-        <div className="text-2xl font-bold tracking-tight text-neutral-800">{company.companyName}</div>
+        <CompanyMark company={company} />
         <div className="text-right leading-relaxed">
           <div className="font-semibold">{company.companyName}</div>
           <div className="text-neutral-600">{company.companyAddress}</div>
