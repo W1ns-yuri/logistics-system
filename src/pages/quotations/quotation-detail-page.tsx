@@ -22,6 +22,7 @@ import { NotFoundPage } from '@/pages/not-found'
 import { QuotationCalculationTab } from './quotation-calculation-tab'
 import { QuotationGeneralTab } from './quotation-general-tab'
 import { QuotationPreview } from './quotation-preview'
+import { printQuotation } from './quotation-print-page'
 import { QuotationStatusMenu } from './quotation-status-menu'
 
 // Карточка котировки: вкладки General / Calculation / PDF (слайды 3–4 презентации)
@@ -38,12 +39,11 @@ export function QuotationDetailPage() {
 
   if (!quotation) return <NotFoundPage />
 
-  // Печать или «Сохранить как PDF» в том же окне. Котировку в работе после этого считаем
-  // отправленной клиенту → «Завершена» (так попросил заказчик).
+  // Печать или «Сохранить как PDF» на отдельной странице, как у инвойса. Котировку в работе после этого
+  // считаем отправленной клиенту → «Завершена» (так попросил заказчик).
   const print = () => {
-    setTab('pdf')
     if (canModify && quotation.status === 'in_progress') updateQuotation(quotation.id, { status: 'completed' })
-    setTimeout(() => window.print(), 50)
+    printQuotation(quotation.id)
   }
 
   const canCreateShipment = quotation.status !== 'cancelled'

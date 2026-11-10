@@ -991,4 +991,5 @@ export const ru: Record<string, string> = {
   'Take a photo': 'Сфотографировать',
   'Photo': 'Фото',
   'And {n} more in the table': 'И ещё {n} в таблице',
+  'Quotation#': '№ котировки',
 }
