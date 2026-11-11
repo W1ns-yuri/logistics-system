@@ -1,4 +1,5 @@
 import {
+  Camera,
   ArrowLeft,
   Ban,
   Check,
@@ -19,6 +20,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { ConfirmDelete } from '@/components/confirm-delete'
 import { InfoField } from '@/components/info-field'
 import { SectionCard } from '@/components/section-card'
+import { LateBadge } from '@/components/late-badge'
 import { ShipmentStatusBadge, shipmentStatuses } from '@/components/status-badge'
 import { TransportModeLabel } from '@/components/transport-mode'
 import { Button } from '@/components/ui/button'
@@ -36,7 +38,7 @@ import {
   useVendors,
 } from '@/data/store'
 import { t } from '@/i18n'
-import { acceptFor, DOCUMENT_FILE_TYPES, fileError, formatSize, MAX_STORED_FILE } from '@/lib/files'
+import { acceptFor, DOCUMENT_FILE_TYPES, fileError, formatSize, MAX_STORED_FILE, shrinkImage } from '@/lib/files'
 import { formatDate, formatDateTime, formatWeight } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { NotFoundPage } from '@/pages/not-found'
@@ -93,6 +95,7 @@ export function ShipmentDetailPage() {
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-2xl font-semibold tracking-tight">{shipment.number}</h1>
               <ShipmentStatusBadge status={shipment.status} />
+              <LateBadge shipment={shipment} />
             </div>
             <div className="mt-1 text-sm text-muted-foreground">
               {shipment.customer} · {shipment.collectionAddress} → {shipment.deliveryAddress}
@@ -335,6 +338,7 @@ function TrackingSection({ shipment, canEdit }: { shipment: Shipment; canEdit: b
 // Документы прикладывать не обязательно: инвойс, упаковочный лист, CMR, AWB, B/L, сертификаты
 function DocumentsSection({ shipment, canEdit }: { shipment: Shipment; canEdit: boolean }) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const cameraRef = useRef<HTMLInputElement>(null)
   const [type, setType] = useState<DocumentType>('invoice')
   const [warning, setWarning] = useState<string>()
   const documents = shipment.documents ?? []
@@ -342,15 +346,18 @@ function DocumentsSection({ shipment, canEdit }: { shipment: Shipment; canEdit: 
   const upload = async (list: FileList | null) => {
     const files = Array.from(list ?? [])
     if (inputRef.current) inputRef.current.value = ''
+    if (cameraRef.current) cameraRef.current.value = ''
     setWarning(undefined)
     const problems: string[] = []
-    for (const file of files) {
+    for (const original of files) {
       // Неподходящий файл не сохраняем, а говорим почему
-      const problem = await fileError(file, DOCUMENT_FILE_TYPES)
+      const problem = await fileError(original, DOCUMENT_FILE_TYPES)
       if (problem) {
         problems.push(problem)
         continue
       }
+      // Большое фото с камеры уменьшаем, чтобы оно поместилось
+      const file = await shrinkImage(original)
       const base = { type, name: file.name, size: file.size }
       if (file.size > MAX_STORED_FILE) {
         addShipmentDocument(shipment.id, base)
@@ -389,12 +396,32 @@ function DocumentsSection({ shipment, canEdit }: { shipment: Shipment; canEdit: 
               <Paperclip />
               {t('Attach')}
             </Button>
+            {/* Кнопка камеры только на телефоне и планшете: сразу открывает съёмку */}
+            <Button
+              size="sm"
+              variant="outline"
+              className="hidden pointer-coarse:inline-flex"
+              onClick={() => cameraRef.current?.click()}
+              aria-label={t('Take a photo')}
+            >
+              <Camera />
+              <span className="sr-only sm:not-sr-only">{t('Photo')}</span>
+            </Button>
             <input
               ref={inputRef}
               type="file"
               multiple
               hidden
               accept={acceptFor(DOCUMENT_FILE_TYPES)}
+              onChange={(e) => upload(e.target.files)}
+            />
+            <input
+              ref={cameraRef}
+              type="file"
+              hidden
+              accept="image/jpeg,image/png,image/webp"
+              capture="environment"
+              data-testid="camera-input"
               onChange={(e) => upload(e.target.files)}
             />
           </div>

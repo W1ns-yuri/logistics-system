@@ -66,6 +66,7 @@ export function QuotationsPage() {
       />
 
       <DataTable
+        exportName="Quotations"
         columns={quotationColumns}
         data={quotations}
         getRowId={(q) => q.id}

@@ -136,7 +136,36 @@ function withOwners(data: State): State {
 // Груз: размеры по полям и вес на единицу транспорта (правки клиента 05.11)
 const withCargoDetails = (data: State): State => ({ ...data, quotations: data.quotations.map(upgradeQuotationCargo) })
 
-const normalize = (data: State) => withCargoDetails(withOwners(renumberShipments(chargesWithVendors(data))))
+/*
+ * Демо-данные заведены на октябрь, и со временем все перевозки в пути становились «опаздывающими».
+ * Поэтому у демо-перевозок ETA считаем от сегодняшнего дня: две опаздывают (чтобы было видно подсветку),
+ * остальные приходят в ближайшие дни. Перевозки, которые человек создал сам, не трогаем.
+ */
+const DEMO_SHIPMENT_IDS = new Set([...mockShipments, ...archive.shipments].map((s) => s.id))
+const DEMO_LATE_DAYS: Record<string, number> = { s1: 3, s4: 2 }
+const localDay = (shift: number) => {
+  const d = new Date()
+  d.setDate(d.getDate() + shift)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+function withFreshDemoEtas(data: State): State {
+  const today = localDay(0)
+  let ahead = 0
+  return {
+    ...data,
+    shipments: data.shipments.map((s) => {
+      if (!DEMO_SHIPMENT_IDS.has(s.id) || !s.eta || ['delivered', 'completed', 'cancelled'].includes(s.status)) return s
+      const late = DEMO_LATE_DAYS[s.id]
+      if (late) return { ...s, eta: localDay(-late) }
+      if (s.eta >= today) return s
+      ahead += 1
+      return { ...s, eta: localDay(2 + ((ahead * 3) % 12)) }
+    }),
+  }
+}
+
+const normalize = (data: State) =>
+  withFreshDemoEtas(withCargoDetails(withOwners(renumberShipments(chargesWithVendors(data)))))
 
 const initialState = (): State =>
   normalize({
@@ -300,6 +329,9 @@ export function copyQuotation(id: string) {
     status: 'in_progress',
     createdAt: today(),
     createdBy: author(),
+    // Даты и итог прошлой сделки не копируем: у новой котировки свой срок и своя судьба
+    validTo: undefined,
+    lostReason: undefined,
   }
   setState((s) => ({ ...s, quotations: [copy, ...s.quotations] }))
   return copy

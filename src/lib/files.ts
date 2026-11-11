@@ -79,3 +79,45 @@ export function formatSize(bytes: number) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
+
+/*
+ * Фото с телефона весит 3–8 МБ и в браузер не влезает. Уменьшаем его до 1600 px по длинной стороне
+ * и пережимаем в JPEG: для документа этого хватает, а файл становится в 10 раз меньше.
+ * Не картинка или уже маленькая — возвращаем как есть.
+ */
+export async function shrinkImage(file: File, maxSide = 1600): Promise<File> {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size <= MAX_STORED_FILE) return file
+  try {
+    const bitmap = await createImageBitmap(file)
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(bitmap.width * scale)
+    canvas.height = Math.round(bitmap.height * scale)
+    canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    bitmap.close()
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.82))
+    if (!blob || blob.size >= file.size) return file
+    return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' })
+  } catch {
+    return file // браузер не смог открыть картинку — сохраняем как есть
+  }
+}
+
+/*
+ * Логотип для шапки PDF. Храним его в настройках браузера, поэтому уменьшаем:
+ * не больше 600×200 px, этого хватает для чёткой печати шапки высотой 2 см.
+ * Сохраняем в WebP (или PNG, если браузер WebP не умеет): у обоих есть прозрачность,
+ * а JPEG залил бы прозрачный фон логотипа чёрным.
+ */
+export const LOGO_TYPES = IMAGES
+
+export async function logoDataUrl(file: File, maxWidth = 600, maxHeight = 200): Promise<string> {
+  const bitmap = await createImageBitmap(file)
+  const scale = Math.min(1, maxWidth / bitmap.width, maxHeight / bitmap.height)
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+  canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+  bitmap.close()
+  return canvas.toDataURL('image/webp', 0.92)
+}

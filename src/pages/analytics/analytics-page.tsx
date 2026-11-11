@@ -18,7 +18,8 @@ import { useActiveInvoices, useQuotations, useShipments, useVendors } from '@/da
 import { t } from '@/i18n'
 import { cn } from '@/lib/utils'
 import { transportModeLabels, type TransportMode } from '@/types/logistics'
-import { buildAnalytics, PERIODS, type Period } from './analytics-data'
+import { lostReasonText } from '@/types/quotation'
+import { buildAnalytics, PERIODS, type Analytics, type Period } from './analytics-data'
 import { RevenueChart, BarList, Donut, LegendRow, ProgressLines, Sparkline } from './charts'
 import { monthLabel, usd, usdShort } from './format'
 import { findStats, MyResults, TeamResultsTable } from './team-results'
@@ -257,7 +258,7 @@ export function AnalyticsPage() {
           )}
         </Panel>
 
-        <ConversionPanel funnel={data.funnel} />
+        <ConversionPanel funnel={data.funnel} lossReasons={data.lossReasons} />
         <ReceivablesPanel receivables={data.receivables} />
       </div>
 
@@ -455,7 +456,13 @@ function MarginPill({ value }: { value: number }) {
   )
 }
 
-function ConversionPanel({ funnel }: { funnel: ReturnType<typeof buildAnalytics>['funnel'] }) {
+function ConversionPanel({
+  funnel,
+  lossReasons,
+}: {
+  funnel: Analytics['funnel']
+  lossReasons: Analytics['lossReasons']
+}) {
   const parts = [
     { key: 'won', label: 'Won', value: funnel.won, color: 'var(--chart-2)' },
     { key: 'open', label: 'In progress', value: funnel.open, color: 'var(--chart-1)' },
@@ -490,6 +497,21 @@ function ConversionPanel({ funnel }: { funnel: ReturnType<typeof buildAnalytics>
           </div>
         ))}
       </div>
+      {lossReasons.length > 0 && (
+        <div className="mt-5 border-t pt-4" data-testid="loss-reasons">
+          <div className="mb-2 text-xs font-medium text-muted-foreground">{t('Why we lose')}</div>
+          <ul className="space-y-1.5 text-sm">
+            {lossReasons.slice(0, 4).map((r) => (
+              <li key={r.reason} className="flex items-baseline justify-between gap-3">
+                <span className="min-w-0 truncate">
+                  {r.reason === 'unknown' ? t('Reason not given') : t(lostReasonText(r.reason))}
+                </span>
+                <span className="shrink-0 font-medium tabular-nums">{r.count}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </Panel>
   )
 }

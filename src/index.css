@@ -167,8 +167,10 @@
 
 /* Печать / сохранение в PDF: на бумагу идёт только документ (.print-area), без меню и кнопок */
 @media print {
+  /* Поля страницы 0: тогда браузеру некуда печатать свою дату, заголовок вкладки и ссылку.
+     Отступ от края листа даёт сам документ (padding ниже) */
   @page {
-    margin: 14mm;
+    margin: 0;
   }
   body * {
     visibility: hidden;
@@ -180,6 +182,7 @@
   .print-area {
     position: absolute;
     inset: 0 0 auto 0;
+    padding: 14mm !important;
   }
 }
 

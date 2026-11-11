@@ -40,14 +40,14 @@ const columns: ColumnDef<VendorRow, unknown>[] = [
   {
     accessorKey: 'type',
     header: 'Type',
-    meta: { label: 'Type' },
+    meta: { label: 'Type', exportValue: (v) => t(vendorTypeLabels[v.type]) },
     filterFn: 'arrIncludesSome',
     cell: ({ row }) => <Badge variant="secondary">{t(vendorTypeLabels[row.original.type])}</Badge>,
   },
   {
     accessorKey: 'modes',
     header: 'Modes',
-    meta: { label: 'Modes' },
+    meta: { label: 'Modes', exportValue: (v) => v.modes.map((m) => t(transportModeLabels[m])).join(', ') },
     enableSorting: false,
     cell: ({ row }) => (
       <span className="flex items-center gap-2">
@@ -111,6 +111,7 @@ export function VendorsPage() {
         }
       />
       <DataTable
+        exportName="Vendors"
         columns={columns}
         data={rows}
         getRowId={(row) => row.id}

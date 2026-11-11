@@ -83,3 +83,15 @@ export type Shipment = {
   cancelReason?: string // почему отменили: видно в карточке и в истории
   notes?: string
 }
+
+// Груз уже на месте или перевозка закрыта — опоздать она больше не может
+const FINISHED: ShipmentStatus[] = ['delivered', 'completed', 'cancelled']
+
+// На сколько дней груз опаздывает: ETA прошла, а он ещё не доставлен. 0 — не опаздывает
+export function daysLate(shipment: Pick<Shipment, 'eta' | 'status'>, now = new Date()) {
+  if (!shipment.eta || FINISHED.includes(shipment.status)) return 0
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+  const [y, m, d] = shipment.eta.split('-').map(Number)
+  const diff = Math.round((today - Date.UTC(y!, m! - 1, d!)) / 86_400_000)
+  return Math.max(0, diff)
+}

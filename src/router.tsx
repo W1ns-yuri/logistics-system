@@ -10,6 +10,7 @@ import { LoginPage } from '@/pages/login/login-page'
 import { NotFoundPage } from '@/pages/not-found'
 import { InvoicePage } from '@/pages/payments/invoice-page'
 import { InvoicePrintPage } from '@/pages/payments/invoice-print-page'
+import { QuotationPrintPage } from '@/pages/quotations/quotation-print-page'
 import { PaymentsPage } from '@/pages/payments/payments-page'
 import { CompaniesPage } from '@/pages/platform/companies-page'
 import { CompanyPage } from '@/pages/platform/company-page'
@@ -43,6 +44,15 @@ export const router = createBrowserRouter([
       { path: 'payments', element: <LicensePaymentsPage /> },
       { path: 'plans', element: <PlansPage /> },
     ],
+  },
+  // Котировка на печать: без меню и шапки, только документ
+  {
+    path: '/quotations/:id/print',
+    element: (
+      <RequireAuth>
+        <QuotationPrintPage />
+      </RequireAuth>
+    ),
   },
   // Инвойс на печать: без меню и шапки, только документ
   {

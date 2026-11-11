@@ -69,7 +69,7 @@ const columns: ColumnDef<CustomerRow, unknown>[] = [
   {
     accessorKey: 'conversion',
     header: 'Conversion',
-    meta: { label: 'Conversion' },
+    meta: { label: 'Conversion', exportValue: (c) => (c.quotations.length ? `${Math.round(c.conversion)}%` : '') },
     cell: ({ row }) => (
       <span className="tabular-nums">
         {row.original.quotations.length
@@ -136,6 +136,7 @@ export function CustomersPage() {
       />
 
       <DataTable
+        exportName="Customers"
         columns={columns}
         data={rows}
         getRowId={(row) => row.id}
