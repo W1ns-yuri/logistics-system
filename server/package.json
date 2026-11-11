@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
+    "owner": "tsx src/scripts/owner.ts",
     "test": "node --import tsx --test --test-concurrency=1 'test/**/*.test.ts'"
   },
   "engines": {

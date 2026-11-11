@@ -5,10 +5,16 @@ import type { FastifyInstance, FastifyReply } from 'fastify'
 import { z } from 'zod'
 
 import { createLimiter, MINUTE } from '../auth/rate-limit.ts'
-import { createSession, deleteSession, findViewer, SESSION_COOKIE } from '../auth/session.ts'
+import { createSession, deleteSession, findViewer, SESSION_COOKIE, type Viewer } from '../auth/session.ts'
+import type { Db } from '../db/client.ts'
 import { companies, memberships, users } from '../db/schema.ts'
+import { companyForClient } from '../lib/company.ts'
+import { PLANS, TRIAL_DAYS } from '../lib/plans.ts'
 
-const TRIAL_DAYS = 14
+// Ответ «кто вошёл»: человек, роль и компания с лицензией
+export async function viewerResponse(db: Db, viewer: Viewer) {
+  return { user: viewer.user, role: viewer.role, company: await companyForClient(db, viewer.company) }
+}
 
 const email = z
   .string()
@@ -23,6 +29,21 @@ const signupBody = z.object({
   name: z.string().trim().min(2).max(80),
   email,
   password,
+  // Дальше — необязательное: что компания рассказала о себе на шагах регистрации
+  profile: z
+    .object({
+      city: z.string().trim().max(60),
+      phone: z.string().trim().max(30),
+      website: z.string().trim().max(100).optional(),
+      teamSize: z.enum(['1-3', '4-10', '11-30', '30+']),
+      modes: z.array(z.string().max(20)).max(10),
+      plannedPlan: z.enum(PLANS).optional(),
+    })
+    .optional(),
+  documentPrefix: z
+    .string()
+    .regex(/^[A-Z0-9]{2,4}$/)
+    .optional(),
 })
 
 const loginBody = z.object({ email, password: z.string().min(1).max(200) })
@@ -57,13 +78,39 @@ export async function authRoutes(app: FastifyInstance) {
     if (existing) return reply.code(409).send({ error: 'email_taken' })
 
     const passwordHash = await hash(body.password)
-    const paidUntil = isoDate(new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000))
+    // Пробный период — 14 дней, считая сегодняшний (как в интерфейсе)
+    const paidUntil = isoDate(new Date(Date.now() + (TRIAL_DAYS - 1) * 24 * 60 * 60 * 1000))
 
     // Компания, человек и его роль создаются вместе: если что-то упадёт, не останется половины данных
     const { userId, companyId } = await db.transaction(async (tx) => {
       const [company] = await tx
         .insert(companies)
-        .values({ name: body.companyName, country: body.country, paidUntil })
+        .values({
+          name: body.companyName,
+          country: body.country,
+          paidUntil,
+          profile: body.profile,
+          events: [
+            {
+              id: crypto.randomUUID(),
+              at: new Date().toISOString(),
+              text: 'Company registered, {n}-day trial started',
+              params: { n: TRIAL_DAYS },
+            },
+          ],
+          // Реквизиты для PDF сразу из регистрации; остальное компания заполнит в Settings
+          settings: {
+            companyName: body.companyName,
+            companyTagline: '',
+            companyAddress: [body.profile?.city, body.country].filter(Boolean).join(', '),
+            companyEmail: body.email,
+            companyPhone: body.profile?.phone ?? '',
+            companyWebsite: body.profile?.website ?? '',
+            companyTaxId: '',
+            companyLogo: '',
+            documentPrefix: body.documentPrefix ?? 'XX',
+          },
+        })
         .returning({ id: companies.id })
       const [user] = await tx
         .insert(users)
@@ -75,7 +122,7 @@ export async function authRoutes(app: FastifyInstance) {
 
     const { token, expiresAt } = await createSession(db, userId, companyId)
     setCookie(reply, token, expiresAt)
-    return reply.code(201).send(await findViewer(db, token))
+    return reply.code(201).send(await viewerResponse(db, (await findViewer(db, token))!))
   })
 
   app.post('/api/auth/login', async (request, reply) => {
@@ -87,7 +134,9 @@ export async function authRoutes(app: FastifyInstance) {
     const [user] = await db.select().from(users).where(eq(users.email, body.email)).limit(1)
     // Одна и та же ошибка и одно и то же время ответа для «нет такого email» и «неверный пароль»:
     // не подсказываем, какие email есть в системе
-    const ok = await verify(user?.passwordHash ?? (await dummyHash), body.password)
+    // Пустой хэш — человека пригласили, но пароль он ещё не задал: войти можно только по ссылке
+    const stored = user?.passwordHash || (await dummyHash)
+    const ok = (await verify(stored, body.password)) && !!user?.passwordHash
     if (!user || !ok) {
       loginByEmail.hit(key)
       loginByIp.hit(request.ip)
@@ -101,7 +150,7 @@ export async function authRoutes(app: FastifyInstance) {
 
     const { token, expiresAt } = await createSession(db, user.id, membership.companyId)
     setCookie(reply, token, expiresAt)
-    return findViewer(db, token)
+    return viewerResponse(db, (await findViewer(db, token))!)
   })
 
   app.post('/api/auth/logout', async (request, reply) => {
@@ -115,6 +164,6 @@ export async function authRoutes(app: FastifyInstance) {
     const token = request.cookies[SESSION_COOKIE]
     const viewer = token ? await findViewer(db, token) : null
     if (!viewer) return reply.code(401).send({ error: 'unauthorized' })
-    return viewer
+    return viewerResponse(db, viewer)
   })
 }

@@ -6,7 +6,11 @@ import { ZodError } from 'zod'
 import type { Db } from './db/client.ts'
 import type { Env } from './env.ts'
 import { authRoutes } from './routes/auth.ts'
+import { dataRoutes } from './routes/data.ts'
+import { fileRoutes } from './routes/files.ts'
 import { healthRoutes } from './routes/health.ts'
+import { platformRoutes } from './routes/platform.ts'
+import { teamRoutes } from './routes/team.ts'
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -25,7 +29,8 @@ export async function buildApp({ db, config, logger = false }: { db: Db; config:
   app.addHook('onSend', async (_request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff') // браузер не угадывает тип файла
     reply.header('X-Frame-Options', 'DENY') // API нельзя встроить в чужую страницу
-    reply.header('Cache-Control', 'no-store') // данные компании не оседают в кэше браузера и прокси
+    // Данные компании не оседают в кэше браузера и прокси (файлы ставят свой заголовок сами)
+    if (!reply.hasHeader('Cache-Control')) reply.header('Cache-Control', 'no-store')
     reply.header('Referrer-Policy', 'no-referrer')
   })
 
@@ -59,5 +64,9 @@ export async function buildApp({ db, config, logger = false }: { db: Db; config:
 
   await app.register(healthRoutes)
   await app.register(authRoutes)
+  await app.register(dataRoutes)
+  await app.register(fileRoutes)
+  await app.register(teamRoutes)
+  await app.register(platformRoutes)
   return app
 }
