@@ -6,8 +6,11 @@ import { AuthLayout } from '@/components/auth-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { FullPageLoader } from '@/components/require-auth'
 import { signIn, useSession } from '@/data/auth'
+import { useSyncStatus } from '@/data/remote'
 import { t } from '@/i18n'
+import { API_MODE, apiErrorText } from '@/lib/api'
 import { PRODUCT_NAME } from '@/lib/brand'
 import { cn } from '@/lib/utils'
 
@@ -24,8 +27,11 @@ export function LoginPage() {
   const session = useSession()
   const navigate = useNavigate()
   const location = useLocation()
-  const [email, setEmail] = useState('manager@company.com')
-  const [password, setPassword] = useState('demo-password')
+  // В демо поля уже заполнены, в рабочей сборке — пустые
+  const [email, setEmail] = useState(API_MODE ? '' : 'manager@company.com')
+  const [password, setPassword] = useState(API_MODE ? '' : 'demo-password')
+  const [error, setError] = useState('')
+  const { ready } = useSyncStatus()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [forgot, setForgot] = useState(false)
@@ -33,10 +39,21 @@ export function LoginPage() {
   // Куда вернуть после входа (RequireAuth кладёт это в state)
   const from = (location.state as { from?: string } | null)?.from ?? '/'
 
+  if (API_MODE && !ready) return <FullPageLoader />
   if (session) return <Navigate to={from} replace />
 
   const enter = (address: string) => {
     setLoading(true)
+    setError('')
+    if (API_MODE) {
+      signIn(address, password)
+        .then(() => navigate(from, { replace: true }))
+        .catch((e: unknown) => {
+          setError(t(apiErrorText(e)))
+          setLoading(false)
+        })
+      return
+    }
     // Небольшая пауза, чтобы вход ощущался как настоящий запрос к серверу
     setTimeout(() => {
       signIn(address)
@@ -118,7 +135,12 @@ export function LoginPage() {
                 </button>
               </div>
               {/* Сброс по письму появится вместе с сервером, пока подсказываем, к кому обратиться */}
-              {forgot && (
+              {forgot && API_MODE && (
+                <p className="rounded-md bg-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+                  {t('Ask your company admin for a new sign-in link: Settings → Team and roles.')}
+                </p>
+              )}
+              {forgot && !API_MODE && (
                 <p className="rounded-md bg-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground">
                   {t('Password reset by email is not available yet. Write to')}{' '}
                   <a href="mailto:support@omniroute.app" className="font-medium text-primary hover:underline">
@@ -133,6 +155,12 @@ export function LoginPage() {
               {t('Keep me signed in')}
             </label>
 
+            {error && (
+              <p className="text-sm text-destructive" role="alert">
+                {error}
+              </p>
+            )}
+
             <Button type="submit" className="h-11 w-full" disabled={loading}>
               {loading ? t('Signing in…') : t('Sign in')}
             </Button>
@@ -140,27 +168,29 @@ export function LoginPage() {
         </div>
 
         {/* Демо-команда: войти под ролью в один клик и посмотреть, что она видит */}
-        <div className="border-t bg-muted/40 px-6 py-4 sm:px-8">
-          <div className="text-sm font-medium">{t('Demo access')}</div>
-          <div className="mt-2 grid grid-cols-3 gap-2">
-            {DEMO_ACCOUNTS.map(({ email: address, label, icon: Icon }) => (
-              <Button
-                key={address}
-                type="button"
-                variant="outline"
-                className="h-10 bg-card px-2"
-                disabled={loading}
-                onClick={() => enter(address)}
-              >
-                <Icon className="max-sm:hidden" />
-                {t(label)}
-              </Button>
-            ))}
+        {!API_MODE && (
+          <div className="border-t bg-muted/40 px-6 py-4 sm:px-8">
+            <div className="text-sm font-medium">{t('Demo access')}</div>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {DEMO_ACCOUNTS.map(({ email: address, label, icon: Icon }) => (
+                <Button
+                  key={address}
+                  type="button"
+                  variant="outline"
+                  className="h-10 bg-card px-2"
+                  disabled={loading}
+                  onClick={() => enter(address)}
+                >
+                  <Icon className="max-sm:hidden" />
+                  {t(label)}
+                </Button>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {t('No password needed. Pick a role to try the system.')}
+            </p>
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {t('No password needed. Pick a role to try the system.')}
-          </p>
-        </div>
+        )}
 
         <div className="border-t px-6 py-3.5 text-center text-sm sm:px-8">
           {t('New company?')}{' '}

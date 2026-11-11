@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Outlet } from 'react-router'
 
 import { LicenseBanner } from '@/components/license'
+import { SyncBanner } from '@/components/sync-banner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AppHeader } from './app-header'
 import { AppSidebar } from './app-sidebar'
@@ -43,6 +44,7 @@ export function AppLayout() {
         <div className="flex min-w-0 flex-1 flex-col">
           <AppHeader onMenu={() => setMenuOpen(true)} />
           <LicenseBanner />
+          <SyncBanner />
           <main className="flex-1 overflow-y-auto">
             <Outlet />
           </main>

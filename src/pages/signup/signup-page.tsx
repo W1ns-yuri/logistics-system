@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { signIn, useSession } from '@/data/auth'
+import { signUpRemote } from '@/data/remote'
 import {
   planLabels,
   planPrice,
@@ -23,6 +24,7 @@ import {
 } from '@/data/platform'
 import { prefixFromName, updateSettings } from '@/data/settings'
 import { startEmptyWorkspace } from '@/data/store'
+import { API_MODE, ApiError, apiErrorText } from '@/lib/api'
 import { t } from '@/i18n'
 import { phoneExample } from '@/lib/phone'
 import { cityKeywords, cityLabel, citySuggestions, countryOptions } from '@/lib/countries'
@@ -138,6 +140,7 @@ export function SignupPage() {
   const [form, setForm] = useState<Form>(loadDraft)
   const [errors, setErrors] = useState<Errors>({})
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
   // Шаг живёт в адресе (?step=2): кнопка «Назад» в браузере возвращает на прошлый шаг, а не уводит со страницы
   const [params, setParams] = useSearchParams()
   const wanted = Math.min(Math.max(Number(params.get('step') ?? 1) - 1, 0), STEPS.length - 1)
@@ -180,6 +183,43 @@ export function SignupPage() {
     const company = form.company.trim()
     const phone = form.phone.trim()
     const website = form.website.trim().replace(/^https?:\/\//i, '')
+    const profile = {
+      city: form.city.trim(),
+      phone,
+      website: website || undefined,
+      teamSize: form.teamSize as TeamSize,
+      modes: form.modes,
+      plannedPlan: form.plan === 'later' ? undefined : form.plan,
+    }
+    if (API_MODE) {
+      // Компанию, админа и пробный период создаёт сервер; реквизиты для PDF — тоже
+      setSubmitError('')
+      signUpRemote({
+        companyName: company,
+        country: form.country,
+        name,
+        email,
+        password: form.password,
+        profile,
+        documentPrefix: prefix,
+      })
+        .then(() => {
+          try {
+            sessionStorage.removeItem(DRAFT_KEY)
+          } catch {
+            // ничего
+          }
+          navigate('/', { replace: true })
+        })
+        .catch((error: unknown) => {
+          setSubmitting(false)
+          if (error instanceof ApiError && error.code === 'email_taken') {
+            setErrors({ email: t('A company with this email is already registered. Sign in instead.') })
+            setStep(1)
+          } else setSubmitError(t(apiErrorText(error)))
+        })
+      return
+    }
     registerCompany({
       name: company,
       country: form.country,
@@ -423,6 +463,12 @@ export function SignupPage() {
                   {errors.agree && <FieldError text={t('Please accept the terms to continue')} />}
                 </label>
               </>
+            )}
+
+            {submitError && (
+              <p className="text-sm text-destructive" role="alert">
+                {submitError}
+              </p>
             )}
 
             <div className="flex items-center gap-2 pt-2">

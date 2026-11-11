@@ -1,0 +1,83 @@
+# Всё приложение на одном сервере: база, API, сайт с HTTPS и ежедневные бэкапы.
+# Запуск: cp .env.example .env, заполнить, затем  docker compose up -d --build
+name: omniroute
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: omniroute
+      POSTGRES_USER: omni
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U omni -d omniroute']
+      interval: 10s
+      retries: 10
+    networks: [internal]
+
+  api:
+    build: ../server
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://omni:${POSTGRES_PASSWORD}@db:5432/omniroute
+      HOST: 0.0.0.0
+      PORT: 3000
+      # Верим X-Forwarded-For только от Caddy (внутренняя сеть Docker), иначе лимит попыток можно обойти
+      TRUST_PROXY: 172.30.0.0/24
+      COOKIE_SECURE: 'true'
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      retries: 3
+    networks: [internal]
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+    restart: unless-stopped
+    depends_on: [api]
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [internal]
+
+  # Бэкап базы раз в сутки в ./backups, храним 14 последних дней
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    volumes:
+      - ./backups:/backups
+      - ./backup.sh:/backup.sh:ro
+    entrypoint: ['sh', '/backup.sh']
+    networks: [internal]
+
+networks:
+  internal:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:

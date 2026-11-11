@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router'
 
-import { Lock } from 'lucide-react'
+import { Loader2, Lock } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { signOut, usePermissions, useSession } from '@/data/auth'
 import { licenseStatus, useCurrentCompany } from '@/data/platform'
+import { useSyncStatus } from '@/data/remote'
+import { API_MODE } from '@/lib/api'
 import { t } from '@/i18n'
 
 // Пускает дальше только после входа. Иначе — на /login, запомнив, куда человек шёл.
@@ -14,7 +16,10 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   const location = useLocation()
 
   const company = useCurrentCompany()
+  const { ready } = useSyncStatus()
 
+  // Рабочая сборка: пока сервер не ответил, вошёл ли человек, показываем загрузку, а не форму входа
+  if (API_MODE && !ready) return <FullPageLoader />
   if (!session) return <Navigate to="/login" replace state={{ from: location.pathname }} />
   if (company && licenseStatus(company) === 'blocked') return <BlockedScreen name={company.name} />
   return children
@@ -45,4 +50,12 @@ export function RequirePayments({ children }: { children: ReactNode }) {
   const { canSeePayments } = usePermissions()
   if (!canSeePayments) return <Navigate to="/" replace />
   return children
+}
+
+export function FullPageLoader() {
+  return (
+    <div className="flex min-h-svh items-center justify-center bg-background" role="status" aria-label={t('Loading…')}>
+      <Loader2 className="size-6 animate-spin text-muted-foreground" />
+    </div>
+  )
 }

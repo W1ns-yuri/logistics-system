@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from 'react'
 
+import { API_MODE } from '@/lib/api'
 import { licenseStatus, touchCurrentCompany, useCurrentCompany } from './platform'
+import { signInRemote, signOutRemote } from './remote'
 import { getSession, saveSession, subscribeSession } from './session'
 import { findMemberByEmail } from './store'
 
@@ -16,7 +18,9 @@ export function useSession() {
   return useSyncExternalStore(subscribeSession, getSession)
 }
 
-export function signIn(email: string) {
+// Рабочая сборка: настоящий вход по паролю (ошибку — неверный пароль — показывает страница входа)
+export async function signIn(email: string, password = '') {
+  if (API_MODE) return signInRemote(email, password)
   const member = findMemberByEmail(email)
   saveSession({
     email,
@@ -28,6 +32,7 @@ export function signIn(email: string) {
 }
 
 export function signOut() {
+  if (API_MODE) return void signOutRemote()
   saveSession(null)
 }
 

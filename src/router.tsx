@@ -6,6 +6,7 @@ import { AnalyticsPage } from '@/pages/analytics/analytics-page'
 import { CustomerDetailPage } from '@/pages/customers/customer-detail-page'
 import { CustomersPage } from '@/pages/customers/customers-page'
 import { HomePage } from '@/pages/home'
+import { InvitePage } from '@/pages/invite/invite-page'
 import { LoginPage } from '@/pages/login/login-page'
 import { NotFoundPage } from '@/pages/not-found'
 import { InvoicePage } from '@/pages/payments/invoice-page'
@@ -33,6 +34,8 @@ import { VendorsPage } from '@/pages/vendors/vendors-page'
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/signup', element: <SignupPage /> },
+  // Приглашение в команду и сброс пароля (рабочая сборка)
+  { path: '/invite/:token', element: <InvitePage /> },
   // Админка владельца платформы: свой вход и свой каркас
   {
     path: '/platform',

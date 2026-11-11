@@ -17,8 +17,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePermissions, useSession } from '@/data/auth'
 import { daysLeft, licenseStatus, planLabels, seatLimit, switchToDemoCompany, useCurrentCompany } from '@/data/platform'
 import { prefixFromName, resetSettings, updateSettings, useSettings, type Settings, type Theme } from '@/data/settings'
-import { addTeamMember, removeTeamMember, resetDemoData, updateTeamMember, useTeam } from '@/data/store'
+import { addTeamMember, newSignInLink, removeTeamMember, resetDemoData, updateTeamMember, useTeam } from '@/data/store'
 import { LANGUAGES, t, type Language } from '@/i18n'
+import { API_MODE, apiErrorText } from '@/lib/api'
 import { acceptFor, fileError, LOGO_TYPES, logoDataUrl } from '@/lib/files'
 import { formatDate } from '@/lib/format'
 import { isValidEmail, isValidPhone } from '@/lib/input-rules'
@@ -461,7 +462,7 @@ function PreferencesSection() {
         </div>
       </SectionCard>
 
-      {canManageTeam && (
+      {canManageTeam && !API_MODE && (
         <SectionCard title="Demo data">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <p className="max-w-lg text-sm text-muted-foreground">
@@ -557,6 +558,13 @@ function TeamSection() {
   const company = useCurrentCompany()
   const [editing, setEditing] = useState<TeamMember | 'new'>()
   const [removing, setRemoving] = useState<TeamMember>()
+  const [link, setLink] = useState<{ name: string; url: string }>()
+  const [error, setError] = useState('')
+  // Рабочая сборка: новая ссылка для входа (потерял приглашение или забыл пароль)
+  const issueLink = (member: TeamMember) =>
+    newSignInLink(member.id)
+      .then((url) => setLink({ name: member.name, url }))
+      .catch((e: unknown) => setError(t(apiErrorText(e))))
   // Лимит мест по тарифу: команда заполнена — новых не добавить
   const limit = company ? seatLimit(company) : null
   const full = limit !== null && team.length >= limit
@@ -586,7 +594,17 @@ function TeamSection() {
                 </div>
                 <div className="text-sm text-muted-foreground">{member.email}</div>
               </div>
+              {member.pending && (
+                <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs text-warning-text">
+                  {t('Has not signed in yet')}
+                </span>
+              )}
               <span className="text-sm text-muted-foreground">{t(roleLabels[member.role])}</span>
+              {API_MODE && !me && (
+                <Button variant="ghost" size="sm" onClick={() => issueLink(member)}>
+                  {t('Sign-in link')}
+                </Button>
+              )}
               <Button variant="ghost" size="icon-sm" aria-label={t('Edit')} onClick={() => setEditing(member)}>
                 <Pencil />
               </Button>
@@ -603,6 +621,12 @@ function TeamSection() {
           )
         })}
       </div>
+
+      {error && (
+        <p className="mt-3 text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      )}
 
       <div className="mt-4 grid gap-2 rounded-lg bg-muted/40 p-3 text-sm sm:grid-cols-3">
         {ROLES.map((role) => (
@@ -625,8 +649,21 @@ function TeamSection() {
         title={t('Remove {name} from the team?', { name: removing?.name ?? '' })}
         description="The person will no longer be able to sign in. Their quotations and shipments stay."
         confirmLabel="Remove"
-        onConfirm={() => removing && removeTeamMember(removing.id)}
+        onConfirm={() => {
+          if (removing) removeTeamMember(removing.id).catch((e: unknown) => setError(t(apiErrorText(e))))
+        }}
       />
+      <Dialog open={!!link} onOpenChange={(open) => !open && setLink(undefined)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('Sign-in link for {name}', { name: link?.name ?? '' })}</DialogTitle>
+          </DialogHeader>
+          {link && <InviteLink url={link.url} />}
+          <DialogFooter>
+            <Button onClick={() => setLink(undefined)}>{t('Done')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SectionCard>
   )
 }
@@ -662,6 +699,9 @@ function MemberForm({ member, self, onDone }: { member?: TeamMember; self: boole
   const [role, setRole] = useState<Role>(member?.role ?? 'employee')
   const [errors, setErrors] = useState<{ name?: string; email?: string }>({})
   const [invited, setInvited] = useState('')
+  const [inviteUrl, setInviteUrl] = useState<string>()
+  const [saving, setSaving] = useState(false)
+  const [serverError, setServerError] = useState('')
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault()
@@ -673,14 +713,33 @@ function MemberForm({ member, self, onDone }: { member?: TeamMember; self: boole
       next.email = t('This email is already in the team')
     setErrors(next)
     if (Object.keys(next).length) return
-    if (member) {
-      updateTeamMember(member.id, { name: name.trim(), email: address, role })
-      onDone()
-    } else {
-      addTeamMember({ name: name.trim(), email: address, role })
-      setInvited(address)
-    }
+    setSaving(true)
+    setServerError('')
+    const request = member
+      ? updateTeamMember(member.id, { name: name.trim(), email: address, role }).then(onDone)
+      : addTeamMember({ name: name.trim(), email: address, role }).then((url) => {
+          setInviteUrl(url)
+          setInvited(address)
+        })
+    request.catch((e: unknown) => setServerError(t(apiErrorText(e)))).finally(() => setSaving(false))
   }
+
+  // Рабочая сборка: письма не отправляем — админ сам пересылает ссылку (почта, WhatsApp, Telegram)
+  if (invited && API_MODE)
+    return (
+      <div className="space-y-4">
+        {inviteUrl ? (
+          <InviteLink url={inviteUrl} />
+        ) : (
+          <p className="text-sm">
+            {t('{email} already has an account. They sign in with their own password.', { email: invited })}
+          </p>
+        )}
+        <DialogFooter>
+          <Button onClick={onDone}>{t('Done')}</Button>
+        </DialogFooter>
+      </div>
+    )
 
   if (invited)
     return (
@@ -740,16 +799,54 @@ function MemberForm({ member, self, onDone }: { member?: TeamMember; self: boole
       {self && <p className="text-xs text-muted-foreground">{t('You cannot change your own role or email.')}</p>}
       {!member && (
         <p className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-          {t('We will email an invitation. The person sets their own password.')}
+          {API_MODE
+            ? t('You will get a link to send to the person. They open it and set their own password.')
+            : t('We will email an invitation. The person sets their own password.')}
+        </p>
+      )}
+      {serverError && (
+        <p className="text-sm text-destructive" role="alert">
+          {serverError}
         </p>
       )}
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onDone}>
           {t('Cancel')}
         </Button>
-        <Button type="submit">{member ? t('Save changes') : t('Send invitation')}</Button>
+        <Button type="submit" disabled={saving}>
+          {member ? t('Save changes') : API_MODE ? t('Create link') : t('Send invitation')}
+        </Button>
       </DialogFooter>
     </form>
+  )
+}
+
+// Ссылка-приглашение: показать и скопировать. Действует 7 дней и только один раз
+function InviteLink({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false)
+  const copy = () =>
+    navigator.clipboard
+      ?.writeText(url)
+      .then(() => setCopied(true))
+      .catch(() => undefined)
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">
+        {t('Send this link to the person (email, WhatsApp, Telegram). It works once and expires in 7 days.')}
+      </p>
+      <div className="flex gap-2">
+        <Input
+          readOnly
+          value={url}
+          onFocus={(e) => e.target.select()}
+          aria-label={t('Sign-in link')}
+          data-testid="invite-link"
+        />
+        <Button type="button" variant="outline" onClick={copy}>
+          {copied ? t('Copied') : t('Copy link')}
+        </Button>
+      </div>
+    </div>
   )
 }
 

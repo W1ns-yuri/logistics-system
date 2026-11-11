@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 
+import { API_MODE } from '@/lib/api'
 import type { Settings } from './settings'
 
 export type NotificationKind = 'status' | 'quotation' | 'border'
@@ -81,6 +82,8 @@ export function useReadIds() {
 
 // Показываем только те типы, которые включены в настройках
 export function visibleNotifications(settings: Settings) {
+  // Демо-уведомления только в демо. В рабочей сборке их пока нет (появятся вместе с рассылкой с сервера)
+  if (API_MODE) return []
   return mockNotifications.filter((n) => settings[kindSetting[n.kind]]).sort((a, b) => b.at.localeCompare(a.at))
 }
 

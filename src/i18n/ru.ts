@@ -972,9 +972,10 @@ export const ru: Record<string, string> = {
   'Pick a reason': 'Выберите причину',
   'Write the reason in a few words': 'Напишите причину в двух словах',
   'Why did the customer say no?': 'Почему клиент отказался?',
-  'The answer goes to Analytics, so you can see why deals are lost.': 'Ответ попадёт в аналитику: будет видно, почему уходят сделки.',
+  'The answer goes to Analytics, so you can see why deals are lost.':
+    'Ответ попадёт в аналитику: будет видно, почему уходят сделки.',
   'e.g. The cargo was cancelled': 'Например, груз отменили',
-  'Save': 'Сохранить',
+  Save: 'Сохранить',
   'Price too high': 'Дорого',
   'Chose another forwarder': 'Выбрал другого экспедитора',
   'Dates did not fit': 'Не подошли сроки',
@@ -983,13 +984,13 @@ export const ru: Record<string, string> = {
   'Why we lose': 'Почему проигрываем',
   'Reason not given': 'Причина не указана',
   'Late by {n} d.': 'Опаздывает на {n} дн.',
-  'Table': 'Таблица',
-  'Board': 'Доска',
-  'View': 'Вид',
-  'Late': 'Опаздывают',
-  'Empty': 'Пусто',
+  Table: 'Таблица',
+  Board: 'Доска',
+  View: 'Вид',
+  Late: 'Опаздывают',
+  Empty: 'Пусто',
   'Take a photo': 'Сфотографировать',
-  'Photo': 'Фото',
+  Photo: 'Фото',
   'And {n} more in the table': 'И ещё {n} в таблице',
   'Quotation#': '№ котировки',
   Logo: 'Логотип',
@@ -1001,4 +1002,49 @@ export const ru: Record<string, string> = {
   'PNG, JPG or WebP. A logo on a transparent or white background looks best.':
     'PNG, JPG или WebP. Лучше всего смотрится логотип на прозрачном или белом фоне.',
   'Could not open this image. Try another file.': 'Не получилось открыть картинку. Попробуйте другой файл.',
+  'All seats of your plan are taken.': 'Все места по вашему тарифу заняты.',
+  'Ask your company admin for a new sign-in link: Settings → Team and roles.':
+    'Попросите админа компании прислать новую ссылку для входа: Настройки → Команда и роли.',
+  Copied: 'Скопировано',
+  'Create link': 'Создать ссылку',
+  'Go to sign in': 'Перейти ко входу',
+  'Has not signed in yet': 'Ещё не входил',
+  'Link does not work': 'Ссылка не работает',
+  'Loading…': 'Загрузка…',
+  'New password': 'Новый пароль',
+  'No connection to the server. Check the internet and try again.':
+    'Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.',
+  'No connection to the server. {n} changes will be saved when the connection is back.':
+    'Нет связи с сервером. Изменения ({n}) сохранятся, когда связь вернётся.',
+  'Only the author or an admin can change this record.': 'Менять эту запись может только её автор или админ.',
+  'Save and sign in': 'Сохранить и войти',
+  'Send this link to the person (email, WhatsApp, Telegram). It works once and expires in 7 days.':
+    'Отправьте эту ссылку человеку (почта, WhatsApp, Telegram). Она срабатывает один раз и действует 7 дней.',
+  'Set your password': 'Задайте пароль',
+  'Sign-in link': 'Ссылка для входа',
+  'Sign-in link for {name}': 'Ссылка для входа: {name}',
+  'The account is blocked. Contact support.': 'Аккаунт заблокирован. Напишите в поддержку.',
+  'The company must keep at least one admin.': 'В компании должен остаться хотя бы один админ.',
+  'The file was not accepted. Allowed: PDF, images, Word and Excel up to 10 MB.':
+    'Файл не принят. Можно: PDF, картинки, Word и Excel до 10 МБ.',
+  'The license has expired: data can be viewed but not changed.':
+    'Лицензия истекла: данные можно смотреть, но не менять.',
+  'The link has expired or was already used. Ask your admin for a new one.':
+    'Ссылка устарела или уже использована. Попросите у админа новую.',
+  'This email is already in the team.': 'Этот email уже есть в команде.',
+  'This email is already registered.': 'Этот email уже зарегистрирован.',
+  'This person also works in another company, so their email cannot be changed here.':
+    'Этот человек работает и в другой компании, поэтому его email здесь не поменять.',
+  'Too many attempts. Wait 15 minutes and try again.': 'Слишком много попыток. Подождите 15 минут и попробуйте снова.',
+  'Wrong email or password.': 'Неверный email или пароль.',
+  'You cannot remove yourself.': 'Нельзя удалить самого себя.',
+  'You do not have permission for this action.': 'У вас нет прав на это действие.',
+  'You will get a link to send to the person. They open it and set their own password.':
+    'Вы получите ссылку, которую нужно отправить человеку. Он откроет её и сам задаст пароль.',
+  '{email} already has an account. They sign in with their own password.':
+    'У {email} уже есть учётная запись. Входит своим паролем.',
+  '{name}, you are joining {company}. You will sign in with {email}.':
+    '{name}, вы присоединяетесь к {company}. Входить будете с {email}.',
+  'Copy link': 'Скопировать',
+  'Something went wrong. Try again.': 'Что-то пошло не так. Попробуйте ещё раз.',
 }
