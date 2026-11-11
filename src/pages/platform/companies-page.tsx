@@ -41,7 +41,7 @@ const columns: ColumnDef<CompanyRow, unknown>[] = [
   {
     accessorKey: 'plan',
     header: 'Plan',
-    meta: { label: 'Plan' },
+    meta: { label: 'Plan', exportValue: (row) => planLabels[row.plan] },
     filterFn: 'arrIncludesSome',
     cell: ({ row }) => t(planLabels[row.original.plan]),
   },
@@ -143,6 +143,7 @@ export function CompaniesPage() {
         getRowId={(row) => row.id}
         onSelect={(row) => row && navigate(`/platform/companies/${row.id}`)}
         searchPlaceholder="Search company, email, country..."
+        exportName="Companies"
         facetFilters={[
           { columnId: 'status', title: 'Status', options: STATUS_OPTIONS },
           { columnId: 'plan', title: 'Plan', options: PLANS.map((p) => ({ value: p, label: planLabels[p] })) },
