@@ -19,11 +19,17 @@ export async function fileRoutes(app: FastifyInstance) {
   app.post('/api/files', { preHandler: member, bodyLimit: MAX_FILE + 1 }, async (request, reply) => {
     const viewer = viewerOf(request)
     assertWritable(viewer)
+    let decoded = ''
+    try {
+      decoded = decodeURIComponent(String(request.headers['x-file-name'] ?? ''))
+    } catch {
+      return reply.code(400).send({ error: 'file_bad_name' })
+    }
     const name = z
       .string()
       .min(1)
       .max(200)
-      .parse(decodeURIComponent(String(request.headers['x-file-name'] ?? '')))
+      .parse(decoded)
       .replace(/[\\/\r\n"]/g, '_')
     const bytes = request.body instanceof Buffer ? request.body : Buffer.alloc(0)
     const verdict = checkFile(name, bytes)

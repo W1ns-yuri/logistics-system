@@ -125,6 +125,25 @@ test('файл нельзя вложить в запись, только ссы�
   assert.equal(res.json().error, 'inline_file')
 })
 
+test('в поле файла — только ссылка на свой файл; слишком глубокая запись отклоняется', async () => {
+  for (const link of ['javascript:alert(1)', 'https://evil.example/x.pdf', '/api/files/../auth/me']) {
+    const res = await put(admin, 'shipments', 's-link', { documents: [{ name: 'a.pdf', dataUrl: link }] })
+    assert.equal(res.statusCode, 400, link)
+    assert.equal(res.json().error, 'bad_file_link')
+  }
+  const ok = await put(admin, 'shipments', 's-link', { documents: [{ name: 'a.pdf', dataUrl: '/api/files/00000000-0000-4000-8000-000000000000' }] })
+  assert.equal(ok.statusCode, 200)
+  const deep = `{"data":${'{"a":'.repeat(500)}1${'}'.repeat(500)}}`
+  const res = await inject({ method: 'PUT', url: '/api/records/customers/deep', cookies: admin, payload: deep, headers: { 'content-type': 'application/json' } })
+  assert.equal(res.statusCode, 400)
+  assert.equal(res.json().error, 'too_deep')
+})
+
+test('битое имя файла → 400, а не ошибка сервера', async () => {
+  const res = await inject({ method: 'POST', url: '/api/files', cookies: admin, payload: Buffer.from('%PDF-1.4'), headers: { 'content-type': 'application/octet-stream', 'x-file-name': '%E0%A4%A' } })
+  assert.equal(res.statusCode, 400)
+})
+
 test('другая компания не видит чужие записи и файлы', async () => {
   const other = await inject({ method: 'POST', url: '/api/auth/signup', payload: { ...signupPayload, email: 'boss@other.com' } })
   const cookie = sessionCookie(other)
@@ -218,4 +237,19 @@ test('владелец платформы видит компании и про�
   // После продления компания снова может работать
   const back = await put(admin, 'customers', 'c-4', { name: 'Back' })
   assert.equal(back.statusCode, 200, back.body)
+
+  // Оплата со скидкой и сразу на другой тариф
+  const until = ext.json().company.paidUntil
+  const deal = await inject({ method: 'POST', url: `/api/platform/companies/${winfin.id}/actions`, cookies: owner, payload: { type: 'extend', months: 1, amount: 12.5, plan: 'standard' } })
+  assert.equal(deal.statusCode, 200, deal.body)
+  const paid = deal.json().company
+  assert.equal(paid.plan, 'standard')
+  assert.equal(paid.payments.at(-1).amount, 12.5)
+  // Ошибочную последнюю оплату убираем — срок возвращается
+  const undo = await inject({ method: 'POST', url: `/api/platform/companies/${winfin.id}/actions`, cookies: owner, payload: { type: 'remove_payment', paymentId: paid.payments.at(-1).id } })
+  assert.equal(undo.statusCode, 200, undo.body)
+  assert.equal(undo.json().company.payments.length, 1)
+  assert.equal(undo.json().company.paidUntil, until)
+  const trial = await inject({ method: 'POST', url: `/api/platform/companies/${winfin.id}/actions`, cookies: owner, payload: { type: 'extend', months: 1, plan: 'trial' } })
+  assert.equal(trial.statusCode, 400, 'за пробный период оплату не принимаем')
 })

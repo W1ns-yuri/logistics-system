@@ -5,7 +5,7 @@ import type { Currency } from '@/types/logistics'
 export const USD_RATES: Record<Currency, number> = {
   USD: 1,
   TMT: 1 / 3.5, // официальный курс: 3.5 маната за доллар
-  EUR: 1.08,
+  EUR: 1 / 0.93,
 }
 
 export function toUSD(value: number, currency: string) {

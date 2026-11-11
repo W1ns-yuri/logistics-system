@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, Ban, CalendarPlus, LockOpen } from 'lucide-react'
+import { ArrowLeft, Ban, CalendarPlus, LockOpen, Trash2 } from 'lucide-react'
 import { Link, useParams } from 'react-router'
 
 import { DateInput } from '@/components/date-input'
@@ -21,24 +21,25 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import {
   changePlan,
-  extendLicense,
-  paymentAmount,
   periodEnd,
   planLabels,
   PLANS,
-  renewalPlan,
+  removeLicensePayment,
   setBlocked,
   setCompanyNote,
   setLicenseUntil,
+  type LicensePayment,
   type Plan,
 } from '@/data/platform'
 import { t } from '@/i18n'
+import { apiErrorText } from '@/lib/api'
 import { countryLabel } from '@/lib/countries'
 import { transportModeLabels } from '@/types/logistics'
 import { formatDate, formatDateTime } from '@/lib/format'
 import { NotFoundPage } from '@/pages/not-found'
 import { usd } from '@/pages/analytics/format'
 import { useCompanyRows } from './company-rows'
+import { RecordPaymentDialog } from './record-payment-dialog'
 
 // Карточка компании: лицензия, продление, блокировка, заметка и история изменений
 export function CompanyPage() {
@@ -46,10 +47,18 @@ export function CompanyPage() {
   const company = useCompanyRows().find((c) => c.id === id)
   const [until, setUntil] = useState('')
   const [blockOpen, setBlockOpen] = useState(false)
+  const [payOpen, setPayOpen] = useState(false)
+  // Каждое открытие окна оплаты — с чистыми полями
+  const [payKey, setPayKey] = useState(0)
+  const [removing, setRemoving] = useState<LicensePayment | null>(null)
+  const [error, setError] = useState('')
 
   if (!company) return <NotFoundPage />
-  // Продление пробного периода переводит на выбранный при регистрации тариф (или Start)
-  const renewPlan = renewalPlan(company)
+  // Действие ушло на сервер: если не вышло (нет связи, сессия кончилась) — показываем почему
+  const run = (action: Promise<void> | void) => {
+    setError('')
+    Promise.resolve(action).catch((e: unknown) => setError(t(apiErrorText(e))))
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 p-4 sm:p-6">
@@ -71,7 +80,7 @@ export function CompanyPage() {
           </div>
         </div>
         {company.blocked ? (
-          <Button variant="outline" onClick={() => setBlocked(company.id, false)}>
+          <Button variant="outline" onClick={() => run(setBlocked(company.id, false))}>
             <LockOpen />
             {t('Unblock')}
           </Button>
@@ -86,6 +95,12 @@ export function CompanyPage() {
           </Button>
         )}
       </div>
+
+      {error && (
+        <p className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-[1fr_1.4fr]">
         <SectionCard title="Company">
@@ -140,7 +155,7 @@ export function CompanyPage() {
               <NativeSelect
                 id="company-plan"
                 value={company.plan}
-                onChange={(e) => changePlan(company.id, e.target.value as Plan)}
+                onChange={(e) => run(changePlan(company.id, e.target.value as Plan))}
               >
                 {PLANS.map((plan) => (
                   <option key={plan} value={plan}>
@@ -152,13 +167,15 @@ export function CompanyPage() {
           </div>
 
           <div className="mt-5 flex flex-wrap items-center gap-2 border-t pt-4">
-            <Button size="sm" onClick={() => extendLicense(company.id, 1)}>
+            <Button
+              size="sm"
+              onClick={() => {
+                setPayKey((k) => k + 1)
+                setPayOpen(true)
+              }}
+            >
               <CalendarPlus />
-              {t('+1 month')} · {usd(paymentAmount(renewPlan, 1))}
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => extendLicense(company.id, 12)}>
-              <CalendarPlus />
-              {t('+1 year')} · {usd(paymentAmount(renewPlan, 12))}
+              {t('Record payment')}
             </Button>
             <div className="ml-auto flex items-center gap-2">
               <DateInput
@@ -173,7 +190,7 @@ export function CompanyPage() {
                 variant="outline"
                 disabled={!until}
                 onClick={() => {
-                  setLicenseUntil(company.id, until)
+                  run(setLicenseUntil(company.id, until))
                   setUntil('')
                 }}
               >
@@ -183,7 +200,7 @@ export function CompanyPage() {
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
             {t(
-              'An expired license keeps the data visible but read-only. A trial becomes the plan picked at sign-up (or Start) when extended. Extending records a payment.',
+              'An expired license keeps the data visible but read-only. A trial becomes the plan picked at sign-up (or Lite) when paid. Each payment extends the license from its current end date.',
             )}
           </p>
         </SectionCard>
@@ -194,7 +211,7 @@ export function CompanyPage() {
           aria-label={t('Note')}
           placeholder={t('e.g. paid by invoice No. 12 in cash')}
           defaultValue={company.note}
-          onBlur={(e) => setCompanyNote(company.id, e.target.value)}
+          onBlur={(e) => e.target.value !== company.note && run(setCompanyNote(company.id, e.target.value))}
         />
       </SectionCard>
 
@@ -210,7 +227,17 @@ export function CompanyPage() {
                     {p.months === 12 ? t('1 year') : t('1 month')} ·{' '}
                     {t('until {date}', { date: formatDate(periodEnd(p.from, p.months)) })}
                   </td>
-                  <td className="px-5 py-3 text-right font-medium tabular-nums">{usd(p.amount)}</td>
+                  <td className="px-3 py-3 text-right font-medium tabular-nums">{usd(p.amount)}</td>
+                  <td className="w-10 py-3 pr-3">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={t('Remove payment')}
+                      onClick={() => setRemoving(p)}
+                    >
+                      <Trash2 />
+                    </Button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -247,10 +274,29 @@ export function CompanyPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => setBlocked(company.id, true)}>{t('Block')}</AlertDialogAction>
+            <AlertDialogAction onClick={() => run(setBlocked(company.id, true))}>{t('Block')}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!removing} onOpenChange={(open) => !open && setRemoving(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('Remove this payment?')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('Use it only for a payment recorded by mistake. If it is the latest one, the license end date moves back.')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => removing && run(removeLicensePayment(company.id, removing.id))}>
+              {t('Remove payment')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <RecordPaymentDialog key={payKey} company={company} open={payOpen} onOpenChange={setPayOpen} />
     </div>
   )
 }

@@ -16,7 +16,7 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { quotationStatuses } from '@/components/status-badge'
-import { useCanModify } from '@/data/auth'
+import { useCanModify, usePermissions } from '@/data/auth'
 import { useSettings } from '@/data/settings'
 import { createQuotation, updateQuotation, useQuotation, useQuotations, useVendors } from '@/data/store'
 import type { Customer } from '@/types/directory'
@@ -166,11 +166,14 @@ export function QuotationFormPage() {
   const existing = useQuotation(id)
   const isEdit = !!id
   const canModify = useCanModify(existing)
+  const { canEditOrders } = usePermissions()
 
   // Если в адресе id несуществующей котировки — показываем 404
   if (isEdit && !existing) return <NotFoundPage />
   // Чужую котировку открыли по ссылке на редактирование — показываем её только для просмотра
   if (isEdit && !canModify) return <Navigate to={`/quotations/${id}`} replace />
+  // Бухгалтер или истекшая лицензия: новую котировку создать нельзя, не даём заполнять форму впустую
+  if (!isEdit && !canEditOrders) return <Navigate to="/quotations" replace />
   // key сбрасывает форму, если перешли с одной котировки на другую
   return <QuotationForm key={id ?? 'new'} existing={existing} />
 }

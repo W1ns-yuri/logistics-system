@@ -224,7 +224,9 @@ function OwnerLogin() {
             {t('Sign in')}
           </Button>
         </form>
-        <p className="mt-4 text-xs text-muted-foreground">{t('Demo access: any email and password will work.')}</p>
+        {!API_MODE && (
+          <p className="mt-4 text-xs text-muted-foreground">{t('Demo access: any email and password will work.')}</p>
+        )}
       </main>
     </div>
   )

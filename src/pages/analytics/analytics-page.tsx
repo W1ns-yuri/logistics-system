@@ -104,7 +104,7 @@ export function AnalyticsPage() {
       <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
         <PageHeader
           title="My results"
-          description="Your quotations and shipments for the period. Amounts are in USD at demo rates."
+          description="Your quotations and shipments for the period. Amounts are in USD at fixed rates: 1 USD = 3.5 TMT = 0.93 EUR."
           actions={periodSwitch}
         />
         <MyResults stats={findStats(data.members, session?.email)} />
@@ -115,7 +115,7 @@ export function AnalyticsPage() {
     <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
       <PageHeader
         title="Analytics"
-        description="Revenue, profit and operations at a glance. Amounts are in USD at demo rates."
+        description="Revenue, profit and operations at a glance. Amounts are in USD at fixed rates: 1 USD = 3.5 TMT = 0.93 EUR."
         actions={periodSwitch}
       />
 

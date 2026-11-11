@@ -58,6 +58,8 @@ export async function authRoutes(app: FastifyInstance) {
   const { db } = app
   // Лимиты живут вместе с приложением (у каждого теста свои)
   const loginByEmail = createLimiter({ limit: 10, windowMs: 15 * MINUTE }) // 10 неверных паролей на «email + IP»
+  // 30 неверных паролей на один email с любых IP: перебор пароля через тысячу прокси тоже упрётся
+  const loginByAccount = createLimiter({ limit: 30, windowMs: 15 * MINUTE })
   const loginByIp = createLimiter({ limit: 50, windowMs: 15 * MINUTE }) // и 50 с одного IP на любые email
   const signupByIp = createLimiter({ limit: 5, windowMs: 60 * MINUTE }) // 5 регистраций с IP в час, чтобы не засорили базу
 
@@ -128,7 +130,7 @@ export async function authRoutes(app: FastifyInstance) {
   app.post('/api/auth/login', async (request, reply) => {
     const body = loginBody.parse(request.body)
     const key = `${body.email}|${request.ip}`
-    if (loginByEmail.isBlocked(key) || loginByIp.isBlocked(request.ip))
+    if (loginByEmail.isBlocked(key) || loginByIp.isBlocked(request.ip) || loginByAccount.isBlocked(body.email))
       return reply.code(429).send({ error: 'too_many_attempts' })
 
     const [user] = await db.select().from(users).where(eq(users.email, body.email)).limit(1)
@@ -140,6 +142,7 @@ export async function authRoutes(app: FastifyInstance) {
     if (!user || !ok) {
       loginByEmail.hit(key)
       loginByIp.hit(request.ip)
+      loginByAccount.hit(body.email)
       return reply.code(401).send({ error: 'invalid_credentials' })
     }
     loginByEmail.reset(key)

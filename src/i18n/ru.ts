@@ -375,7 +375,7 @@ export const ru: Record<string, string> = {
   '{n} invoices past due date': '{n} инвойсов просрочено',
   'Click an invoice to preview it.': 'Нажмите на инвойс, чтобы посмотреть его.',
   'Invoices are created from a shipment': 'Инвойсы выставляются из перевозки',
-  'Totals are converted to USD at demo rates.': 'Итоги пересчитаны в доллары по демо-курсу.',
+  'Totals are converted to USD at fixed rates: 1 USD = 3.5 TMT = 0.93 EUR.': 'Итоги пересчитаны в доллары по фиксированному курсу: 1 USD = 3,5 TMT = 0,93 EUR.',
   'Amount, {currency}': 'Сумма, {currency}',
   Amount: 'Сумма',
   'Save payment': 'Сохранить оплату',
@@ -388,8 +388,8 @@ export const ru: Record<string, string> = {
   'Thanks for your business.': 'Спасибо за сотрудничество.',
 
   // Аналитика
-  'Revenue, profit and operations at a glance. Amounts are in USD at demo rates.':
-    'Выручка, прибыль и операции на одном экране. Суммы в долларах по демо-курсу.',
+  'Revenue, profit and operations at a glance. Amounts are in USD at fixed rates: 1 USD = 3.5 TMT = 0.93 EUR.':
+    'Выручка, прибыль и операции на одном экране. Суммы в долларах по фиксированному курсу: 1 USD = 3,5 TMT = 0,93 EUR.',
   '3 months': '3 месяца',
   '6 months': '6 месяцев',
   '12 months': '12 месяцев',
@@ -925,8 +925,8 @@ export const ru: Record<string, string> = {
   'Write what the extra payment is for': 'Напишите, за что доплата',
   'Write why the shipment is cancelled': 'Напишите, почему перевозка отменена',
   Year: 'Год',
-  'Your quotations and shipments for the period. Amounts are in USD at demo rates.':
-    'Ваши котировки и перевозки за период. Суммы в USD по демо-курсу.',
+  'Your quotations and shipments for the period. Amounts are in USD at fixed rates: 1 USD = 3.5 TMT = 0.93 EUR.':
+    'Ваши котировки и перевозки за период. Суммы в USD по фиксированному курсу: 1 USD = 3,5 TMT = 0,93 EUR.',
   'due {date}': 'срок {date}',
   'e.g. Fine for an expired certificate': 'например, штраф за просроченный сертификат',
   'e.g. The customer cancelled the order, the cargo was not ready': 'например, клиент отменил заказ, груз не был готов',
@@ -1047,4 +1047,16 @@ export const ru: Record<string, string> = {
     '{name}, вы присоединяетесь к {company}. Входить будете с {email}.',
   'Copy link': 'Скопировать',
   'Something went wrong. Try again.': 'Что-то пошло не так. Попробуйте ещё раз.',
+  'An expired license keeps the data visible but read-only. A trial becomes the plan picked at sign-up (or Lite) when paid. Each payment extends the license from its current end date.':
+    'После окончания лицензии данные видны, но менять их нельзя. Пробный период после оплаты становится тарифом, выбранным при регистрации (или Lite). Каждая оплата продлевает лицензию от текущей даты окончания.',
+  'Amount received, USD': 'Получено, USD',
+  'By the price list: {price}. Change it if you agreed on a different price.':
+    'По прайсу: {price}. Поменяйте, если договорились о другой цене.',
+  'License from {from} to {until}': 'Лицензия с {from} по {until}',
+  'Remove payment': 'Удалить оплату',
+  'Remove this payment?': 'Удалить эту оплату?',
+  'Use it only for a payment recorded by mistake. If it is the latest one, the license end date moves back.':
+    'Только для оплаты, внесённой по ошибке. Если она последняя, дата окончания лицензии вернётся назад.',
+  'Payment of {amount} removed': 'Удалена оплата {amount}',
+  'Payment of {amount} removed, license until {date}': 'Удалена оплата {amount}, лицензия до {date}',
 }

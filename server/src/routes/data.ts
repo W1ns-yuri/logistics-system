@@ -92,12 +92,31 @@ export function assertCanDelete(viewer: Viewer, collection: Collection, existing
     throw forbidden('not_owner')
 }
 
-// Файлы в запись не вкладываем: их загружают отдельно (/api/files), в записи только ссылка
-function hasInlineFile(value: unknown): boolean {
-  if (typeof value === 'string') return value.startsWith('data:')
-  if (Array.isArray(value)) return value.some(hasInlineFile)
-  if (value && typeof value === 'object') return Object.values(value).some(hasInlineFile)
-  return false
+// Проверка формы записи. Файлы в запись не вкладываем: их загружают отдельно (/api/files), в записи только ссылка
+// на свой файл. Ссылка на чужой сайт или javascript: в поле файла — попытка подсунуть коллегам вредную ссылку
+const FILE_LINK = /^\/api\/files\/[0-9a-f-]{36}$/
+const MAX_DEPTH = 12
+export function recordProblem(value: unknown, key = '', depth = 0): string | undefined {
+  if (depth > MAX_DEPTH) return 'too_deep'
+  if (typeof value === 'string') {
+    if (value.startsWith('data:')) return 'inline_file'
+    if (key === 'dataUrl' && value && !FILE_LINK.test(value)) return 'bad_file_link'
+    return undefined
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const problem = recordProblem(item, key, depth + 1)
+      if (problem) return problem
+    }
+    return undefined
+  }
+  if (value && typeof value === 'object') {
+    for (const [k, v] of Object.entries(value)) {
+      const problem = recordProblem(v, k, depth + 1)
+      if (problem) return problem
+    }
+  }
+  return undefined
 }
 
 // Следующий свободный номер с тем же началом: AT000007 занят → AT000012, если последний был AT000011
@@ -241,7 +260,8 @@ export async function dataRoutes(app: FastifyInstance) {
     assertWritable(viewer)
     const { collection, id } = params.parse(request.params)
     const { data } = recordBody.parse(request.body)
-    if (hasInlineFile(data)) throw new HttpError(400, 'inline_file')
+    const problem = recordProblem(data)
+    if (problem) throw new HttpError(400, problem)
     const existing = await findRecord(db, viewer.company.id, collection, id)
     const merged = mergeForWrite(viewer, collection, existing?.data, { ...data, id })
     const saved = await saveRecord(db, viewer.company.id, collection, id, merged)

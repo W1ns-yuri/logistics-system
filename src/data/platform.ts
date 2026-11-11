@@ -160,7 +160,8 @@ export function setWorkspaceCompany(company: Company | undefined) {
 }
 
 type Action =
-  | { type: 'extend'; months: number }
+  | { type: 'extend'; months: number; amount?: number; plan?: Plan }
+  | { type: 'remove_payment'; paymentId: string }
   | { type: 'set_until'; date: string }
   | { type: 'plan'; plan: Plan }
   | { type: 'block'; blocked: boolean }
@@ -220,18 +221,19 @@ export function registerCompany(data: {
 export const renewalPlan = (company: Company): Plan =>
   company.plan === 'trial' ? (company.profile?.plannedPlan ?? 'lite') : company.plan
 
-export function extendLicense(id: string, months: number) {
-  if (API_MODE) return void remoteAction(id, { type: 'extend', months })
+// Принять оплату. amount и plan можно поменять, если договорились о другой цене или тарифе
+export async function extendLicense(id: string, months: number, deal: { amount?: number; plan?: Plan } = {}) {
+  if (API_MODE) return remoteAction(id, { type: 'extend', months, ...deal })
   const company = state.companies.find((c) => c.id === id)
   if (!company) return
-  const plan = renewalPlan(company)
+  const plan = deal.plan ?? renewalPlan(company)
   const from = daysLeft(company) < 0 ? todayIso() : addDays(company.paidUntil, 1)
   const paidUntil = periodEnd(from, months)
   const payment: LicensePayment = {
     id: newId(),
     date: todayIso(),
     from,
-    amount: paymentAmount(plan, months),
+    amount: deal.amount ?? paymentAmount(plan, months),
     months,
     plan,
   }
@@ -243,23 +245,39 @@ export function extendLicense(id: string, months: number) {
   )
 }
 
-export function setLicenseUntil(id: string, paidUntil: string) {
-  if (API_MODE) return void remoteAction(id, { type: 'set_until', date: paidUntil })
+// Убрать оплату, внесённую по ошибке. Последняя оплата откатывает и срок лицензии
+export async function removeLicensePayment(id: string, paymentId: string) {
+  if (API_MODE) return remoteAction(id, { type: 'remove_payment', paymentId })
+  const company = state.companies.find((c) => c.id === id)
+  const payment = company?.payments.find((p) => p.id === paymentId)
+  if (!company || !payment) return
+  const rollBack = company.payments.at(-1)?.id === paymentId && company.paidUntil === periodEnd(payment.from, payment.months)
+  const paidUntil = rollBack ? addDays(payment.from, -1) : company.paidUntil
+  updateCompany(
+    id,
+    { paidUntil, payments: company.payments.filter((p) => p.id !== paymentId) },
+    rollBack ? 'Payment of {amount} removed, license until {date}' : 'Payment of {amount} removed',
+    { amount: `$${payment.amount}`, date: paidUntil },
+  )
+}
+
+export async function setLicenseUntil(id: string, paidUntil: string) {
+  if (API_MODE) return remoteAction(id, { type: 'set_until', date: paidUntil })
   updateCompany(id, { paidUntil }, 'License end date set to {date}', { date: paidUntil })
 }
 
-export function changePlan(id: string, plan: Plan) {
-  if (API_MODE) return void remoteAction(id, { type: 'plan', plan })
+export async function changePlan(id: string, plan: Plan) {
+  if (API_MODE) return remoteAction(id, { type: 'plan', plan })
   updateCompany(id, { plan }, 'Plan changed to {plan}', { plan: planLabels[plan] })
 }
 
-export function setBlocked(id: string, blocked: boolean) {
-  if (API_MODE) return void remoteAction(id, { type: 'block', blocked })
+export async function setBlocked(id: string, blocked: boolean) {
+  if (API_MODE) return remoteAction(id, { type: 'block', blocked })
   updateCompany(id, { blocked }, blocked ? 'Company blocked' : 'Company unblocked')
 }
 
-export function setCompanyNote(id: string, note: string) {
-  if (API_MODE) return void remoteAction(id, { type: 'note', note })
+export async function setCompanyNote(id: string, note: string) {
+  if (API_MODE) return remoteAction(id, { type: 'note', note })
   updateCompany(id, { note })
 }
 

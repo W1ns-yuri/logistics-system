@@ -19,7 +19,15 @@ const OWNER_SESSION_HOURS = 12
 const dummyHash = hash('dummy-password-for-timing')
 
 const actionBody = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('extend'), months: z.union([z.literal(1), z.literal(12)]) }),
+  // amount и plan — если договорились о другой цене или сразу о другом тарифе
+  z.object({
+    type: z.literal('extend'),
+    months: z.union([z.literal(1), z.literal(12)]),
+    amount: z.number().min(0).max(1_000_000).optional(),
+    plan: z.enum(PLANS).exclude(['trial']).optional(),
+  }),
+  // Оплату внесли по ошибке. Если она последняя, срок лицензии откатывается назад
+  z.object({ type: z.literal('remove_payment'), paymentId: z.string().min(1).max(100) }),
   z.object({ type: z.literal('set_until'), date: z.iso.date() }),
   z.object({ type: z.literal('plan'), plan: z.enum(PLANS) }),
   z.object({ type: z.literal('block'), blocked: z.boolean() }),
@@ -29,6 +37,8 @@ const actionBody = z.discriminatedUnion('type', [
 export async function platformRoutes(app: FastifyInstance) {
   const { db } = app
   const loginLimit = createLimiter({ limit: 10, windowMs: 15 * MINUTE })
+  // Вход владельца — самый ценный: ещё и 20 попыток на email с любых IP
+  const accountLimit = createLimiter({ limit: 20, windowMs: 15 * MINUTE })
 
   async function requireOwner(request: FastifyRequest, reply: FastifyReply) {
     const token = request.cookies[OWNER_COOKIE]
@@ -45,11 +55,12 @@ export async function platformRoutes(app: FastifyInstance) {
 
   app.post('/api/platform/login', async (request, reply) => {
     const body = z.object({ email: z.string().trim().toLowerCase().max(120), password: z.string().min(1).max(200) }).parse(request.body)
-    if (loginLimit.isBlocked(request.ip)) return reply.code(429).send({ error: 'too_many_attempts' })
+    if (loginLimit.isBlocked(request.ip) || accountLimit.isBlocked(body.email)) return reply.code(429).send({ error: 'too_many_attempts' })
     const [user] = await db.select().from(users).where(eq(users.email, body.email)).limit(1)
     const ok = (await verify(user?.passwordHash || (await dummyHash), body.password)) && !!user?.passwordHash
     if (!user || !ok || !user.isPlatformOwner) {
       loginLimit.hit(request.ip)
+      accountLimit.hit(body.email)
       return reply.code(401).send({ error: 'invalid_credentials' })
     }
     const token = newToken()
@@ -90,16 +101,32 @@ export async function platformRoutes(app: FastifyInstance) {
       case 'extend': {
         // Пробный период при продлении становится тарифом, выбранным при регистрации (или Lite)
         const planned = (company.profile as { plannedPlan?: Plan } | null)?.plannedPlan
-        const plan: Plan = company.plan === 'trial' ? (planned ?? 'lite') : (company.plan as Plan)
+        const plan: Plan = action.plan ?? (company.plan === 'trial' ? (planned ?? 'lite') : (company.plan as Plan))
         // Уже истекла — от сегодня, иначе — со следующего дня после окончания
         const from = daysBetween(todayIso(), company.paidUntil) < 0 ? todayIso() : addDays(company.paidUntil, 1)
         const paidUntil = periodEnd(from, action.months)
-        const payment = { id: crypto.randomUUID(), date: todayIso(), from, amount: paymentAmount(plan, action.months), months: action.months, plan }
+        const payment = { id: crypto.randomUUID(), date: todayIso(), from, amount: action.amount ?? paymentAmount(plan, action.months), months: action.months, plan }
         patch = {
           plan,
           paidUntil,
           licensePayments: [...company.licensePayments, payment],
           events: event(action.months === 12 ? 'Extended by 1 year until {date}' : 'Extended by 1 month until {date}', { date: paidUntil }),
+        }
+        break
+      }
+      case 'remove_payment': {
+        const payment = company.licensePayments.find((p) => p.id === action.paymentId)
+        if (!payment) throw new HttpError(404, 'not_found')
+        const isLast = company.licensePayments.at(-1)?.id === payment.id
+        const rollBack = isLast && company.paidUntil === periodEnd(payment.from, payment.months)
+        const paidUntil = rollBack ? addDays(payment.from, -1) : company.paidUntil
+        patch = {
+          paidUntil,
+          licensePayments: company.licensePayments.filter((p) => p.id !== payment.id),
+          events: event(
+            rollBack ? 'Payment of {amount} removed, license until {date}' : 'Payment of {amount} removed',
+            { amount: `$${payment.amount}`, date: paidUntil },
+          ),
         }
         break
       }
