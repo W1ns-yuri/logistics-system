@@ -1,5 +1,4 @@
-import { getSettings } from '@/data/settings'
-import { t } from '@/i18n'
+import { currentLanguage, t } from '@/i18n'
 
 // Форматирование для таблиц и карточек. Всё в одном месте, чтобы формат был везде одинаковым.
 
@@ -10,7 +9,7 @@ const dateOptions: Record<'en' | 'ru', [string, Intl.DateTimeFormatOptions]> = {
 }
 const formatters = new Map<string, Intl.DateTimeFormat>()
 function formatter(withTime: boolean) {
-  const language = getSettings().language
+  const language = currentLanguage()
   const key = `${language}-${withTime}`
   let f = formatters.get(key)
   if (!f) {

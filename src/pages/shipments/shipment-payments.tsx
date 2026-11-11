@@ -6,7 +6,6 @@ import {
   Paperclip,
   Pencil,
   Plus,
-  Printer,
   Receipt,
   Trash2,
   X,
@@ -20,6 +19,7 @@ import { FormField } from '@/components/form-field'
 import { RecordPaymentDialog } from '@/components/record-payment-dialog'
 import { SectionCard } from '@/components/section-card'
 import { InvoiceStatusBadge } from '@/components/status-badge'
+import { PrintMenu } from '@/components/print-menu'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -131,10 +131,7 @@ export function CustomerPaymentsSection({ shipment, locked }: { shipment: Shipme
                     {formatDate(inv.invoiceDate)} · {t('due {date}', { date: formatDate(inv.dueDate) })}
                   </span>
                   <div className="ml-auto flex items-center gap-1.5">
-                    <Button size="sm" variant="ghost" onClick={() => printInvoice(inv.id)}>
-                      <Printer />
-                      PDF
-                    </Button>
+                    <PrintMenu variant="ghost" label="PDF" onPrint={(language) => printInvoice(inv.id, language)} />
                     {canEditPayments && inv.status !== 'paid' && (
                       <Button size="sm" variant="outline" onClick={() => setPaying({ invoice: inv })}>
                         {t('Record payment')}

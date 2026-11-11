@@ -1,4 +1,4 @@
-import { getSettings } from '@/data/settings'
+import { currentLanguage } from '@/i18n'
 
 // Коды стран ISO 3166. Названия берём из браузера (Intl.DisplayNames), поэтому список сразу на двух языках.
 const CODES =
@@ -20,7 +20,7 @@ const ru = names('ru')
 const aliasesOf = (code: string) => Object.keys(ALIASES).filter((alias) => ALIASES[alias] === code)
 
 export function countryOptions() {
-  const local = names(getSettings().language)
+  const local = names(currentLanguage())
   // Ищем и по-русски, и по-английски, и по старым названиям (Turkey → Türkiye)
   return CODES.map((code) => ({
     value: en.of(code) ?? code,
@@ -31,7 +31,7 @@ export function countryOptions() {
 
 export function countryLabel(name: string) {
   const code = byName.get(name)
-  return code ? (names(getSettings().language).of(code) ?? name) : name
+  return code ? (names(currentLanguage()).of(code) ?? name) : name
 }
 
 // Основные города региона заказчика — подсказки; любой другой город можно вписать вручную
@@ -184,7 +184,7 @@ const CITY_RU: Record<string, string> = {
 }
 
 export function cityLabel(city: string) {
-  return getSettings().language === 'ru' ? (CITY_RU[city] ?? city) : city
+  return currentLanguage() === 'ru' ? (CITY_RU[city] ?? city) : city
 }
 
 // Слова для поиска города: и по-русски, и по-английски

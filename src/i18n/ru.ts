@@ -1065,4 +1065,5 @@ export const ru: Record<string, string> = {
     'Админ открывает её и задаёт новый пароль. Старый пароль перестаёт работать.',
   'Sign-in link issued for {email}': 'Выдана ссылка для входа: {email}',
   'If you are the admin, write to': 'Если админ — вы, напишите на',
+  'Document language': 'Язык документа',
 }
