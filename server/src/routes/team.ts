@@ -38,7 +38,7 @@ const patchBody = z.object({ name: z.string().trim().min(2).max(80), email, role
 const userParam = z.object({ userId: z.uuid() })
 
 // Новая ссылка. Старые ссылки этого человека перестают работать
-async function issueInvite(db: Db, companyId: string, userId: string) {
+export async function issueInvite(db: Db, companyId: string, userId: string) {
   const token = newToken()
   await db.delete(invites).where(eq(invites.userId, userId))
   await db

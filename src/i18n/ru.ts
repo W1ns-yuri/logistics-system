@@ -1059,4 +1059,10 @@ export const ru: Record<string, string> = {
     'Только для оплаты, внесённой по ошибке. Если она последняя, дата окончания лицензии вернётся назад.',
   'Payment of {amount} removed': 'Удалена оплата {amount}',
   'Payment of {amount} removed, license until {date}': 'Удалена оплата {amount}, лицензия до {date}',
+  'Forgot password? Sign-in link': 'Забыл пароль? Ссылка для входа',
+  'Sign-in link for {email}': 'Ссылка для входа: {email}',
+  'The admin opens it and sets a new password. The old password stops working.':
+    'Админ открывает её и задаёт новый пароль. Старый пароль перестаёт работать.',
+  'Sign-in link issued for {email}': 'Выдана ссылка для входа: {email}',
+  'If you are the admin, write to': 'Если админ — вы, напишите на',
 }

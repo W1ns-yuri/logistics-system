@@ -3,15 +3,16 @@
  * Вход отдельный (своя cookie omni_owner). Владельца создаёт команда на сервере: npm run owner
  */
 import { verify, hash } from '@node-rs/argon2'
-import { and, desc, eq, gt, lte } from 'drizzle-orm'
+import { and, asc, desc, eq, gt, lte } from 'drizzle-orm'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
 import { createLimiter, MINUTE } from '../auth/rate-limit.ts'
 import { hashToken, newToken } from '../auth/session.ts'
-import { companies, ownerSessions, users, type LicenseEvent } from '../db/schema.ts'
+import { companies, memberships, ownerSessions, users, type LicenseEvent } from '../db/schema.ts'
 import { companyForClient, findCompany } from '../lib/company.ts'
 import { HttpError } from '../lib/http-error.ts'
+import { issueInvite } from './team.ts'
 import { addDays, daysBetween, paymentAmount, periodEnd, planLabels, PLANS, todayIso, type Plan } from '../lib/plans.ts'
 
 export const OWNER_COOKIE = 'omni_owner'
@@ -85,6 +86,29 @@ export async function platformRoutes(app: FastifyInstance) {
   app.get('/api/platform/companies', { preHandler: requireOwner }, async () => {
     const rows = await db.select().from(companies).orderBy(desc(companies.createdAt))
     return { companies: await Promise.all(rows.map((c) => companyForClient(db, c, { withNote: true }))) }
+  })
+
+  // Админ компании забыл пароль: владелец даёт ему ссылку, по которой тот задаст новый.
+  // Почты пока нет, поэтому ссылку владелец передаёт сам (мессенджер, телефон)
+  app.post('/api/platform/companies/:id/access-link', { preHandler: requireOwner }, async (request) => {
+    const { id } = z.object({ id: z.uuid() }).parse(request.params)
+    const company = await findCompany(db, id)
+    if (!company) throw new HttpError(404, 'not_found')
+    const [admin] = await db
+      .select({ userId: memberships.userId, email: users.email })
+      .from(memberships)
+      .innerJoin(users, eq(users.id, memberships.userId))
+      .where(and(eq(memberships.companyId, id), eq(memberships.role, 'admin')))
+      .orderBy(asc(memberships.createdAt))
+      .limit(1)
+    if (!admin) throw new HttpError(404, 'no_admin')
+    const link = await issueInvite(db, id, admin.userId)
+    const events: LicenseEvent[] = [
+      { id: crypto.randomUUID(), at: new Date().toISOString(), text: 'Sign-in link issued for {email}', params: { email: admin.email } },
+      ...company.events,
+    ]
+    const [updated] = await db.update(companies).set({ events }).where(eq(companies.id, id)).returning()
+    return { link, email: admin.email, company: await companyForClient(db, updated!, { withNote: true }) }
   })
 
   app.post('/api/platform/companies/:id/actions', { preHandler: requireOwner }, async (request) => {

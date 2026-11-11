@@ -137,7 +137,11 @@ export function LoginPage() {
               {/* Сброс по письму появится вместе с сервером, пока подсказываем, к кому обратиться */}
               {forgot && API_MODE && (
                 <p className="rounded-md bg-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-                  {t('Ask your company admin for a new sign-in link: Settings → Team and roles.')}
+                  {t('Ask your company admin for a new sign-in link: Settings → Team and roles.')}{' '}
+                  {t('If you are the admin, write to')}{' '}
+                  <a href="mailto:support@omniroute.app" className="font-medium text-primary hover:underline">
+                    support@omniroute.app
+                  </a>
                 </p>
               )}
               {forgot && !API_MODE && (

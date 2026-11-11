@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { ArrowLeft, Ban, CalendarPlus, LockOpen, Trash2 } from 'lucide-react'
+import { ArrowLeft, Ban, CalendarPlus, KeyRound, LockOpen, Trash2 } from 'lucide-react'
 import { Link, useParams } from 'react-router'
 
 import { DateInput } from '@/components/date-input'
 import { InfoField } from '@/components/info-field'
+import { InviteLink } from '@/components/invite-link'
 import { DaysLeft, LicenseStatusBadge } from '@/components/license'
 import { SectionCard } from '@/components/section-card'
 import {
@@ -17,10 +18,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import {
   changePlan,
+  issueAdminLink,
   periodEnd,
   planLabels,
   PLANS,
@@ -32,7 +35,7 @@ import {
   type Plan,
 } from '@/data/platform'
 import { t } from '@/i18n'
-import { apiErrorText } from '@/lib/api'
+import { API_MODE, apiErrorText } from '@/lib/api'
 import { countryLabel } from '@/lib/countries'
 import { transportModeLabels } from '@/types/logistics'
 import { formatDate, formatDateTime } from '@/lib/format'
@@ -52,6 +55,7 @@ export function CompanyPage() {
   const [payKey, setPayKey] = useState(0)
   const [removing, setRemoving] = useState<LicensePayment | null>(null)
   const [error, setError] = useState('')
+  const [adminLink, setAdminLink] = useState<{ url: string; email: string } | null>(null)
 
   if (!company) return <NotFoundPage />
   // Действие ушло на сервер: если не вышло (нет связи, сессия кончилась) — показываем почему
@@ -108,6 +112,22 @@ export function CompanyPage() {
             <InfoField label="Admin">
               {company.adminName}
               <div className="text-sm text-muted-foreground">{company.adminEmail}</div>
+              {API_MODE && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => {
+                    setError('')
+                    issueAdminLink(company.id)
+                      .then(setAdminLink)
+                      .catch((e: unknown) => setError(t(apiErrorText(e))))
+                  }}
+                >
+                  <KeyRound />
+                  {t('Forgot password? Sign-in link')}
+                </Button>
+              )}
             </InfoField>
             {company.profile && (
               <>
@@ -295,6 +315,18 @@ export function CompanyPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!adminLink} onOpenChange={(open) => !open && setAdminLink(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('Sign-in link for {email}', { email: adminLink?.email ?? '' })}</DialogTitle>
+            <DialogDescription>
+              {t('The admin opens it and sets a new password. The old password stops working.')}
+            </DialogDescription>
+          </DialogHeader>
+          {adminLink && <InviteLink url={adminLink.url} />}
+        </DialogContent>
+      </Dialog>
 
       <RecordPaymentDialog key={payKey} company={company} open={payOpen} onOpenChange={setPayOpen} />
     </div>

@@ -252,4 +252,15 @@ test('владелец платформы видит компании и про�
   assert.equal(undo.json().company.paidUntil, until)
   const trial = await inject({ method: 'POST', url: `/api/platform/companies/${winfin.id}/actions`, cookies: owner, payload: { type: 'extend', months: 1, plan: 'trial' } })
   assert.equal(trial.statusCode, 400, 'за пробный период оплату не принимаем')
+
+  // Админ забыл пароль: владелец выдаёт ссылку, по ней задаётся новый пароль, старый перестаёт работать
+  const link = await inject({ method: 'POST', url: `/api/platform/companies/${winfin.id}/access-link`, cookies: owner })
+  assert.equal(link.statusCode, 200, link.body)
+  assert.equal(link.json().email, 'manager@company.com')
+  const token = link.json().link.split('/invite/')[1]
+  const set = await inject({ method: 'POST', url: `/api/invite/${token}`, payload: { password: 'brand-new-pass-1' } })
+  assert.equal(set.statusCode, 200, set.body)
+  const old = await inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'manager@company.com', password: 'correct-horse-1' } })
+  assert.equal(old.statusCode, 401)
+  assert.equal((await inject({ method: 'POST', url: `/api/platform/companies/${winfin.id}/access-link`, cookies: admin })).statusCode, 401)
 })

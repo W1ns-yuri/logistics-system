@@ -245,6 +245,16 @@ export async function extendLicense(id: string, months: number, deal: { amount?:
   )
 }
 
+// Админ компании забыл пароль: ссылка, по которой он задаст новый (только рабочая сборка)
+export async function issueAdminLink(id: string) {
+  const res = await api<{ link: string; email: string; company: Company }>(`/api/platform/companies/${id}/access-link`, {
+    method: 'POST',
+    body: {},
+  })
+  setState((s) => ({ ...s, companies: s.companies.map((c) => (c.id === id ? res.company : c)) }))
+  return { url: window.location.origin + res.link, email: res.email }
+}
+
 // Убрать оплату, внесённую по ошибке. Последняя оплата откатывает и срок лицензии
 export async function removeLicensePayment(id: string, paymentId: string) {
   if (API_MODE) return remoteAction(id, { type: 'remove_payment', paymentId })
