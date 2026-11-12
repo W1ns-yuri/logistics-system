@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { createCustomer, updateCustomer, useCustomers } from '@/data/store'
 import { t } from '@/i18n'
 import { phoneExample } from '@/lib/phone'
-import { allCities, cityKeywords, cityLabel, citySuggestions, countryLabel, countryOptions } from '@/lib/countries'
+import { allCities, cityKeywords, cityLabel, citySuggestions, countryLabel, countryOptions, useWorldCities } from '@/lib/countries'
 import { isValidEmail, isValidPhone } from '@/lib/input-rules'
 import type { Customer } from '@/types/directory'
 
@@ -65,18 +65,21 @@ function CustomerForm({
   const countries = useMemo(() => countryOptions(), [])
   const allCustomers = useCustomers()
   // Страна не выбрана — показываем все города со страной рядом: выбрал город, страна подставится сама
+  const world = useWorldCities()
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- world: пересчитать, когда загрузятся города мира
+  const everyCity = useMemo(() => allCities(), [world])
   const cities = form.country
     ? citySuggestions(
         form.country,
         allCustomers.filter((c) => c.country === form.country).map((c) => c.city),
       ).map((city) => ({ value: city, label: cityLabel(city), keywords: cityKeywords(city) }))
-    : allCities().map(({ city, country }) => ({
+    : everyCity.map(({ city, country }) => ({
         value: city,
         label: cityLabel(city),
         hint: countryLabel(country),
         keywords: `${cityKeywords(city)} ${country}`,
       }))
-  const countryOfCity = (city: string) => allCities().find((c) => c.city === city)?.country
+  const countryOfCity = (city: string) => everyCity.find((c) => c.city === city)?.country
   const pick = (patch: Partial<FormState>) => {
     setForm((prev) => ({ ...prev, ...patch }))
     setErrors((prev) => ({ ...prev, ...Object.fromEntries(Object.keys(patch).map((k) => [k, undefined])) }))

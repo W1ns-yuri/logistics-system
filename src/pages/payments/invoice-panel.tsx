@@ -1,9 +1,10 @@
-import { Download, FileText, Paperclip, Pencil, Printer, Trash2, Wallet } from 'lucide-react'
+import { Download, FileText, Paperclip, Pencil, Trash2, Wallet } from 'lucide-react'
 import { useRef, useState } from 'react'
 
 import { ConfirmDelete } from '@/components/confirm-delete'
 import { RecordPaymentDialog } from '@/components/record-payment-dialog'
 import { InvoiceStatusBadge } from '@/components/status-badge'
+import { PrintMenu } from '@/components/print-menu'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePermissions } from '@/data/auth'
@@ -48,10 +49,7 @@ export function InvoicePanel({
           <div className="text-3xl font-semibold tracking-tight tabular-nums">{money(Math.max(0, balanceDue))}</div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={() => printInvoice(invoice.id)}>
-            <Printer />
-            {t('Print / PDF')}
-          </Button>
+          <PrintMenu onPrint={(language) => printInvoice(invoice.id, language)} />
           {canEditInvoices && (
             <>
               <Button size="sm" variant="outline" onClick={() => setEditing(true)}>

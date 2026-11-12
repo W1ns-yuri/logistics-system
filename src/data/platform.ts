@@ -6,6 +6,7 @@ import { useSyncExternalStore } from 'react'
  * На бэкенде это станут таблицы companies / licenses / license_events, а проверка лицензии уйдёт на сервер.
  */
 
+import { api, API_MODE } from '@/lib/api'
 import type { TransportMode } from '@/types/logistics'
 import { seedCompanies } from './platform-seed'
 import {
@@ -54,7 +55,13 @@ export type Company = {
   payments: LicensePayment[]
   // Что компания рассказала о себе при регистрации (у демо-компаний может не быть)
   profile?: CompanyProfile
+  // Места сверх тарифа (команда больше 10 человек) — ставит владелец платформы
+  extraSeats?: number
+  // Компания нажала «Хочу оплатить»: владелец видит заявку и связывается с ней
+  planRequest?: PlanRequest
 }
+
+export type PlanRequest = { plan: Plan; months: number; at: string }
 
 export const TEAM_SIZES = ['1-3', '4-10', '11-30', '30+'] as const
 export type TeamSize = (typeof TEAM_SIZES)[number]
@@ -92,7 +99,10 @@ export function licenseStatus(company: Company, today = todayIso()): LicenseStat
   return left <= EXPIRING_DAYS ? 'expiring' : 'active'
 }
 
-export const seatLimit = (company: Company) => planSeats[company.plan]
+export const seatLimit = (company: Company) => {
+  const base = planSeats[company.plan]
+  return base === null ? null : base + (company.extraSeats ?? 0)
+}
 
 function seed(): State {
   return { currentCompanyId: 'demo', companies: seedCompanies() }
@@ -115,6 +125,8 @@ function upgradeState(saved: State): State {
 }
 
 function load(): State {
+  // Рабочая сборка: компании приходят с сервера
+  if (API_MODE) return { companies: [], currentCompanyId: '' }
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) return upgradeState(JSON.parse(raw) as State)
@@ -129,6 +141,7 @@ const listeners = new Set<() => void>()
 
 function setState(update: (prev: State) => State) {
   state = update(state)
+  if (API_MODE) return listeners.forEach((listener) => listener())
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   } catch {
@@ -146,6 +159,31 @@ export const useCompanies = () => useSyncExternalStore(subscribe, () => state.co
 export const useCurrentCompany = () =>
   useSyncExternalStore(subscribe, () => state.companies.find((c) => c.id === state.currentCompanyId))
 export const getCurrentCompany = () => state.companies.find((c) => c.id === state.currentCompanyId)
+
+// Рабочая сборка: компания, в которой работает вошедший человек (приходит с сервера)
+export function setWorkspaceCompany(company: Company | undefined) {
+  setState((s) => ({
+    companies: company ? [company, ...s.companies.filter((c) => c.id !== company.id)] : s.companies,
+    currentCompanyId: company?.id ?? '',
+  }))
+}
+
+type Action =
+  | { type: 'extend'; months: number; amount?: number; plan?: Plan }
+  | { type: 'remove_payment'; paymentId: string }
+  | { type: 'set_until'; date: string }
+  | { type: 'adjust_days'; days: number }
+  | { type: 'seats'; extra: number }
+  | { type: 'dismiss_request' }
+  | { type: 'plan'; plan: Plan }
+  | { type: 'block'; blocked: boolean }
+  | { type: 'note'; note: string }
+
+// Рабочая сборка: действие владельца платформы выполняет сервер, в ответ — обновлённая компания
+async function remoteAction(id: string, action: Action) {
+  const { company } = await api<{ company: Company }>(`/api/platform/companies/${id}/actions`, { body: action })
+  setState((s) => ({ ...s, companies: s.companies.map((c) => (c.id === id ? company : c)) }))
+}
 
 function updateCompany(id: string, patch: Partial<Company>, eventText?: string, params?: LicenseEvent['params']) {
   setState((s) => ({
@@ -195,46 +233,116 @@ export function registerCompany(data: {
 export const renewalPlan = (company: Company): Plan =>
   company.plan === 'trial' ? (company.profile?.plannedPlan ?? 'lite') : company.plan
 
-export function extendLicense(id: string, months: number) {
+// Принять оплату. amount и plan можно поменять, если договорились о другой цене или тарифе
+export async function extendLicense(id: string, months: number, deal: { amount?: number; plan?: Plan } = {}) {
+  if (API_MODE) return remoteAction(id, { type: 'extend', months, ...deal })
   const company = state.companies.find((c) => c.id === id)
   if (!company) return
-  const plan = renewalPlan(company)
+  const plan = deal.plan ?? renewalPlan(company)
   const from = daysLeft(company) < 0 ? todayIso() : addDays(company.paidUntil, 1)
   const paidUntil = periodEnd(from, months)
   const payment: LicensePayment = {
     id: newId(),
     date: todayIso(),
     from,
-    amount: paymentAmount(plan, months),
+    amount: deal.amount ?? paymentAmount(plan, months),
     months,
     plan,
   }
   updateCompany(
     id,
-    { paidUntil, plan, payments: [...company.payments, payment] },
-    months === 12 ? 'Extended by 1 year until {date}' : 'Extended by 1 month until {date}',
-    { date: paidUntil },
+    { paidUntil, plan, payments: [...company.payments, payment], planRequest: undefined },
+    'Extended by {n} mo. until {date}',
+    { n: months, date: paidUntil },
   )
 }
 
-export function setLicenseUntil(id: string, paidUntil: string) {
+// Добавить (+) или списать (−) дни лицензии: подарок, компенсация, ошибка
+export async function adjustLicenseDays(id: string, days: number) {
+  if (API_MODE) return remoteAction(id, { type: 'adjust_days', days })
+  const company = state.companies.find((c) => c.id === id)
+  if (!company || !days) return
+  const paidUntil = addDays(company.paidUntil, days)
+  updateCompany(id, { paidUntil }, days > 0 ? '{n} days added, license until {date}' : '{n} days removed, license until {date}', {
+    n: Math.abs(days),
+    date: paidUntil,
+  })
+}
+
+export async function setExtraSeats(id: string, extra: number) {
+  if (API_MODE) return remoteAction(id, { type: 'seats', extra })
+  updateCompany(id, { extraSeats: extra }, 'Extra users: {n}', { n: extra })
+}
+
+export async function dismissPlanRequest(id: string) {
+  if (API_MODE) return remoteAction(id, { type: 'dismiss_request' })
+  updateCompany(id, { planRequest: undefined }, 'Payment request closed')
+}
+
+// Сторона компании: «Хочу оплатить» — тариф и срок. Владелец платформы увидит заявку в админке
+export async function requestPlan(plan: Plan, months: number) {
+  if (API_MODE) {
+    const { company } = await api<{ company: Company }>('/api/company/plan-request', { body: { plan, months } })
+    setWorkspaceCompany(company)
+    return
+  }
+  const company = getCurrentCompany()
+  if (!company) return
+  updateCompany(company.id, { planRequest: { plan, months, at: new Date().toISOString() } }, 'Payment requested: {plan}, {n} mo.', {
+    plan: planLabels[plan],
+    n: months,
+  })
+}
+
+// Админ компании забыл пароль: ссылка, по которой он задаст новый (только рабочая сборка)
+export async function issueAdminLink(id: string) {
+  const res = await api<{ link: string; email: string; company: Company }>(`/api/platform/companies/${id}/access-link`, {
+    method: 'POST',
+    body: {},
+  })
+  setState((s) => ({ ...s, companies: s.companies.map((c) => (c.id === id ? res.company : c)) }))
+  return { url: window.location.origin + res.link, email: res.email }
+}
+
+// Убрать оплату, внесённую по ошибке. Последняя оплата откатывает и срок лицензии
+export async function removeLicensePayment(id: string, paymentId: string) {
+  if (API_MODE) return remoteAction(id, { type: 'remove_payment', paymentId })
+  const company = state.companies.find((c) => c.id === id)
+  const payment = company?.payments.find((p) => p.id === paymentId)
+  if (!company || !payment) return
+  const rollBack = company.payments.at(-1)?.id === paymentId && company.paidUntil === periodEnd(payment.from, payment.months)
+  const paidUntil = rollBack ? addDays(payment.from, -1) : company.paidUntil
+  updateCompany(
+    id,
+    { paidUntil, payments: company.payments.filter((p) => p.id !== paymentId) },
+    rollBack ? 'Payment of {amount} removed, license until {date}' : 'Payment of {amount} removed',
+    { amount: `$${payment.amount}`, date: paidUntil },
+  )
+}
+
+export async function setLicenseUntil(id: string, paidUntil: string) {
+  if (API_MODE) return remoteAction(id, { type: 'set_until', date: paidUntil })
   updateCompany(id, { paidUntil }, 'License end date set to {date}', { date: paidUntil })
 }
 
-export function changePlan(id: string, plan: Plan) {
+export async function changePlan(id: string, plan: Plan) {
+  if (API_MODE) return remoteAction(id, { type: 'plan', plan })
   updateCompany(id, { plan }, 'Plan changed to {plan}', { plan: planLabels[plan] })
 }
 
-export function setBlocked(id: string, blocked: boolean) {
+export async function setBlocked(id: string, blocked: boolean) {
+  if (API_MODE) return remoteAction(id, { type: 'block', blocked })
   updateCompany(id, { blocked }, blocked ? 'Company blocked' : 'Company unblocked')
 }
 
-export function setCompanyNote(id: string, note: string) {
+export async function setCompanyNote(id: string, note: string) {
+  if (API_MODE) return remoteAction(id, { type: 'note', note })
   updateCompany(id, { note })
 }
 
 // Отмечаем активность текущей компании при входе
 export function touchCurrentCompany() {
+  if (API_MODE) return // сервер сам отмечает вход
   updateCompany(state.currentCompanyId, { lastActiveAt: new Date().toISOString() })
 }
 
@@ -243,6 +351,7 @@ export function touchCurrentCompany() {
 
 const OWNER_KEY = 'platform-session'
 let owner: string | null = (() => {
+  if (API_MODE) return null
   try {
     return localStorage.getItem(OWNER_KEY)
   } catch {
@@ -253,6 +362,7 @@ const ownerListeners = new Set<() => void>()
 
 function saveOwner(email: string | null) {
   owner = email
+  if (API_MODE) return ownerListeners.forEach((listener) => listener())
   try {
     if (email) localStorage.setItem(OWNER_KEY, email)
     else localStorage.removeItem(OWNER_KEY)
@@ -270,8 +380,37 @@ export const usePlatformOwner = () =>
     },
     () => owner,
   )
-export const signInOwner = (email: string) => saveOwner(email)
-export const signOutOwner = () => saveOwner(null)
+// Рабочая сборка: настоящий вход владельца, со своим паролем
+export async function signInOwner(email: string, password = '') {
+  if (!API_MODE) return saveOwner(email)
+  const res = await api<{ email: string }>('/api/platform/login', { body: { email, password } })
+  await loadPlatformCompanies()
+  saveOwner(res.email)
+}
+
+export async function signOutOwner() {
+  if (API_MODE) await api('/api/platform/logout', { method: 'POST', body: {} }).catch(() => undefined)
+  saveOwner(null)
+}
+
+export async function loadPlatformCompanies() {
+  const { companies } = await api<{ companies: Company[] }>('/api/platform/companies')
+  setState((s) => ({ ...s, companies }))
+}
+
+// При открытии админки: может, владелец уже вошёл (cookie жива)
+let ownerChecked = false
+export async function restoreOwnerSession() {
+  if (!API_MODE || ownerChecked) return
+  ownerChecked = true
+  try {
+    const me = await api<{ email: string }>('/api/platform/me')
+    await loadPlatformCompanies()
+    saveOwner(me.email)
+  } catch {
+    // не вошёл — покажем форму входа
+  }
+}
 
 // «Сбросить демо-данные» возвращает и демо-компанию
 export function switchToDemoCompany() {

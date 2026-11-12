@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { useSettings } from '@/data/settings'
 import { addCity, useCustomCities, useCustomers } from '@/data/store'
 import { t } from '@/i18n'
-import { allCities, cityKeywords, cityLabel, countryLabel, countryOptions } from '@/lib/countries'
+import { allCities, cityKeywords, cityLabel, countryLabel, countryOptions, useWorldCities } from '@/lib/countries'
 
 /*
  * Выбор города из списка вместо ручного ввода: так не будет «Ашхабад», «Ashgabat» и «Ashgabad» в одной базе.
@@ -31,6 +31,7 @@ export function CityPicker({
   // Названия городов зависят от языка интерфейса
   const { language } = useSettings()
   const customers = useCustomers()
+  const world = useWorldCities()
   const [adding, setAdding] = useState(false)
 
   const options = useMemo(() => {
@@ -53,7 +54,7 @@ export function CityPicker({
         keywords: `${country} ${cityKeywords(city)}`,
       }))
       .sort((a, b) => a.label.localeCompare(b.label))
-  }, [custom, customers, language])
+  }, [custom, customers, language, world])
 
   return (
     <>

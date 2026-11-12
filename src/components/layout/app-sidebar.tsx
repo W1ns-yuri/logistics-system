@@ -1,4 +1,4 @@
-import { ChevronsLeft, Container, X, type LucideIcon } from 'lucide-react'
+import { ChevronsLeft, X, type LucideIcon } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { matchPath, NavLink, useLocation } from 'react-router'
 
@@ -6,6 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { navigation, settingsItem, supportItem, type NavGroup, type NavItem } from '@/config/navigation'
 import { usePermissions } from '@/data/auth'
 import { useSettings } from '@/data/settings'
+import { ProductMark } from '@/components/product-mark'
 import { PRODUCT_NAME } from '@/lib/brand'
 import { cn } from '@/lib/utils'
 import { t } from '@/i18n'
@@ -88,10 +89,10 @@ function SidebarBody({
     .map((group) => ({ ...group, items: group.items.filter((item) => canSeePayments || !item.payments) }))
     .filter((group) => group.items.length > 0)
   const footer = nav?.footer ?? [settingsItem, supportItem]
-  const Logo = nav?.icon ?? Container
-  const title = nav ? t(nav.title) : companyName
-  // Сверху название компании клиента, под ним наш продукт — как на странице входа
-  const subtitle = nav ? t(nav.subtitle) : PRODUCT_NAME
+  const Logo = nav?.icon
+  // Сверху наш продукт и его знак, под ним — компания клиента, в которой работает человек
+  const title = nav ? t(nav.title) : PRODUCT_NAME
+  const subtitle = nav ? t(nav.subtitle) : companyName
 
   return (
     <>
@@ -102,9 +103,13 @@ function SidebarBody({
           collapsed ? 'justify-center' : 'px-4',
         )}
       >
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-          <Logo className="size-4" />
-        </div>
+        {Logo ? (
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
+            <Logo className="size-4" />
+          </div>
+        ) : (
+          <ProductMark />
+        )}
         {!collapsed && (
           <div className="min-w-0 leading-tight">
             <div className="truncate text-sm font-semibold text-sidebar-accent-foreground">{title}</div>

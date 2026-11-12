@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import {
   BarChart3,
   Building2,
@@ -33,7 +33,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import type { NavGroup, NavItem } from '@/config/navigation'
-import { signInOwner, signOutOwner, usePlatformOwner } from '@/data/platform'
+import { restoreOwnerSession, signInOwner, signOutOwner, usePlatformOwner } from '@/data/platform'
+import { API_MODE, apiErrorText } from '@/lib/api'
 import { initials, updateSettings, useSettings } from '@/data/settings'
 import { useTheme } from '@/hooks/use-theme'
 import { LANGUAGES, t, type Language } from '@/i18n'
@@ -167,10 +168,19 @@ function PlatformHeader({ owner, onMenu }: { owner: string; onMenu: () => void }
 }
 
 function OwnerLogin() {
-  const [email, setEmail] = useState('owner@platform.com')
+  const [email, setEmail] = useState(API_MODE ? '' : 'owner@platform.com')
+  const [password, setPassword] = useState(API_MODE ? '' : 'demo-password')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  // Рабочая сборка: может, владелец уже вошёл раньше (cookie жива)
+  useEffect(() => void restoreOwnerSession(), [])
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    signInOwner(email.trim())
+    setBusy(true)
+    setError('')
+    Promise.resolve(signInOwner(email.trim(), password))
+      .catch((e: unknown) => setError(t(apiErrorText(e))))
+      .finally(() => setBusy(false))
   }
   return (
     <div className="flex min-h-svh items-center justify-center bg-sidebar px-4">
@@ -196,13 +206,27 @@ function OwnerLogin() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="owner-password">{t('Password')}</Label>
-            <Input id="owner-password" type="password" required defaultValue="demo-password" className="h-10" />
+            <Input
+              id="owner-password"
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="h-10"
+            />
           </div>
-          <Button type="submit" className="h-10 w-full">
+          {error && (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          )}
+          <Button type="submit" className="h-10 w-full" disabled={busy}>
             {t('Sign in')}
           </Button>
         </form>
-        <p className="mt-4 text-xs text-muted-foreground">{t('Demo access: any email and password will work.')}</p>
+        {!API_MODE && (
+          <p className="mt-4 text-xs text-muted-foreground">{t('Demo access: any email and password will work.')}</p>
+        )}
       </main>
     </div>
   )

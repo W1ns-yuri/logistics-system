@@ -10,8 +10,10 @@ import {
   Truck,
 } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
+import { Link } from 'react-router'
 
 import { PageHeader } from '@/components/page-header'
+import { Button } from '@/components/ui/button'
 import { TransportModeIcon } from '@/components/transport-mode'
 import { usePermissions, useSession } from '@/data/auth'
 import { useActiveInvoices, useQuotations, useShipments, useVendors } from '@/data/store'
@@ -61,7 +63,7 @@ export function AnalyticsPage() {
       // приватный режим — просто не запоминаем
     }
   }
-  const { role } = usePermissions()
+  const { role, features } = usePermissions()
   const session = useSession()
 
   const data = useMemo(
@@ -104,10 +106,28 @@ export function AnalyticsPage() {
       <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
         <PageHeader
           title="My results"
-          description="Your quotations and shipments for the period. Amounts are in USD at demo rates."
+          description="Your quotations and shipments for the period. Amounts are in USD at fixed rates: 1 USD = 3.5 TMT = 0.93 EUR."
           actions={periodSwitch}
         />
         <MyResults stats={findStats(data.members, session?.email)} />
+      </div>
+    )
+
+  // Тариф без аналитики: Lite+ видит результаты команды, Lite — только предложение перейти на Standard
+  if (!features.analytics)
+    return (
+      <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
+        <PageHeader title="Analytics" description="Revenue, profit and operations at a glance." actions={periodSwitch} />
+        <PlanUpsell />
+        {features.memberResults && role === 'admin' && (
+          <Panel
+            title="Results by member"
+            description="Who created how many quotations, how many were won, and the money their shipments brought"
+            className="[&>div:last-child]:px-0 [&>div:last-child]:pb-0"
+          >
+            <TeamResultsTable members={data.members} />
+          </Panel>
+        )}
       </div>
     )
 
@@ -115,7 +135,7 @@ export function AnalyticsPage() {
     <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
       <PageHeader
         title="Analytics"
-        description="Revenue, profit and operations at a glance. Amounts are in USD at demo rates."
+        description="Revenue, profit and operations at a glance. Amounts are in USD at fixed rates: 1 USD = 3.5 TMT = 0.93 EUR."
         actions={periodSwitch}
       />
 
@@ -554,6 +574,23 @@ export function Empty() {
     <div className="flex h-32 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
       <Ship className="size-5" />
       {t('No shipments in this period')}
+    </div>
+  )
+}
+
+// Аналитика входит в тариф Standard: показываем, что там есть, и к кому обратиться
+function PlanUpsell() {
+  return (
+    <div className="rounded-xl border border-dashed bg-card p-6 text-center sm:p-10" data-testid="plan-upsell">
+      <h2 className="text-lg font-semibold">{t('Analytics is part of the Standard plan')}</h2>
+      <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
+        {t(
+          'Revenue and profit by month, margin by route and customer, conversion of quotations and money you are owed. To switch the plan, write to support.',
+        )}
+      </p>
+      <Button asChild className="mt-5">
+        <Link to="/support">{t('Contact support')}</Link>
+      </Button>
     </div>
   )
 }

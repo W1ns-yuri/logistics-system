@@ -6,6 +6,7 @@ import { AnalyticsPage } from '@/pages/analytics/analytics-page'
 import { CustomerDetailPage } from '@/pages/customers/customer-detail-page'
 import { CustomersPage } from '@/pages/customers/customers-page'
 import { HomePage } from '@/pages/home'
+import { InvitePage } from '@/pages/invite/invite-page'
 import { LoginPage } from '@/pages/login/login-page'
 import { NotFoundPage } from '@/pages/not-found'
 import { InvoicePage } from '@/pages/payments/invoice-page'
@@ -21,18 +22,24 @@ import { PlatformLayout } from '@/pages/platform/platform-layout'
 import { QuotationDetailPage } from '@/pages/quotations/quotation-detail-page'
 import { QuotationFormPage } from '@/pages/quotations/quotation-form-page'
 import { QuotationsPage } from '@/pages/quotations/quotations-page'
+import { TermsPage } from '@/pages/legal/terms-page'
 import { SettingsPage } from '@/pages/settings'
 import { SignupPage } from '@/pages/signup/signup-page'
 import { ShipmentDetailPage } from '@/pages/shipments/shipment-detail-page'
 import { ShipmentsPage } from '@/pages/shipments/shipments-page'
 import { SupportPage } from '@/pages/support'
 import { VendorDetailPage } from '@/pages/vendors/vendor-detail-page'
+import { WelcomePage } from '@/pages/welcome/welcome-page'
 import { VendorsPage } from '@/pages/vendors/vendors-page'
 
 // Все страницы — дети AppLayout, поэтому меню и шапка остаются на месте при переходах
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/signup', element: <SignupPage /> },
+  // Условия и политика конфиденциальности: открываются без входа
+  { path: '/terms', element: <TermsPage /> },
+  // Приглашение в команду и сброс пароля (рабочая сборка)
+  { path: '/invite/:token', element: <InvitePage /> },
   // Админка владельца платформы: свой вход и свой каркас
   {
     path: '/platform',
@@ -74,6 +81,7 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <HomePage /> },
+      { path: 'welcome', element: <WelcomePage /> },
       { path: 'quotations', element: <QuotationsPage /> },
       { path: 'quotations/new', element: <QuotationFormPage /> },
       { path: 'quotations/:id', element: <QuotationDetailPage /> },

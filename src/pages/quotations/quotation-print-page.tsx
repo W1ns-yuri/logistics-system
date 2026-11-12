@@ -1,10 +1,11 @@
 import { Printer } from 'lucide-react'
 import { useEffect } from 'react'
-import { useParams } from 'react-router'
+import { useParams, useSearchParams } from 'react-router'
 
 import { Button } from '@/components/ui/button'
 import { useQuotations } from '@/data/store'
-import { t } from '@/i18n'
+import { PrintLanguageSwitch } from '@/components/print-menu'
+import { currentLanguage, isLanguage, setDocumentLanguage, t, type Language } from '@/i18n'
 import { NotFoundPage } from '@/pages/not-found'
 import { QuotationPreview } from './quotation-preview'
 
@@ -12,6 +13,14 @@ import { QuotationPreview } from './quotation-preview'
 export function QuotationPrintPage() {
   const { id } = useParams()
   const quotation = useQuotations().find((q) => q.id === id)
+
+  // Язык документа из адреса (?lang=ru). Ставим до отрисовки: все подписи, даты и страны ниже — на нём
+  const [params, setParams] = useSearchParams()
+  const wanted = params.get('lang')
+  const language: Language = isLanguage(wanted) ? wanted : currentLanguage()
+  setDocumentLanguage(language)
+  // Ушли со страницы печати — дальше снова язык интерфейса
+  useEffect(() => () => setDocumentLanguage(null), [])
 
   useEffect(() => {
     if (!quotation) return
@@ -24,7 +33,8 @@ export function QuotationPrintPage() {
   if (!quotation) return <NotFoundPage />
   return (
     <div className="min-h-svh bg-muted/40 p-4 sm:p-8 print:bg-white print:p-0">
-      <div className="mx-auto mb-4 flex max-w-3xl justify-end print:hidden">
+      <div className="mx-auto mb-4 flex max-w-3xl flex-wrap items-center justify-end gap-2 print:hidden">
+        <PrintLanguageSwitch value={language} onChange={(next) => setParams({ lang: next }, { replace: true })} />
         <Button onClick={() => window.print()}>
           <Printer />
           {t('Print / PDF')}
@@ -36,4 +46,4 @@ export function QuotationPrintPage() {
 }
 
 // Открыть котировку на печать в новой вкладке
-export const printQuotation = (id: string) => window.open(`/quotations/${id}/print`, '_blank')
+export const printQuotation = (id: string, language: Language = currentLanguage()) => window.open(`/quotations/${id}/print?lang=${language}`, '_blank')

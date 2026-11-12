@@ -7,6 +7,8 @@ import { DaysLeft, LicenseStatusBadge } from '@/components/license'
 import { InfoField } from '@/components/info-field'
 import { FormField } from '@/components/form-field'
 import { PageHeader } from '@/components/page-header'
+import { InviteLink } from '@/components/invite-link'
+import { PlanPurchase } from '@/components/plan-purchase'
 import { SectionCard } from '@/components/section-card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -17,8 +19,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePermissions, useSession } from '@/data/auth'
 import { daysLeft, licenseStatus, planLabels, seatLimit, switchToDemoCompany, useCurrentCompany } from '@/data/platform'
 import { prefixFromName, resetSettings, updateSettings, useSettings, type Settings, type Theme } from '@/data/settings'
-import { addTeamMember, removeTeamMember, resetDemoData, updateTeamMember, useTeam } from '@/data/store'
+import { addTeamMember, newSignInLink, removeTeamMember, resetDemoData, updateTeamMember, useTeam } from '@/data/store'
 import { LANGUAGES, t, type Language } from '@/i18n'
+import { API_MODE, apiErrorText } from '@/lib/api'
 import { acceptFor, fileError, LOGO_TYPES, logoDataUrl } from '@/lib/files'
 import { formatDate } from '@/lib/format'
 import { isValidEmail, isValidPhone } from '@/lib/input-rules'
@@ -100,16 +103,20 @@ const COMPANY_KEYS: (keyof CompanyDraft)[] = [
   'companyWebsite',
 ]
 
-// Реквизиты компании: по умолчанию только просмотр, менять — через «Изменить» (только админ)
-function CompanySection() {
+const draftFrom = (settings: Settings) =>
+  Object.fromEntries(COMPANY_KEYS.map((key) => [key, String(settings[key] ?? '')])) as CompanyDraft
+
+// Реквизиты компании: по умолчанию только просмотр, менять — через «Изменить» (только админ).
+// В мастере первого входа (onSaved) форма открыта сразу, а после сохранения — следующий шаг
+export function CompanySection({ onSaved }: { onSaved?: () => void } = {}) {
   const settings = useSettings()
   const { canManageTeam } = usePermissions()
   const company = useCurrentCompany()
-  const [draft, setDraft] = useState<CompanyDraft>()
+  const [draft, setDraft] = useState<CompanyDraft | undefined>(() => (onSaved ? draftFrom(settings) : undefined))
   const [errors, setErrors] = useState<Partial<Record<keyof CompanyDraft, string>>>({})
 
   const startEdit = () => {
-    setDraft(Object.fromEntries(COMPANY_KEYS.map((key) => [key, String(settings[key] ?? '')])) as CompanyDraft)
+    setDraft(draftFrom(settings))
     setErrors({})
   }
   const field = (key: keyof CompanyDraft) => ({
@@ -135,6 +142,7 @@ function CompanySection() {
     setErrors(next)
     if (Object.keys(next).length) return
     updateSettings(Object.fromEntries(COMPANY_KEYS.map((key) => [key, draft[key].trim()])) as Partial<Settings>)
+    if (onSaved) return onSaved()
     setDraft(undefined)
   }
 
@@ -211,10 +219,12 @@ function CompanySection() {
             </FormField>
           </div>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setDraft(undefined)}>
-              {t('Cancel')}
-            </Button>
-            <Button type="submit">{t('Save changes')}</Button>
+            {!onSaved && (
+              <Button type="button" variant="outline" onClick={() => setDraft(undefined)}>
+                {t('Cancel')}
+              </Button>
+            )}
+            <Button type="submit">{onSaved ? t('Save and continue') : t('Save changes')}</Button>
           </div>
         </form>
       )}
@@ -223,9 +233,9 @@ function CompanySection() {
 }
 
 // Логотип для шапки PDF: сохраняется сразу после выбора файла, без отдельной кнопки «Сохранить»
-function LogoSection() {
+export function LogoSection() {
   const settings = useSettings()
-  const { canManageTeam } = usePermissions()
+  const { canManageTeam, features } = usePermissions()
   const [error, setError] = useState<string>()
   const [busy, setBusy] = useState(false)
 
@@ -251,6 +261,11 @@ function LogoSection() {
       <p className="mb-4 text-sm text-muted-foreground">
         {t('Shown at the top of quotation and invoice PDFs. Without a logo the company name is printed instead.')}
       </p>
+      {!features.logo && (
+        <p className="mb-4 rounded-md bg-warning/10 px-3 py-2 text-sm text-warning-text">
+          {t('Your plan prints the company name instead of the logo. The logo is included in Lite+ and Standard.')}
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex h-20 w-56 items-center justify-center rounded-lg border bg-white p-2">
           {settings.companyLogo ? (
@@ -361,7 +376,7 @@ function NumbersSection() {
 // Личные предпочтения: язык, тема, уведомления, значения по умолчанию
 function PreferencesSection() {
   const settings = useSettings()
-  const { canManageTeam } = usePermissions()
+  const { canManageTeam, canSeePayments } = usePermissions()
   const [resetOpen, setResetOpen] = useState(false)
 
   return (
@@ -442,26 +457,34 @@ function PreferencesSection() {
         <div className="divide-y">
           <ToggleRow
             title="Shipment status changes"
-            description="Loaded, in transit, delivered and other tracking updates."
+            description="When a colleague moves a shipment to the next step."
             checked={settings.notifyStatusChanges}
             onChange={(value) => updateSettings({ notifyStatusChanges: value })}
           />
           <ToggleRow
-            title="New quotation requests"
-            description="When a customer asks for a new price."
+            title="Quotations"
+            description="New quotations from colleagues and quotations that expire in 2 days."
             checked={settings.notifyNewQuotations}
             onChange={(value) => updateSettings({ notifyNewQuotations: value })}
           />
           <ToggleRow
-            title="Border delays"
-            description="Queues and customs holds at borders."
+            title="Border and delays"
+            description="Cargo at the border or late against its ETA."
             checked={settings.notifyBorderDelays}
             onChange={(value) => updateSettings({ notifyBorderDelays: value })}
           />
+          {canSeePayments && (
+            <ToggleRow
+              title="Invoice payments"
+              description="Invoices that are overdue or due in the next 3 days."
+              checked={settings.notifyPayments}
+              onChange={(value) => updateSettings({ notifyPayments: value })}
+            />
+          )}
         </div>
       </SectionCard>
 
-      {canManageTeam && (
+      {canManageTeam && !API_MODE && (
         <SectionCard title="Demo data">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <p className="max-w-lg text-sm text-muted-foreground">
@@ -543,20 +566,28 @@ function SubscriptionSection() {
           </span>
         </InfoField>
       </div>
-      <p className="mt-4 text-sm text-muted-foreground">
-        {t('To renew or change the plan, contact us: {email}', { email: 'support@omniroute.app' })}
-      </p>
+      <div className="mt-5 border-t pt-5">
+        <h3 className="mb-3 text-sm font-semibold">{t('Pay or change the plan')}</h3>
+        <PlanPurchase />
+      </div>
     </SectionCard>
   )
 }
 
 // Команда компании: админ добавляет людей, меняет их данные и роли
-function TeamSection() {
+export function TeamSection() {
   const team = useTeam()
   const session = useSession()
   const company = useCurrentCompany()
   const [editing, setEditing] = useState<TeamMember | 'new'>()
   const [removing, setRemoving] = useState<TeamMember>()
+  const [link, setLink] = useState<{ name: string; url: string }>()
+  const [error, setError] = useState('')
+  // Рабочая сборка: новая ссылка для входа (потерял приглашение или забыл пароль)
+  const issueLink = (member: TeamMember) =>
+    newSignInLink(member.id)
+      .then((url) => setLink({ name: member.name, url }))
+      .catch((e: unknown) => setError(t(apiErrorText(e))))
   // Лимит мест по тарифу: команда заполнена — новых не добавить
   const limit = company ? seatLimit(company) : null
   const full = limit !== null && team.length >= limit
@@ -586,7 +617,17 @@ function TeamSection() {
                 </div>
                 <div className="text-sm text-muted-foreground">{member.email}</div>
               </div>
+              {member.pending && (
+                <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs text-warning-text">
+                  {t('Has not signed in yet')}
+                </span>
+              )}
               <span className="text-sm text-muted-foreground">{t(roleLabels[member.role])}</span>
+              {API_MODE && !me && (
+                <Button variant="ghost" size="sm" onClick={() => issueLink(member)}>
+                  {t('Sign-in link')}
+                </Button>
+              )}
               <Button variant="ghost" size="icon-sm" aria-label={t('Edit')} onClick={() => setEditing(member)}>
                 <Pencil />
               </Button>
@@ -603,6 +644,12 @@ function TeamSection() {
           )
         })}
       </div>
+
+      {error && (
+        <p className="mt-3 text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      )}
 
       <div className="mt-4 grid gap-2 rounded-lg bg-muted/40 p-3 text-sm sm:grid-cols-3">
         {ROLES.map((role) => (
@@ -625,8 +672,21 @@ function TeamSection() {
         title={t('Remove {name} from the team?', { name: removing?.name ?? '' })}
         description="The person will no longer be able to sign in. Their quotations and shipments stay."
         confirmLabel="Remove"
-        onConfirm={() => removing && removeTeamMember(removing.id)}
+        onConfirm={() => {
+          if (removing) removeTeamMember(removing.id).catch((e: unknown) => setError(t(apiErrorText(e))))
+        }}
       />
+      <Dialog open={!!link} onOpenChange={(open) => !open && setLink(undefined)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('Sign-in link for {name}', { name: link?.name ?? '' })}</DialogTitle>
+          </DialogHeader>
+          {link && <InviteLink url={link.url} />}
+          <DialogFooter>
+            <Button onClick={() => setLink(undefined)}>{t('Done')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SectionCard>
   )
 }
@@ -662,6 +722,9 @@ function MemberForm({ member, self, onDone }: { member?: TeamMember; self: boole
   const [role, setRole] = useState<Role>(member?.role ?? 'employee')
   const [errors, setErrors] = useState<{ name?: string; email?: string }>({})
   const [invited, setInvited] = useState('')
+  const [inviteUrl, setInviteUrl] = useState<string>()
+  const [saving, setSaving] = useState(false)
+  const [serverError, setServerError] = useState('')
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault()
@@ -673,14 +736,33 @@ function MemberForm({ member, self, onDone }: { member?: TeamMember; self: boole
       next.email = t('This email is already in the team')
     setErrors(next)
     if (Object.keys(next).length) return
-    if (member) {
-      updateTeamMember(member.id, { name: name.trim(), email: address, role })
-      onDone()
-    } else {
-      addTeamMember({ name: name.trim(), email: address, role })
-      setInvited(address)
-    }
+    setSaving(true)
+    setServerError('')
+    const request = member
+      ? updateTeamMember(member.id, { name: name.trim(), email: address, role }).then(onDone)
+      : addTeamMember({ name: name.trim(), email: address, role }).then((url) => {
+          setInviteUrl(url)
+          setInvited(address)
+        })
+    request.catch((e: unknown) => setServerError(t(apiErrorText(e)))).finally(() => setSaving(false))
   }
+
+  // Рабочая сборка: письма не отправляем — админ сам пересылает ссылку (почта, WhatsApp, Telegram)
+  if (invited && API_MODE)
+    return (
+      <div className="space-y-4">
+        {inviteUrl ? (
+          <InviteLink url={inviteUrl} />
+        ) : (
+          <p className="text-sm">
+            {t('{email} already has an account. They sign in with their own password.', { email: invited })}
+          </p>
+        )}
+        <DialogFooter>
+          <Button onClick={onDone}>{t('Done')}</Button>
+        </DialogFooter>
+      </div>
+    )
 
   if (invited)
     return (
@@ -740,19 +822,29 @@ function MemberForm({ member, self, onDone }: { member?: TeamMember; self: boole
       {self && <p className="text-xs text-muted-foreground">{t('You cannot change your own role or email.')}</p>}
       {!member && (
         <p className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-          {t('We will email an invitation. The person sets their own password.')}
+          {API_MODE
+            ? t('You will get a link to send to the person. They open it and set their own password.')
+            : t('We will email an invitation. The person sets their own password.')}
+        </p>
+      )}
+      {serverError && (
+        <p className="text-sm text-destructive" role="alert">
+          {serverError}
         </p>
       )}
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onDone}>
           {t('Cancel')}
         </Button>
-        <Button type="submit">{member ? t('Save changes') : t('Send invitation')}</Button>
+        <Button type="submit" disabled={saving}>
+          {member ? t('Save changes') : API_MODE ? t('Create link') : t('Send invitation')}
+        </Button>
       </DialogFooter>
     </form>
   )
 }
 
+// Ссылка-приглашение: показать и скопировать. Действует 7 дней и только один раз
 function ToggleRow({
   title,
   description,

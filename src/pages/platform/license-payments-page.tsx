@@ -29,7 +29,7 @@ const columns: ColumnDef<Row, unknown>[] = [
   {
     accessorKey: 'plan',
     header: 'Plan',
-    meta: { label: 'Plan' },
+    meta: { label: 'Plan', exportValue: (row) => planLabels[row.plan] },
     filterFn: 'arrIncludesSome',
     cell: ({ row }) => t(planLabels[row.original.plan]),
   },
@@ -99,6 +99,7 @@ export function LicensePaymentsPage() {
         getRowId={(row) => row.id}
         onSelect={(row) => row && navigate(`/platform/companies/${row.companyId}`)}
         searchPlaceholder="Search company..."
+        exportName="License payments"
         facetFilters={[
           {
             columnId: 'plan',

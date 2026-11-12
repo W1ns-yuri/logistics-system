@@ -22,4 +22,6 @@ export type TeamMember = {
   name: string
   email: string
   role: Role
+  // Рабочая сборка: человека пригласили, но он ещё не задал пароль
+  pending?: boolean
 }

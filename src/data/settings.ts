@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 
 import type { Language } from '@/i18n'
+import { API_MODE } from '@/lib/api'
 import type { Currency } from '@/types/logistics'
 
 /*
@@ -30,6 +31,21 @@ export type Settings = {
   notifyStatusChanges: boolean
   notifyNewQuotations: boolean
   notifyBorderDelays: boolean
+  notifyPayments: boolean
+  // false — админ только что зарегистрировался: показываем первую настройку компании
+  onboardingDone: boolean
+}
+
+// Язык при первом входе: русский для браузеров на русском и языках СНГ (туркменский, казахский и т. д.),
+// иначе английский. Потом человек выбирает сам, выбор запоминается
+const RUSSIAN_SPEAKING = ['ru', 'tk', 'kk', 'ky', 'uz', 'tg', 'be', 'uk', 'az', 'hy']
+function browserLanguage(): Language {
+  try {
+    const first = (navigator.languages?.[0] ?? navigator.language ?? '').slice(0, 2).toLowerCase()
+    return RUSSIAN_SPEAKING.includes(first) ? 'ru' : 'en'
+  } catch {
+    return 'en'
+  }
 }
 
 export const defaultSettings: Settings = {
@@ -42,22 +58,46 @@ export const defaultSettings: Settings = {
   companyWebsite: '',
   companyLogo: '',
   documentPrefix: 'AT',
-  language: 'en',
+  language: browserLanguage(),
   defaultCurrency: 'USD',
   quotationValidityDays: 14,
   theme: 'system',
   notifyStatusChanges: true,
   notifyNewQuotations: true,
   notifyBorderDelays: true,
+  notifyPayments: true,
+  onboardingDone: true,
 }
 
 const STORAGE_KEY = 'settings'
+
+// Реквизиты компании: одни на всю команду. В рабочей сборке живут на сервере, остальное — личное, в браузере
+export const COMPANY_SETTING_KEYS = [
+  'companyName',
+  'companyTagline',
+  'companyAddress',
+  'companyEmail',
+  'companyPhone',
+  'companyTaxId',
+  'companyWebsite',
+  'companyLogo',
+  'documentPrefix',
+  'defaultCurrency',
+  'quotationValidityDays',
+  'onboardingDone',
+] as const satisfies readonly (keyof Settings)[]
+type CompanyKey = (typeof COMPANY_SETTING_KEYS)[number]
+const isCompanyKey = (key: string): key is CompanyKey => (COMPANY_SETTING_KEYS as readonly string[]).includes(key)
+
+// Только личные настройки — их и храним в браузере в рабочей сборке
+const personal = (value: Settings) =>
+  API_MODE ? Object.fromEntries(Object.entries(value).filter(([key]) => !isCompanyKey(key))) : value
 
 function load(): Settings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     // Сливаем с дефолтами: если позже добавим новое поле, старые сохранения не сломаются
-    if (raw) return { ...defaultSettings, ...JSON.parse(raw) }
+    if (raw) return { ...defaultSettings, ...personal(JSON.parse(raw)) }
   } catch {
     // localStorage недоступен или там мусор — просто берём дефолты
   }
@@ -81,14 +121,34 @@ export function useSettings() {
   return useSyncExternalStore(subscribe, () => settings)
 }
 
-export function updateSettings(patch: Partial<Settings>) {
-  settings = { ...settings, ...patch }
+function save() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(personal(settings)))
   } catch {
     // не сохранилось — настройки будут жить до перезагрузки
   }
   listeners.forEach((listener) => listener())
+}
+
+// Рабочая сборка: сюда подписывается отправка реквизитов на сервер (src/data/remote.ts)
+let companySync: ((patch: Partial<Settings>) => void) | undefined
+export const onCompanySettingsChange = (listener: typeof companySync) => {
+  companySync = listener
+}
+
+export function updateSettings(patch: Partial<Settings>) {
+  settings = { ...settings, ...patch }
+  save()
+  if (API_MODE) {
+    const company = Object.fromEntries(Object.entries(patch).filter(([key]) => isCompanyKey(key)))
+    if (Object.keys(company).length) companySync?.(company)
+  }
+}
+
+// Реквизиты пришли с сервера: показываем, обратно не отправляем
+export function applyServerSettings(patch: Partial<Settings>) {
+  settings = { ...settings, ...patch }
+  save()
 }
 
 export function resetSettings() {

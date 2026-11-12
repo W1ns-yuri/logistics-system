@@ -1,10 +1,10 @@
-import { Boxes } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 
 import mapImage from '@/assets/auth-map.webp'
 import { updateSettings, useSettings } from '@/data/settings'
 import { LANGUAGES, t } from '@/i18n'
+import { ProductMark } from '@/components/product-mark'
 import { PRODUCT_NAME } from '@/lib/brand'
 import { cn } from '@/lib/utils'
 
@@ -78,7 +78,7 @@ export function AuthLayout({ tab, children }: { tab: 'signin' | 'signup'; childr
         </div>
 
         <div className="absolute inset-x-0 bottom-4 text-center text-xs text-muted-foreground">
-          © {CURRENT_YEAR} {PRODUCT_NAME} · <a href="mailto:support@omniroute.app">{t('Support')}</a>
+          © {CURRENT_YEAR} {PRODUCT_NAME} · <a href="mailto:support@omniroute.app">{t('Support')}</a> · <a href="/terms">{t('Terms')}</a>
         </div>
       </div>
     </div>
@@ -104,9 +104,7 @@ function AuthTab({ to, active, children }: { to: string; active: boolean; childr
 function Logo({ className, onDark }: { className?: string; onDark?: boolean }) {
   return (
     <div className={cn('flex items-center gap-3', className)}>
-      <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/30">
-        <Boxes className="size-5" />
-      </div>
+      <ProductMark className="size-10 drop-shadow-lg" />
       <div className="leading-tight">
         <div className={cn('text-lg font-semibold', onDark ? 'text-white' : 'text-foreground')}>{PRODUCT_NAME}</div>
         <div className={cn('text-xs', onDark ? 'text-slate-400' : 'text-muted-foreground')}>

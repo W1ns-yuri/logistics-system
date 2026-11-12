@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { signIn, useSession } from '@/data/auth'
+import { signUpRemote } from '@/data/remote'
 import {
   planLabels,
   planPrice,
@@ -23,9 +24,10 @@ import {
 } from '@/data/platform'
 import { prefixFromName, updateSettings } from '@/data/settings'
 import { startEmptyWorkspace } from '@/data/store'
+import { API_MODE, ApiError, apiErrorText } from '@/lib/api'
 import { t } from '@/i18n'
 import { phoneExample } from '@/lib/phone'
-import { cityKeywords, cityLabel, citySuggestions, countryOptions } from '@/lib/countries'
+import { cityKeywords, cityLabel, citySuggestions, countryOptions, useWorldCities } from '@/lib/countries'
 import { isValidEmail, isValidPhone } from '@/lib/input-rules'
 import { cn } from '@/lib/utils'
 import { usd } from '@/pages/analytics/format'
@@ -69,7 +71,8 @@ const empty: Form = {
   phone: '',
   password: '',
   confirm: '',
-  plan: 'later',
+  // Standard — рекомендуем всем: в нём все возможности системы
+  plan: 'standard',
   agree: false,
 }
 
@@ -133,11 +136,13 @@ export function SignupPage() {
   const session = useSession()
   const navigate = useNavigate()
   const countries = useMemo(() => countryOptions(), [])
+  useWorldCities() // города мира подгружаются отдельно; когда придут, список обновится
   const companies = useCompanies()
   const takenEmails = companies.map((c) => c.adminEmail.toLowerCase())
   const [form, setForm] = useState<Form>(loadDraft)
   const [errors, setErrors] = useState<Errors>({})
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
   // Шаг живёт в адресе (?step=2): кнопка «Назад» в браузере возвращает на прошлый шаг, а не уводит со страницы
   const [params, setParams] = useSearchParams()
   const wanted = Math.min(Math.max(Number(params.get('step') ?? 1) - 1, 0), STEPS.length - 1)
@@ -166,6 +171,8 @@ export function SignupPage() {
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => set({ [key]: e.target.value }),
   })
   const prefix = prefixFromName(form.company || 'XX')
+  // Команда больше 10 человек: Standard плюс дополнительные места через поддержку
+  const bigTeam = form.teamSize === '11-30' || form.teamSize === '30+'
   const cities = citySuggestions(form.country).map((city) => ({
     value: city,
     label: cityLabel(city),
@@ -180,6 +187,43 @@ export function SignupPage() {
     const company = form.company.trim()
     const phone = form.phone.trim()
     const website = form.website.trim().replace(/^https?:\/\//i, '')
+    const profile = {
+      city: form.city.trim(),
+      phone,
+      website: website || undefined,
+      teamSize: form.teamSize as TeamSize,
+      modes: form.modes,
+      plannedPlan: form.plan === 'later' ? undefined : form.plan,
+    }
+    if (API_MODE) {
+      // Компанию, админа и пробный период создаёт сервер; реквизиты для PDF — тоже
+      setSubmitError('')
+      signUpRemote({
+        companyName: company,
+        country: form.country,
+        name,
+        email,
+        password: form.password,
+        profile,
+        documentPrefix: prefix,
+      })
+        .then(() => {
+          try {
+            sessionStorage.removeItem(DRAFT_KEY)
+          } catch {
+            // ничего
+          }
+          navigate('/welcome', { replace: true })
+        })
+        .catch((error: unknown) => {
+          setSubmitting(false)
+          if (error instanceof ApiError && error.code === 'email_taken') {
+            setErrors({ email: t('A company with this email is already registered. Sign in instead.') })
+            setStep(1)
+          } else setSubmitError(t(apiErrorText(error)))
+        })
+      return
+    }
     registerCompany({
       name: company,
       country: form.country,
@@ -204,6 +248,7 @@ export function SignupPage() {
       companyWebsite: website,
       companyTaxId: '',
       documentPrefix: prefix,
+      onboardingDone: false,
     })
     signIn(email)
     try {
@@ -211,7 +256,7 @@ export function SignupPage() {
     } catch {
       // ничего
     }
-    navigate('/', { replace: true })
+    navigate('/welcome', { replace: true })
   }
 
   const submit = (event: FormEvent) => {
@@ -386,10 +431,25 @@ export function SignupPage() {
                     n: TRIAL_DAYS,
                   })}
                 </p>
+                <p className="rounded-md bg-primary/5 px-3 py-2 text-sm" data-testid="plan-advice">
+                  {bigTeam
+                    ? t(
+                        'For a team of {n} people we recommend Standard: all features, 10 users included, and we add more users for you. Write to support after sign-up.',
+                        { n: form.teamSize },
+                      )
+                    : t('We recommend Standard: analytics, team results and your logo on documents.')}
+                </p>
                 <div className="grid gap-2 sm:grid-cols-3">
                   {PAID_PLANS.map((plan) => (
                     <PlanCard key={plan} selected={form.plan === plan} onClick={() => set({ plan })}>
-                      <div className="text-sm font-semibold">{t(planLabels[plan])}</div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-semibold">{t(planLabels[plan])}</span>
+                        {plan === 'standard' && (
+                          <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground">
+                            {t('Recommended')}
+                          </span>
+                        )}
+                      </div>
                       <div className="mt-2 flex items-baseline gap-1">
                         <span className="text-xl font-semibold tabular-nums">{usd(planPrice[plan])}</span>
                         <span className="text-xs text-muted-foreground">/ {t('mo')}</span>
@@ -418,11 +478,20 @@ export function SignupPage() {
                     className="mt-0.5 size-4 rounded border-input accent-primary"
                   />
                   <span className={errors.agree ? 'text-destructive' : undefined}>
-                    {t('I agree to the terms of service and privacy policy')}
+                    {t('I agree to the')}{' '}
+                    <a href="/terms" target="_blank" rel="noopener" className="font-medium text-primary hover:underline">
+                      {t('terms of service and privacy policy')}
+                    </a>
                   </span>
                   {errors.agree && <FieldError text={t('Please accept the terms to continue')} />}
                 </label>
               </>
+            )}
+
+            {submitError && (
+              <p className="text-sm text-destructive" role="alert">
+                {submitError}
+              </p>
             )}
 
             <div className="flex items-center gap-2 pt-2">

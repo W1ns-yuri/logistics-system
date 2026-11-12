@@ -1,6 +1,7 @@
 import { upgradeQuotationCargo } from '@/lib/cargo'
 import { useSyncExternalStore } from 'react'
 
+import { api, API_MODE } from '@/lib/api'
 import { invoiceTotals } from '@/lib/calculation'
 import type { Customer, Vendor } from '@/types/directory'
 import type { Invoice, InvoiceStatus, Payment } from '@/types/invoice'
@@ -32,7 +33,7 @@ import { mockVendors } from './vendors'
  * Когда появится настоящий бэкенд, заменим этот файл, а страницы трогать почти не придётся.
  */
 
-type State = {
+export type State = {
   quotations: Quotation[]
   shipments: Shipment[]
   customers: Customer[]
@@ -218,7 +219,20 @@ function withPayments(invoices: (Omit<Invoice, 'payments' | 'discount'> & Partia
   })
 }
 
+// Пустая база: рабочая сборка до загрузки данных с сервера
+export const emptyState = (): State => ({
+  quotations: [],
+  shipments: [],
+  customers: [],
+  vendors: [],
+  invoices: [],
+  team: [],
+  cities: [],
+})
+
 function load(): State {
+  // В рабочей сборке данные приходят с сервера, а в браузере не хранятся (компьютер может быть общим)
+  if (API_MODE) return emptyState()
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
@@ -233,17 +247,32 @@ function load(): State {
 
 // Срок оплаты проходит сам по себе, без изменений в инвойсе. Поэтому при каждом открытии
 // пересчитываем статусы, иначе просроченный инвойс так и висел бы «Частично оплачен»
-function withFreshStatuses(s: State): State {
+export function withFreshStatuses(s: State): State {
   return { ...s, invoices: s.invoices.map((inv) => ({ ...inv, status: invoiceStatus(inv) })) }
 }
 
 let state: State = load()
 const listeners = new Set<() => void>()
 
+// Рабочая сборка: сюда подписывается синхронизация (src/data/remote.ts) и отправляет изменения на сервер
+type ChangeListener = (prev: State, next: State) => void
+let changeListener: ChangeListener | undefined
+export const onLocalChange = (listener: ChangeListener) => {
+  changeListener = listener
+}
+export const getState = () => state
+
 // Возвращает false, если браузер не дал сохранить (например, слишком большой файл)
 function setState(update: (prev: State) => State) {
+  const prev = state
   const next = update(state)
   let saved = true
+  if (API_MODE) {
+    state = next
+    listeners.forEach((listener) => listener())
+    changeListener?.(prev, next)
+    return true
+  }
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
   } catch {
@@ -252,6 +281,12 @@ function setState(update: (prev: State) => State) {
   state = next
   listeners.forEach((listener) => listener())
   return saved
+}
+
+// Изменение, которое пришло с сервера: показываем, но обратно на сервер не отправляем
+export function applyServerState(update: (prev: State) => State) {
+  state = update(state)
+  listeners.forEach((listener) => listener())
 }
 
 function subscribe(listener: () => void) {
@@ -481,7 +516,7 @@ export function setShipmentStatus(id: string, status: ShipmentStatus, note?: str
       const back = item.status !== 'cancelled' && order.indexOf(status) < order.indexOf(item.status)
       const last = item.history.findLastIndex((event) => event.status === status)
       if (back && last >= 0) return { ...item, status, history: item.history.slice(0, last + 1) }
-      return { ...item, status, history: [...item.history, { status, at: now(), note }] }
+      return { ...item, status, history: [...item.history, { status, at: now(), note, by: author() }] }
     }),
   }))
 }
@@ -515,7 +550,7 @@ export function cancelShipment(id: string, reason: string) {
             ...item,
             status: 'cancelled',
             cancelReason: reason,
-            history: [...item.history, { status: 'cancelled', at: now(), note: reason }],
+            history: [...item.history, { status: 'cancelled', at: now(), note: reason, by: author() }],
           }
         : item,
     ),
@@ -812,11 +847,44 @@ export const useTeam = () => useStore((s) => s.team)
 export const useMemberName = (email?: string) =>
   useStore((s) => (email ? (s.team.find((m) => m.email.toLowerCase() === email.toLowerCase())?.name ?? email) : ''))
 
-export function addTeamMember(data: Omit<TeamMember, 'id'>) {
+/*
+ * В рабочей сборке команда меняется через сервер: он создаёт учётную запись и даёт ссылку-приглашение.
+ * Функции возвращают Promise: ошибку (лимит мест, последний админ) страница показывает человеку.
+ */
+type TeamResponse = { team: TeamMember[] }
+
+// Вернёт ссылку-приглашение (рабочая сборка) — админ отправляет её человеку сам
+export async function addTeamMember(data: Omit<TeamMember, 'id'>): Promise<string | undefined> {
+  if (API_MODE) {
+    const res = await api<{ member: TeamMember; inviteUrl?: string }>('/api/team', { body: data })
+    applyServerState((s) => ({ ...s, team: [...s.team, res.member] }))
+    return res.inviteUrl && window.location.origin + res.inviteUrl
+  }
   setState((s) => ({ ...s, team: [...s.team, { ...data, id: newId() }] }))
 }
 
-export function updateTeamMember(id: string, patch: Partial<TeamMember>) {
+// Новая ссылка для входа: человек потерял приглашение или забыл пароль
+export async function newSignInLink(id: string) {
+  const res = await api<{ inviteUrl: string }>(`/api/team/${id}/invite`, { method: 'POST', body: {} })
+  return window.location.origin + res.inviteUrl
+}
+
+export async function updateTeamMember(id: string, patch: Partial<TeamMember>) {
+  if (API_MODE) {
+    const before = state.team.find((m) => m.id === id)
+    const res = await api<TeamResponse>(`/api/team/${id}`, { method: 'PATCH', body: patch })
+    // Сервер уже перенёс авторство записей на новый email — повторяем это у себя
+    const moved = (email?: string) => (before && patch.email && email === before.email ? patch.email : email)
+    applyServerState((s) => ({
+      ...s,
+      team: res.team,
+      quotations: s.quotations.map((q) =>
+        q.createdBy === before?.email ? { ...q, createdBy: moved(q.createdBy) } : q,
+      ),
+      shipments: s.shipments.map((x) => (x.createdBy === before?.email ? { ...x, createdBy: moved(x.createdBy) } : x)),
+    }))
+    return
+  }
   setState((s) => {
     const before = s.team.find((m) => m.id === id)
     const oldEmail = before?.email
@@ -838,7 +906,12 @@ export function updateTeamMember(id: string, patch: Partial<TeamMember>) {
   })
 }
 
-export function removeTeamMember(id: string) {
+export async function removeTeamMember(id: string) {
+  if (API_MODE) {
+    await api(`/api/team/${id}`, { method: 'DELETE' })
+    applyServerState((s) => ({ ...s, team: s.team.filter((m) => m.id !== id) }))
+    return
+  }
   setState((s) => ({ ...s, team: s.team.filter((m) => m.id !== id) }))
 }
 

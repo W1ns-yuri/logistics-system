@@ -1,3 +1,4 @@
+import { API_MODE } from '@/lib/api'
 import type { Role } from '@/types/team'
 
 /*
@@ -10,6 +11,8 @@ const STORAGE_KEY = 'session'
 export type Session = { email: string; name: string; role: Role; signedInAt: string }
 
 function load(): Session | null {
+  // Рабочая сборка: кто вошёл, знает сервер (cookie). При открытии страницы спрашиваем его, а не localStorage
+  if (API_MODE) return null
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     const parsed = raw ? (JSON.parse(raw) as Partial<Session>) : null
@@ -32,6 +35,7 @@ export const getSession = () => session
 
 export function saveSession(next: Session | null) {
   session = next
+  if (API_MODE) return listeners.forEach((listener) => listener())
   try {
     if (next) localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
     else localStorage.removeItem(STORAGE_KEY)

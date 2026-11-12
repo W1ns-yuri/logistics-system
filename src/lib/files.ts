@@ -1,9 +1,13 @@
 import { t } from '@/i18n'
+import { API_MODE } from '@/lib/api'
 
-// Файлы пока храним прямо в браузере. Больше ~1.5 МБ браузер не потянет — такие сохраняем только как запись.
-export const MAX_STORED_FILE = 1.5 * 1024 * 1024
 // Больше 10 МБ не принимаем вообще: для документов перевозки этого с запасом хватает
 export const MAX_FILE = 10 * 1024 * 1024
+// Фото больше 1.5 МБ уменьшаем: для документа хватает, а грузится в разы быстрее
+const SHRINK_ABOVE = 1.5 * 1024 * 1024
+// Демо хранит файлы в браузере: больше ~1.5 МБ он не потянет — такие сохраняем только как запись.
+// Рабочая сборка хранит файлы на сервере, там предел — 10 МБ
+export const MAX_STORED_FILE = API_MODE ? MAX_FILE : SHRINK_ABOVE
 
 /*
  * Какие файлы можно прикладывать. Разрешаем только известные форматы документов и картинок (белый список).
@@ -86,7 +90,7 @@ export function formatSize(bytes: number) {
  * Не картинка или уже маленькая — возвращаем как есть.
  */
 export async function shrinkImage(file: File, maxSide = 1600): Promise<File> {
-  if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size <= MAX_STORED_FILE) return file
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size <= SHRINK_ABOVE) return file
   try {
     const bitmap = await createImageBitmap(file)
     const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height))

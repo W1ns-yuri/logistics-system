@@ -47,6 +47,26 @@ export function LicenseBanner() {
   const status = licenseStatus(company)
   const left = daysLeft(company)
   const showSoon = (status === 'expiring' || status === 'trial') && left <= EXPIRING_DAYS
+  // Пробный период: админу всё время видно, до какого числа и где оплатить
+  if (status === 'trial' && !showSoon) {
+    if (role !== 'admin') return null
+    return (
+      <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b bg-primary/5 px-6 py-2 text-sm">
+        <span>
+          {company.planRequest
+            ? t('Free trial until {date}. Your payment request is sent, we will contact you.', {
+                date: formatDate(company.paidUntil),
+              })
+            : t('Free trial until {date}.', { date: formatDate(company.paidUntil) })}
+        </span>
+        {!company.planRequest && (
+          <Link to="/settings?tab=subscription" className="font-medium text-primary underline-offset-2 hover:underline">
+            {t('Choose a plan and pay')}
+          </Link>
+        )}
+      </div>
+    )
+  }
   if (status !== 'expired' && !showSoon) return null
 
   const expired = status === 'expired'

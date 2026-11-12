@@ -159,7 +159,7 @@ export function PaymentsPage() {
           {t('Invoices are created from a shipment')}
         </Link>
       </p>
-      <p className="px-1 text-xs text-muted-foreground">{t('Totals are converted to USD at demo rates.')}</p>
+      <p className="px-1 text-xs text-muted-foreground">{t('Totals are converted to USD at fixed rates: 1 USD = 3.5 TMT = 0.93 EUR.')}</p>
     </div>
   )
 }

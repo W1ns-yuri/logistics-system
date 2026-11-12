@@ -10,6 +10,7 @@ export type ShipmentEvent = {
   status: ShipmentStatus
   at: string // ISO-дата
   note?: string
+  by?: string // email того, кто сделал шаг: коллегам приходит уведомление, самому себе — нет
 }
 
 // Документы прикладывать не обязательно

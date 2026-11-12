@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { ArrowLeft, Calculator, Copy, FileText, Info, Pencil, Printer, Trash2, Truck } from 'lucide-react'
+import { ArrowLeft, Calculator, Copy, FileText, Info, Pencil, Trash2, Truck } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router'
 
 import { ConfirmDelete } from '@/components/confirm-delete'
 import { TransportModeIcon } from '@/components/transport-mode'
+import { PrintMenu } from '@/components/print-menu'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -16,7 +17,7 @@ import {
   useLinkedShipment,
 } from '@/data/store'
 import { useCanModify, usePermissions } from '@/data/auth'
-import { t } from '@/i18n'
+import { t, type Language } from '@/i18n'
 import { formatDate } from '@/lib/format'
 import { NotFoundPage } from '@/pages/not-found'
 import { QuotationCalculationTab } from './quotation-calculation-tab'
@@ -41,9 +42,9 @@ export function QuotationDetailPage() {
 
   // Печать или «Сохранить как PDF» на отдельной странице, как у инвойса. Котировку в работе после этого
   // считаем отправленной клиенту → «Завершена» (так попросил заказчик).
-  const print = () => {
+  const print = (language: Language) => {
     if (canModify && quotation.status === 'in_progress') updateQuotation(quotation.id, { status: 'completed' })
-    printQuotation(quotation.id)
+    printQuotation(quotation.id, language)
   }
 
   const canCreateShipment = quotation.status !== 'cancelled'
@@ -86,10 +87,7 @@ export function QuotationDetailPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="outline" onClick={print}>
-            <Printer />
-            {t('Print / PDF')}
-          </Button>
+          <PrintMenu onPrint={print} />
           {canEditOrders && !canModify && (
             <span className="rounded-md bg-muted px-2.5 py-1 text-xs text-muted-foreground">
               {t('View only: {name} owns this record', { name: ownerName })}
