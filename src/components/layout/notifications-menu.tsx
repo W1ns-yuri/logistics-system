@@ -1,12 +1,13 @@
-import { AlertTriangle, Bell, FileText, Truck } from 'lucide-react'
+import { AlertTriangle, Bell, FileText, Truck, Wallet } from 'lucide-react'
 import { Link } from 'react-router'
 
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { markAllRead, markRead, useReadIds, visibleNotifications, type NotificationKind } from '@/data/notifications'
-import { useCurrentCompany } from '@/data/platform'
+import { useSession } from '@/data/auth'
+import { markAllRead, markRead, useNotificationList, useReadIds, type NotificationKind } from '@/data/notifications'
 import { useSettings } from '@/data/settings'
-import { formatDateTime } from '@/lib/format'
+import { useInvoices, useQuotations, useShipments } from '@/data/store'
+import { formatDate, formatDateTime, formatMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { t } from '@/i18n'
 
@@ -14,34 +15,51 @@ const kindIcon: Record<NotificationKind, { icon: typeof Bell; className: string 
   status: { icon: Truck, className: 'bg-primary/10 text-primary' },
   quotation: { icon: FileText, className: 'bg-success/12 text-success' },
   border: { icon: AlertTriangle, className: 'bg-warning/15 text-warning-text' },
+  payment: { icon: Wallet, className: 'bg-destructive/10 text-destructive' },
+}
+
+// Подстановки: даты — в формате языка, статусы — переводом
+function texts(params?: Record<string, string | number>) {
+  if (!params) return undefined
+  const out: Record<string, string | number> = { ...params }
+  if (typeof out.date === 'string') out.date = formatDate(out.date)
+  if (typeof out.status === 'string') out.status = t(out.status)
+  if (typeof out.amount === 'number') out.amount = formatMoney(out.amount, String(out.currency ?? ''))
+  return out
 }
 
 export function NotificationsMenu() {
   const settings = useSettings()
+  const session = useSession()
   const readIds = useReadIds()
-  // Примерные уведомления только в демо: у новой компании их ещё быть не может
-  const isDemo = useCurrentCompany()?.id === 'demo'
-  const items = isDemo ? visibleNotifications(settings) : []
+  const items = useNotificationList(
+    { shipments: useShipments(), quotations: useQuotations(), invoices: useInvoices() },
+    session,
+    settings,
+  )
   const unread = items.filter((n) => !readIds.has(n.id)).length
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label="Notifications" className="relative">
+        <Button variant="ghost" size="icon-sm" aria-label={t('Notifications')} className="relative">
           <Bell />
           {unread > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-white">
-              {unread}
+            <span
+              data-testid="notifications-count"
+              className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-white"
+            >
+              {unread > 9 ? '9+' : unread}
             </span>
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-96 p-0">
+      <DropdownMenuContent align="end" className="w-[min(24rem,calc(100vw-2rem))] p-0">
         <div className="flex items-center justify-between border-b px-4 py-3">
           <div className="text-sm font-semibold">{t('Notifications')}</div>
           <button
             type="button"
-            onClick={markAllRead}
+            onClick={() => markAllRead(items.map((n) => n.id))}
             disabled={unread === 0}
             className="text-xs font-medium text-primary hover:underline disabled:pointer-events-none disabled:text-muted-foreground"
           >
@@ -51,7 +69,7 @@ export function NotificationsMenu() {
         <div className="max-h-96 overflow-y-auto p-1">
           {items.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-              {t('No notifications. You can turn them on in Settings.')}
+              {t('Nothing new. Here you will see shipment updates, quotations that expire and overdue invoices.')}
             </div>
           ) : (
             items.map((n) => {
@@ -67,9 +85,11 @@ export function NotificationsMenu() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className={cn('block truncate text-sm', isUnread ? 'font-semibold' : 'font-medium')}>
-                        {t(n.title)}
+                        {t(n.title, texts(n.titleParams))}
                       </span>
-                      <span className="block truncate text-xs text-muted-foreground">{t(n.description)}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {t(n.description, texts(n.descriptionParams))}
+                      </span>
                       <span className="mt-0.5 block text-xs text-muted-foreground">{formatDateTime(n.at)}</span>
                     </span>
                     {isUnread && <span className="mt-2 size-2 shrink-0 rounded-full bg-primary" />}

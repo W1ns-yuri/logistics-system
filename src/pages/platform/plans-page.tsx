@@ -23,7 +23,7 @@ export function PlansPage() {
       return c.plan === plan && status !== 'expired' && status !== 'blocked'
     }).length
 
-  // Что входит. Пока это описание тарифов, в самой системе ограничения ещё не включены
+  // Что входит. Ограничения включены: аналитика, результаты команды и логотип в PDF (planFeatures)
   const cards: { plan: Plan; features: string[]; missing?: string[] }[] = [
     { plan: 'trial', features: ['All features', '{n}-day free period'] },
     {

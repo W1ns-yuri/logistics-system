@@ -14,6 +14,15 @@ export const planLabels: Record<Plan, string> = {
 // Цена в месяц, USD — от клиента (07.11)
 export const planPrice: Record<Plan, number> = { trial: 0, lite: 10, lite_plus: 15, standard: 20 }
 
+// Что входит в тариф (страница Plans в админке). Пробный период — всё, чтобы клиент попробовал систему целиком
+export type PlanFeatures = { analytics: boolean; memberResults: boolean; logo: boolean }
+export const planFeatures: Record<Plan, PlanFeatures> = {
+  trial: { analytics: true, memberResults: true, logo: true },
+  lite: { analytics: false, memberResults: false, logo: false },
+  lite_plus: { analytics: false, memberResults: true, logo: true },
+  standard: { analytics: true, memberResults: true, logo: true },
+}
+
 // Старые id тарифов (до 06.11) → новые, для данных, сохранённых в браузере
 export const LEGACY_PLANS: Record<string, Plan> = { start: 'lite', business: 'lite_plus', enterprise: 'standard' }
 export const upgradePlan = (plan: string): Plan => LEGACY_PLANS[plan] ?? (plan as Plan)

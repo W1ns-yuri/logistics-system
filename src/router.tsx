@@ -22,6 +22,7 @@ import { PlatformLayout } from '@/pages/platform/platform-layout'
 import { QuotationDetailPage } from '@/pages/quotations/quotation-detail-page'
 import { QuotationFormPage } from '@/pages/quotations/quotation-form-page'
 import { QuotationsPage } from '@/pages/quotations/quotations-page'
+import { TermsPage } from '@/pages/legal/terms-page'
 import { SettingsPage } from '@/pages/settings'
 import { SignupPage } from '@/pages/signup/signup-page'
 import { ShipmentDetailPage } from '@/pages/shipments/shipment-detail-page'
@@ -34,6 +35,8 @@ import { VendorsPage } from '@/pages/vendors/vendors-page'
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/signup', element: <SignupPage /> },
+  // Условия и политика конфиденциальности: открываются без входа
+  { path: '/terms', element: <TermsPage /> },
   // Приглашение в команду и сброс пароля (рабочая сборка)
   { path: '/invite/:token', element: <InvitePage /> },
   // Админка владельца платформы: свой вход и свой каркас

@@ -78,7 +78,7 @@ export function AuthLayout({ tab, children }: { tab: 'signin' | 'signup'; childr
         </div>
 
         <div className="absolute inset-x-0 bottom-4 text-center text-xs text-muted-foreground">
-          © {CURRENT_YEAR} {PRODUCT_NAME} · <a href="mailto:support@omniroute.app">{t('Support')}</a>
+          © {CURRENT_YEAR} {PRODUCT_NAME} · <a href="mailto:support@omniroute.app">{t('Support')}</a> · <a href="/terms">{t('Terms')}</a>
         </div>
       </div>
     </div>

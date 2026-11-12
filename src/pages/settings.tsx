@@ -227,7 +227,7 @@ function CompanySection() {
 // Логотип для шапки PDF: сохраняется сразу после выбора файла, без отдельной кнопки «Сохранить»
 function LogoSection() {
   const settings = useSettings()
-  const { canManageTeam } = usePermissions()
+  const { canManageTeam, features } = usePermissions()
   const [error, setError] = useState<string>()
   const [busy, setBusy] = useState(false)
 
@@ -253,6 +253,11 @@ function LogoSection() {
       <p className="mb-4 text-sm text-muted-foreground">
         {t('Shown at the top of quotation and invoice PDFs. Without a logo the company name is printed instead.')}
       </p>
+      {!features.logo && (
+        <p className="mb-4 rounded-md bg-warning/10 px-3 py-2 text-sm text-warning-text">
+          {t('Your plan prints the company name instead of the logo. The logo is included in Lite+ and Standard.')}
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex h-20 w-56 items-center justify-center rounded-lg border bg-white p-2">
           {settings.companyLogo ? (
@@ -363,7 +368,7 @@ function NumbersSection() {
 // Личные предпочтения: язык, тема, уведомления, значения по умолчанию
 function PreferencesSection() {
   const settings = useSettings()
-  const { canManageTeam } = usePermissions()
+  const { canManageTeam, canSeePayments } = usePermissions()
   const [resetOpen, setResetOpen] = useState(false)
 
   return (
@@ -444,22 +449,30 @@ function PreferencesSection() {
         <div className="divide-y">
           <ToggleRow
             title="Shipment status changes"
-            description="Loaded, in transit, delivered and other tracking updates."
+            description="When a colleague moves a shipment to the next step."
             checked={settings.notifyStatusChanges}
             onChange={(value) => updateSettings({ notifyStatusChanges: value })}
           />
           <ToggleRow
-            title="New quotation requests"
-            description="When a customer asks for a new price."
+            title="Quotations"
+            description="New quotations from colleagues and quotations that expire in 2 days."
             checked={settings.notifyNewQuotations}
             onChange={(value) => updateSettings({ notifyNewQuotations: value })}
           />
           <ToggleRow
-            title="Border delays"
-            description="Queues and customs holds at borders."
+            title="Border and delays"
+            description="Cargo at the border or late against its ETA."
             checked={settings.notifyBorderDelays}
             onChange={(value) => updateSettings({ notifyBorderDelays: value })}
           />
+          {canSeePayments && (
+            <ToggleRow
+              title="Invoice payments"
+              description="Invoices that are overdue or due in the next 3 days."
+              checked={settings.notifyPayments}
+              onChange={(value) => updateSettings({ notifyPayments: value })}
+            />
+          )}
         </div>
       </SectionCard>
 

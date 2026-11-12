@@ -516,7 +516,7 @@ export function setShipmentStatus(id: string, status: ShipmentStatus, note?: str
       const back = item.status !== 'cancelled' && order.indexOf(status) < order.indexOf(item.status)
       const last = item.history.findLastIndex((event) => event.status === status)
       if (back && last >= 0) return { ...item, status, history: item.history.slice(0, last + 1) }
-      return { ...item, status, history: [...item.history, { status, at: now(), note }] }
+      return { ...item, status, history: [...item.history, { status, at: now(), note, by: author() }] }
     }),
   }))
 }
@@ -550,7 +550,7 @@ export function cancelShipment(id: string, reason: string) {
             ...item,
             status: 'cancelled',
             cancelReason: reason,
-            history: [...item.history, { status: 'cancelled', at: now(), note: reason }],
+            history: [...item.history, { status: 'cancelled', at: now(), note: reason, by: author() }],
           }
         : item,
     ),

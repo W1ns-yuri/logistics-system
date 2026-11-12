@@ -31,6 +31,19 @@ export type Settings = {
   notifyStatusChanges: boolean
   notifyNewQuotations: boolean
   notifyBorderDelays: boolean
+  notifyPayments: boolean
+}
+
+// Язык при первом входе: русский для браузеров на русском и языках СНГ (туркменский, казахский и т. д.),
+// иначе английский. Потом человек выбирает сам, выбор запоминается
+const RUSSIAN_SPEAKING = ['ru', 'tk', 'kk', 'ky', 'uz', 'tg', 'be', 'uk', 'az', 'hy']
+function browserLanguage(): Language {
+  try {
+    const first = (navigator.languages?.[0] ?? navigator.language ?? '').slice(0, 2).toLowerCase()
+    return RUSSIAN_SPEAKING.includes(first) ? 'ru' : 'en'
+  } catch {
+    return 'en'
+  }
 }
 
 export const defaultSettings: Settings = {
@@ -43,13 +56,14 @@ export const defaultSettings: Settings = {
   companyWebsite: '',
   companyLogo: '',
   documentPrefix: 'AT',
-  language: 'en',
+  language: browserLanguage(),
   defaultCurrency: 'USD',
   quotationValidityDays: 14,
   theme: 'system',
   notifyStatusChanges: true,
   notifyNewQuotations: true,
   notifyBorderDelays: true,
+  notifyPayments: true,
 }
 
 const STORAGE_KEY = 'settings'

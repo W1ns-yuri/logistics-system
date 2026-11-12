@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 
 import { API_MODE } from '@/lib/api'
-import { licenseStatus, touchCurrentCompany, useCurrentCompany } from './platform'
+import { licenseStatus, planFeatures, touchCurrentCompany, useCurrentCompany } from './platform'
 import { signInRemote, signOutRemote } from './remote'
 import { getSession, saveSession, subscribeSession } from './session'
 import { findMemberByEmail } from './store'
@@ -42,9 +42,13 @@ export function usePermissions() {
   const company = useCurrentCompany()
   // Лицензия истекла — только просмотр: данные видны, менять ничего нельзя
   const readOnly = !!company && licenseStatus(company) === 'expired'
+  // Компания ещё не загрузилась — не прячем ничего, сервер всё равно проверит своё
+  const features = planFeatures[company?.plan ?? 'standard'] ?? planFeatures.standard
   return {
     role,
     readOnly,
+    plan: company?.plan,
+    features,
     canSeePayments: role !== 'employee',
     canEditOrders: !readOnly && role !== 'accountant',
     // Внести оплату и приложить чек: админ и бухгалтер

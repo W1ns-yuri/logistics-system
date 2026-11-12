@@ -458,7 +458,10 @@ export function SignupPage() {
                     className="mt-0.5 size-4 rounded border-input accent-primary"
                   />
                   <span className={errors.agree ? 'text-destructive' : undefined}>
-                    {t('I agree to the terms of service and privacy policy')}
+                    {t('I agree to the')}{' '}
+                    <a href="/terms" target="_blank" rel="noopener" className="font-medium text-primary hover:underline">
+                      {t('terms of service and privacy policy')}
+                    </a>
                   </span>
                   {errors.agree && <FieldError text={t('Please accept the terms to continue')} />}
                 </label>
