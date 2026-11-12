@@ -29,6 +29,7 @@ import { ShipmentDetailPage } from '@/pages/shipments/shipment-detail-page'
 import { ShipmentsPage } from '@/pages/shipments/shipments-page'
 import { SupportPage } from '@/pages/support'
 import { VendorDetailPage } from '@/pages/vendors/vendor-detail-page'
+import { WelcomePage } from '@/pages/welcome/welcome-page'
 import { VendorsPage } from '@/pages/vendors/vendors-page'
 
 // Все страницы — дети AppLayout, поэтому меню и шапка остаются на месте при переходах
@@ -80,6 +81,7 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <HomePage /> },
+      { path: 'welcome', element: <WelcomePage /> },
       { path: 'quotations', element: <QuotationsPage /> },
       { path: 'quotations/new', element: <QuotationFormPage /> },
       { path: 'quotations/:id', element: <QuotationDetailPage /> },

@@ -32,6 +32,8 @@ export type Settings = {
   notifyNewQuotations: boolean
   notifyBorderDelays: boolean
   notifyPayments: boolean
+  // false — админ только что зарегистрировался: показываем первую настройку компании
+  onboardingDone: boolean
 }
 
 // Язык при первом входе: русский для браузеров на русском и языках СНГ (туркменский, казахский и т. д.),
@@ -64,6 +66,7 @@ export const defaultSettings: Settings = {
   notifyNewQuotations: true,
   notifyBorderDelays: true,
   notifyPayments: true,
+  onboardingDone: true,
 }
 
 const STORAGE_KEY = 'settings'
@@ -81,6 +84,7 @@ export const COMPANY_SETTING_KEYS = [
   'documentPrefix',
   'defaultCurrency',
   'quotationValidityDays',
+  'onboardingDone',
 ] as const satisfies readonly (keyof Settings)[]
 type CompanyKey = (typeof COMPANY_SETTING_KEYS)[number]
 const isCompanyKey = (key: string): key is CompanyKey => (COMPANY_SETTING_KEYS as readonly string[]).includes(key)

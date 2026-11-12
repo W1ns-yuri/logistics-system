@@ -22,6 +22,8 @@ export const planEnum = pgEnum('plan', ['trial', 'lite', 'lite_plus', 'standard'
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 
+export type PlanRequest = { plan: string; months: number; at: string }
+
 export const companies = pgTable('companies', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
@@ -41,6 +43,10 @@ export const companies = pgTable('companies', {
   licensePayments: jsonb('license_payments').$type<LicensePayment[]>().notNull().default([]),
   // Реквизиты и настройки компании: печатаются в PDF, одни на всю команду
   settings: jsonb('settings').$type<Record<string, unknown>>().notNull().default({}),
+  // Дополнительные места сверх тарифа (команда больше 10 человек): ставит владелец платформы
+  extraSeats: integer('extra_seats').notNull().default(0),
+  // Компания нажала «Хочу оплатить»: какой тариф и на сколько. Владелец видит заявку в админке
+  planRequest: jsonb('plan_request').$type<PlanRequest | null>(),
   createdAt: createdAt(),
 })
 

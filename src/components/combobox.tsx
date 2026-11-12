@@ -14,6 +14,8 @@ export type ComboboxOption = { value: string; label: string; hint?: string; keyw
  * allowCustom — можно ввести своё значение, если его нет в списке (например, город).
  * footer — кнопка внизу списка, например «Новый клиент».
  */
+const LIMIT = 200
+
 export function Combobox({
   id,
   value,
@@ -55,9 +57,11 @@ export function Combobox({
 
   const custom =
     allowCustom && query.trim() && !options.some((o) => o.label.toLowerCase() === query.trim().toLowerCase())
+  // Длинные списки (города мира) не рисуем целиком: первые 200 совпадений, остальное находится поиском
+  const shown = filtered.slice(0, LIMIT)
   const items: ComboboxOption[] = custom
-    ? [...filtered, { value: query.trim(), label: t('Use “{text}”', { text: query.trim() }) }]
-    : filtered
+    ? [...shown, { value: query.trim(), label: t('Use “{text}”', { text: query.trim() }) }]
+    : shown
 
   const pick = (next: string) => {
     onChange(next)
@@ -117,7 +121,9 @@ export function Combobox({
         </div>
         <div role="listbox" className="max-h-64 overflow-y-auto p-1">
           {items.length === 0 && (
-            <div className="px-2 py-6 text-center text-sm text-muted-foreground">{t('Nothing found')}</div>
+            <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+              {allowCustom ? t('Start typing: you can enter your own value') : t('Nothing found')}
+            </div>
           )}
           {items.map((option, index) => (
             <button

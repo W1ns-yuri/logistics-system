@@ -23,13 +23,19 @@ const actionBody = z.discriminatedUnion('type', [
   // amount и plan — если договорились о другой цене или сразу о другом тарифе
   z.object({
     type: z.literal('extend'),
-    months: z.union([z.literal(1), z.literal(12)]),
+    months: z.number().int().min(1).max(36),
     amount: z.number().min(0).max(1_000_000).optional(),
     plan: z.enum(PLANS).exclude(['trial']).optional(),
   }),
   // Оплату внесли по ошибке. Если она последняя, срок лицензии откатывается назад
   z.object({ type: z.literal('remove_payment'), paymentId: z.string().min(1).max(100) }),
   z.object({ type: z.literal('set_until'), date: z.iso.date() }),
+  // Добавить или списать дни (подарок, компенсация, ошибка): +7, -3
+  z.object({ type: z.literal('adjust_days'), days: z.number().int().min(-3650).max(3650).refine((n) => n !== 0) }),
+  // Места сверх тарифа для большой команды
+  z.object({ type: z.literal('seats'), extra: z.number().int().min(0).max(1000) }),
+  // Заявку на оплату обработали без оплаты (передумали, договорились иначе)
+  z.object({ type: z.literal('dismiss_request') }),
   z.object({ type: z.literal('plan'), plan: z.enum(PLANS) }),
   z.object({ type: z.literal('block'), blocked: z.boolean() }),
   z.object({ type: z.literal('note'), note: z.string().max(2000) }),
@@ -134,7 +140,8 @@ export async function platformRoutes(app: FastifyInstance) {
           plan,
           paidUntil,
           licensePayments: [...company.licensePayments, payment],
-          events: event(action.months === 12 ? 'Extended by 1 year until {date}' : 'Extended by 1 month until {date}', { date: paidUntil }),
+          planRequest: null,
+          events: event('Extended by {n} mo. until {date}', { n: action.months, date: paidUntil }),
         }
         break
       }
@@ -156,6 +163,23 @@ export async function platformRoutes(app: FastifyInstance) {
       }
       case 'set_until':
         patch = { paidUntil: action.date, events: event('License end date set to {date}', { date: action.date }) }
+        break
+      case 'adjust_days': {
+        const paidUntil = addDays(company.paidUntil, action.days)
+        patch = {
+          paidUntil,
+          events: event(action.days > 0 ? '{n} days added, license until {date}' : '{n} days removed, license until {date}', {
+            n: Math.abs(action.days),
+            date: paidUntil,
+          }),
+        }
+        break
+      }
+      case 'seats':
+        patch = { extraSeats: action.extra, events: event('Extra users: {n}', { n: action.extra }) }
+        break
+      case 'dismiss_request':
+        patch = { planRequest: null, events: event('Payment request closed') }
         break
       case 'plan':
         patch = { plan: action.plan, events: event('Plan changed to {plan}', { plan: planLabels[action.plan] }) }

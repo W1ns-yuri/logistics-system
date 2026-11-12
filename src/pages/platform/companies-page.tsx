@@ -27,7 +27,14 @@ const columns: ColumnDef<CompanyRow, unknown>[] = [
     enableHiding: false,
     cell: ({ row }) => (
       <div className="min-w-0">
-        <div className="font-medium">{row.original.name}</div>
+        <div className="font-medium">
+          {row.original.name}
+          {row.original.planRequest && (
+            <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+              {t('Wants to pay')}
+            </span>
+          )}
+        </div>
         <div className="text-xs text-muted-foreground">{row.original.adminEmail}</div>
       </div>
     ),

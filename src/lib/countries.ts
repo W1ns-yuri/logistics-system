@@ -1,3 +1,5 @@
+import { useSyncExternalStore } from 'react'
+
 import { currentLanguage } from '@/i18n'
 
 // Коды стран ISO 3166. Названия берём из браузера (Intl.DisplayNames), поэтому список сразу на двух языках.
@@ -190,15 +192,63 @@ export function cityLabel(city: string) {
 // Слова для поиска города: и по-русски, и по-английски
 export const cityKeywords = (city: string) => [city, CITY_RU[city]].filter(Boolean).join(' ')
 
+/*
+ * Города всего мира (GeoNames: все города от 50 тысяч жителей и минимум 20 крупнейших в каждой стране).
+ * Файл большой, поэтому грузим его отдельно и только когда нужен выбор города.
+ * Пока не загрузился — работают подсказки региона выше, а свой город можно вписать всегда.
+ */
+let world: Record<string, string[]> | null = null
+let loading = false
+const worldListeners = new Set<() => void>()
+const plain = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+
+function loadWorld() {
+  if (world || loading) return
+  loading = true
+  import('./world-cities.json')
+    .then((mod) => {
+      const raw = mod.default as Record<string, string>
+      world = Object.fromEntries(Object.entries(raw).map(([code, list]) => [code, list.split('|')]))
+      worldListeners.forEach((listener) => listener())
+    })
+    .catch(() => {
+      loading = false // нет сети — попробуем в следующий раз
+    })
+}
+
+// Подписка на загрузку списка: компонент перерисуется, когда города придут
+export function useWorldCities() {
+  return useSyncExternalStore(
+    (listener) => {
+      worldListeners.add(listener)
+      loadWorld()
+      return () => worldListeners.delete(listener)
+    },
+    () => world,
+  )
+}
+
+// Города страны: сначала наши подсказки (с русскими названиями), потом остальные, без повторов
+function citiesOf(code: string) {
+  const base = CITIES[code] ?? []
+  const seen = new Set(base.map(plain))
+  const more = (world?.[code] ?? []).filter((city) => {
+    const key = plain(city)
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+  return [...base, ...more]
+}
+
 export function citySuggestions(country: string, extra: string[] = []) {
   const code = byName.get(country)
-  const base = code ? (CITIES[code] ?? []) : []
+  const base = code ? citiesOf(code) : []
   return [...new Set([...base, ...extra])].filter(Boolean)
 }
 
 // Все города из подсказок с их страной (английское название, как храним): для выбора города в маршруте
 export function allCities() {
-  return Object.entries(CITIES).flatMap(([code, cities]) =>
-    cities.map((city) => ({ city, country: en.of(code) ?? code })),
-  )
+  const codes = [...new Set([...Object.keys(CITIES), ...Object.keys(world ?? {})])]
+  return codes.flatMap((code) => citiesOf(code).map((city) => ({ city, country: en.of(code) ?? code })))
 }

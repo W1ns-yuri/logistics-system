@@ -55,7 +55,13 @@ export type Company = {
   payments: LicensePayment[]
   // Что компания рассказала о себе при регистрации (у демо-компаний может не быть)
   profile?: CompanyProfile
+  // Места сверх тарифа (команда больше 10 человек) — ставит владелец платформы
+  extraSeats?: number
+  // Компания нажала «Хочу оплатить»: владелец видит заявку и связывается с ней
+  planRequest?: PlanRequest
 }
+
+export type PlanRequest = { plan: Plan; months: number; at: string }
 
 export const TEAM_SIZES = ['1-3', '4-10', '11-30', '30+'] as const
 export type TeamSize = (typeof TEAM_SIZES)[number]
@@ -93,7 +99,10 @@ export function licenseStatus(company: Company, today = todayIso()): LicenseStat
   return left <= EXPIRING_DAYS ? 'expiring' : 'active'
 }
 
-export const seatLimit = (company: Company) => planSeats[company.plan]
+export const seatLimit = (company: Company) => {
+  const base = planSeats[company.plan]
+  return base === null ? null : base + (company.extraSeats ?? 0)
+}
 
 function seed(): State {
   return { currentCompanyId: 'demo', companies: seedCompanies() }
@@ -163,6 +172,9 @@ type Action =
   | { type: 'extend'; months: number; amount?: number; plan?: Plan }
   | { type: 'remove_payment'; paymentId: string }
   | { type: 'set_until'; date: string }
+  | { type: 'adjust_days'; days: number }
+  | { type: 'seats'; extra: number }
+  | { type: 'dismiss_request' }
   | { type: 'plan'; plan: Plan }
   | { type: 'block'; blocked: boolean }
   | { type: 'note'; note: string }
@@ -239,10 +251,47 @@ export async function extendLicense(id: string, months: number, deal: { amount?:
   }
   updateCompany(
     id,
-    { paidUntil, plan, payments: [...company.payments, payment] },
-    months === 12 ? 'Extended by 1 year until {date}' : 'Extended by 1 month until {date}',
-    { date: paidUntil },
+    { paidUntil, plan, payments: [...company.payments, payment], planRequest: undefined },
+    'Extended by {n} mo. until {date}',
+    { n: months, date: paidUntil },
   )
+}
+
+// Добавить (+) или списать (−) дни лицензии: подарок, компенсация, ошибка
+export async function adjustLicenseDays(id: string, days: number) {
+  if (API_MODE) return remoteAction(id, { type: 'adjust_days', days })
+  const company = state.companies.find((c) => c.id === id)
+  if (!company || !days) return
+  const paidUntil = addDays(company.paidUntil, days)
+  updateCompany(id, { paidUntil }, days > 0 ? '{n} days added, license until {date}' : '{n} days removed, license until {date}', {
+    n: Math.abs(days),
+    date: paidUntil,
+  })
+}
+
+export async function setExtraSeats(id: string, extra: number) {
+  if (API_MODE) return remoteAction(id, { type: 'seats', extra })
+  updateCompany(id, { extraSeats: extra }, 'Extra users: {n}', { n: extra })
+}
+
+export async function dismissPlanRequest(id: string) {
+  if (API_MODE) return remoteAction(id, { type: 'dismiss_request' })
+  updateCompany(id, { planRequest: undefined }, 'Payment request closed')
+}
+
+// Сторона компании: «Хочу оплатить» — тариф и срок. Владелец платформы увидит заявку в админке
+export async function requestPlan(plan: Plan, months: number) {
+  if (API_MODE) {
+    const { company } = await api<{ company: Company }>('/api/company/plan-request', { body: { plan, months } })
+    setWorkspaceCompany(company)
+    return
+  }
+  const company = getCurrentCompany()
+  if (!company) return
+  updateCompany(company.id, { planRequest: { plan, months, at: new Date().toISOString() } }, 'Payment requested: {plan}, {n} mo.', {
+    plan: planLabels[plan],
+    n: months,
+  })
 }
 
 // Админ компании забыл пароль: ссылка, по которой он задаст новый (только рабочая сборка)

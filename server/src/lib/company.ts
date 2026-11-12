@@ -35,6 +35,8 @@ export async function companyForClient(db: Db, company: CompanyRow, { withNote =
     events: company.events,
     payments: company.licensePayments,
     profile: company.profile ?? undefined,
+    extraSeats: company.extraSeats,
+    planRequest: company.planRequest ?? undefined,
   }
 }
 

@@ -8,6 +8,7 @@ import { InfoField } from '@/components/info-field'
 import { FormField } from '@/components/form-field'
 import { PageHeader } from '@/components/page-header'
 import { InviteLink } from '@/components/invite-link'
+import { PlanPurchase } from '@/components/plan-purchase'
 import { SectionCard } from '@/components/section-card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -102,16 +103,20 @@ const COMPANY_KEYS: (keyof CompanyDraft)[] = [
   'companyWebsite',
 ]
 
-// Реквизиты компании: по умолчанию только просмотр, менять — через «Изменить» (только админ)
-function CompanySection() {
+const draftFrom = (settings: Settings) =>
+  Object.fromEntries(COMPANY_KEYS.map((key) => [key, String(settings[key] ?? '')])) as CompanyDraft
+
+// Реквизиты компании: по умолчанию только просмотр, менять — через «Изменить» (только админ).
+// В мастере первого входа (onSaved) форма открыта сразу, а после сохранения — следующий шаг
+export function CompanySection({ onSaved }: { onSaved?: () => void } = {}) {
   const settings = useSettings()
   const { canManageTeam } = usePermissions()
   const company = useCurrentCompany()
-  const [draft, setDraft] = useState<CompanyDraft>()
+  const [draft, setDraft] = useState<CompanyDraft | undefined>(() => (onSaved ? draftFrom(settings) : undefined))
   const [errors, setErrors] = useState<Partial<Record<keyof CompanyDraft, string>>>({})
 
   const startEdit = () => {
-    setDraft(Object.fromEntries(COMPANY_KEYS.map((key) => [key, String(settings[key] ?? '')])) as CompanyDraft)
+    setDraft(draftFrom(settings))
     setErrors({})
   }
   const field = (key: keyof CompanyDraft) => ({
@@ -137,6 +142,7 @@ function CompanySection() {
     setErrors(next)
     if (Object.keys(next).length) return
     updateSettings(Object.fromEntries(COMPANY_KEYS.map((key) => [key, draft[key].trim()])) as Partial<Settings>)
+    if (onSaved) return onSaved()
     setDraft(undefined)
   }
 
@@ -213,10 +219,12 @@ function CompanySection() {
             </FormField>
           </div>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setDraft(undefined)}>
-              {t('Cancel')}
-            </Button>
-            <Button type="submit">{t('Save changes')}</Button>
+            {!onSaved && (
+              <Button type="button" variant="outline" onClick={() => setDraft(undefined)}>
+                {t('Cancel')}
+              </Button>
+            )}
+            <Button type="submit">{onSaved ? t('Save and continue') : t('Save changes')}</Button>
           </div>
         </form>
       )}
@@ -225,7 +233,7 @@ function CompanySection() {
 }
 
 // Логотип для шапки PDF: сохраняется сразу после выбора файла, без отдельной кнопки «Сохранить»
-function LogoSection() {
+export function LogoSection() {
   const settings = useSettings()
   const { canManageTeam, features } = usePermissions()
   const [error, setError] = useState<string>()
@@ -558,15 +566,16 @@ function SubscriptionSection() {
           </span>
         </InfoField>
       </div>
-      <p className="mt-4 text-sm text-muted-foreground">
-        {t('To renew or change the plan, contact us: {email}', { email: 'support@omniroute.app' })}
-      </p>
+      <div className="mt-5 border-t pt-5">
+        <h3 className="mb-3 text-sm font-semibold">{t('Pay or change the plan')}</h3>
+        <PlanPurchase />
+      </div>
     </SectionCard>
   )
 }
 
 // Команда компании: админ добавляет людей, меняет их данные и роли
-function TeamSection() {
+export function TeamSection() {
   const team = useTeam()
   const session = useSession()
   const company = useCurrentCompany()

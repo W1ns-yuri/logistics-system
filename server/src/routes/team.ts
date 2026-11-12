@@ -23,7 +23,7 @@ import {
 import type { Db } from '../db/client.ts'
 import { companies, invites, memberships, records, sessions, users } from '../db/schema.ts'
 import { HttpError } from '../lib/http-error.ts'
-import { planSeats, type Plan } from '../lib/plans.ts'
+import { seatLimit } from '../lib/plans.ts'
 import { teamOf } from './data.ts'
 
 const INVITE_DAYS = 7
@@ -90,7 +90,7 @@ export async function teamRoutes(app: FastifyInstance) {
     const body = memberBody.parse(request.body)
     const companyId = viewer.company.id
     const team = await teamOf(db, companyId)
-    if (team.length >= planSeats[viewer.company.plan as Plan]) throw new HttpError(409, 'seat_limit')
+    if (team.length >= seatLimit(viewer.company)) throw new HttpError(409, 'seat_limit')
     if (team.some((m) => m.email === body.email)) throw new HttpError(409, 'already_member')
 
     let [user] = await db.select().from(users).where(eq(users.email, body.email)).limit(1)

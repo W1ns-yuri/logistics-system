@@ -8,6 +8,10 @@ export const planPrice: Record<Plan, number> = { trial: 0, lite: 10, lite_plus: 
 // Год стоит как 10 месяцев
 export const paymentAmount = (plan: Plan, months: number) => planPrice[plan] * (months === 12 ? 10 : months)
 
+// Сколько человек может быть в команде: места тарифа плюс добавленные владельцем
+export const seatLimit = (company: { plan: string; extraSeats?: number | null }) =>
+  planSeats[company.plan as Plan] + (company.extraSeats ?? 0)
+
 export const TRIAL_DAYS = 14
 const DAY = 24 * 60 * 60 * 1000
 export const isoDate = (date: Date) => date.toISOString().slice(0, 10)

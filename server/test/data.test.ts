@@ -264,3 +264,39 @@ test('владелец платформы видит компании и про�
   assert.equal(old.statusCode, 401)
   assert.equal((await inject({ method: 'POST', url: `/api/platform/companies/${winfin.id}/access-link`, cookies: admin })).statusCode, 401)
 })
+
+test('заявка «Хочу оплатить», продление на 3 месяца, ± дни и дополнительные места', async () => {
+  const login = await inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'manager@company.com', password: 'brand-new-pass-1' } })
+  const boss = sessionCookie(login)
+  const req = await inject({ method: 'POST', url: '/api/company/plan-request', cookies: boss, payload: { plan: 'standard', months: 12 } })
+  assert.equal(req.statusCode, 200, req.body)
+  assert.equal(req.json().company.planRequest.plan, 'standard')
+  assert.equal((await inject({ method: 'POST', url: '/api/company/plan-request', cookies: employee.cookie, payload: { plan: 'lite', months: 1 } })).statusCode, 403)
+  assert.equal((await inject({ method: 'POST', url: '/api/company/plan-request', cookies: boss, payload: { plan: 'trial', months: 1 } })).statusCode, 400)
+
+  const ownerLogin = await inject({ method: 'POST', url: '/api/platform/login', payload: { email: 'owner@platform.com', password: 'owner-password-1' } })
+  const owner = { omni_owner: ownerLogin.cookies.find((c) => c.name === 'omni_owner')!.value }
+  const list = (await inject({ method: 'GET', url: '/api/platform/companies', cookies: owner })).json().companies
+  const winfin = list.find((c: { adminEmail: string }) => c.adminEmail === 'manager@company.com')
+  assert.equal(winfin.planRequest.months, 12)
+  const act = (payload: object) => inject({ method: 'POST', url: `/api/platform/companies/${winfin.id}/actions`, cookies: owner, payload })
+
+  const three = await act({ type: 'extend', months: 3, plan: 'standard' })
+  assert.equal(three.statusCode, 200, three.body)
+  assert.equal(three.json().company.payments.at(-1).amount, 60)
+  assert.equal(three.json().company.planRequest, undefined, 'оплата закрывает заявку')
+  const until = three.json().company.paidUntil
+
+  const plus = await act({ type: 'adjust_days', days: 5 })
+  const minus = await act({ type: 'adjust_days', days: -2 })
+  const day = (iso: string, n: number) => new Date(new Date(iso).getTime() + n * 86_400_000).toISOString().slice(0, 10)
+  assert.equal(plus.json().company.paidUntil, day(until, 5))
+  assert.equal(minus.json().company.paidUntil, day(until, 3))
+  assert.equal((await act({ type: 'adjust_days', days: 0 })).statusCode, 400)
+
+  // Standard — 10 мест; ставим 2 дополнительных и проверяем, что лимит стал 12
+  const seats = await act({ type: 'seats', extra: 2 })
+  assert.equal(seats.json().company.extraSeats, 2)
+  assert.equal((await act({ type: 'seats', extra: -1 })).statusCode, 400)
+  assert.equal((await inject({ method: 'POST', url: `/api/platform/companies/${winfin.id}/actions`, cookies: boss, payload: { type: 'seats', extra: 100 } })).statusCode, 401)
+})

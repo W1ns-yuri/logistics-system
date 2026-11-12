@@ -12,6 +12,7 @@ import type { Db } from '../db/client.ts'
 import { companies, memberships, records, users } from '../db/schema.ts'
 import { companyForClient } from '../lib/company.ts'
 import { forbidden, HttpError } from '../lib/http-error.ts'
+import { planLabels } from '../lib/plans.ts'
 
 export const COLLECTIONS = ['quotations', 'shipments', 'customers', 'vendors', 'invoices', 'cities'] as const
 export type Collection = (typeof COLLECTIONS)[number]
@@ -215,6 +216,8 @@ const settingsBody = z
     documentPrefix: z.string().regex(/^[A-Z0-9]{2,4}$/),
     defaultCurrency: z.string().regex(/^[A-Z]{3}$/),
     quotationValidityDays: z.number().int().min(1).max(365),
+    // Админ прошёл (или пропустил) первую настройку компании
+    onboardingDone: z.boolean(),
   })
   .partial()
   .strict()
@@ -293,5 +296,22 @@ export async function dataRoutes(app: FastifyInstance) {
       .set({ settings, ...(patch.companyName ? { name: patch.companyName } : {}) })
       .where(eq(companies.id, viewer.company.id))
     return { settings }
+  })
+
+  // «Хочу оплатить»: админ компании выбирает тариф и срок, владелец платформы видит заявку и связывается.
+  // Работает и при истёкшей лицензии: именно тогда она нужнее всего
+  app.post('/api/company/plan-request', { preHandler: member }, async (request) => {
+    const viewer = viewerOf(request)
+    assertAdmin(viewer)
+    const body = z
+      .object({ plan: z.enum(['lite', 'lite_plus', 'standard']), months: z.union([z.literal(1), z.literal(12)]) })
+      .parse(request.body)
+    const planRequest = { ...body, at: new Date().toISOString() }
+    const events = [
+      { id: crypto.randomUUID(), at: planRequest.at, text: 'Payment requested: {plan}, {n} mo.', params: { plan: planLabels[body.plan], n: body.months } },
+      ...viewer.company.events,
+    ]
+    const [updated] = await db.update(companies).set({ planRequest, events }).where(eq(companies.id, viewer.company.id)).returning()
+    return { company: await companyForClient(db, updated!) }
   })
 }

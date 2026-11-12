@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { Outlet } from 'react-router'
+import { Navigate, Outlet, useLocation } from 'react-router'
 
 import { LicenseBanner } from '@/components/license'
 import { SyncBanner } from '@/components/sync-banner'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { usePermissions } from '@/data/auth'
+import { useSettings } from '@/data/settings'
 import { AppHeader } from './app-header'
 import { AppSidebar } from './app-sidebar'
 
@@ -21,6 +23,9 @@ function loadCollapsed() {
 export function AppLayout() {
   const [collapsed, setCollapsed] = useState(loadCollapsed)
   const [menuOpen, setMenuOpen] = useState(false)
+  const { role } = usePermissions()
+  const { onboardingDone } = useSettings()
+  const { pathname } = useLocation()
   const toggle = () => {
     setCollapsed((prev) => {
       try {
@@ -31,6 +36,9 @@ export function AppLayout() {
       return !prev
     })
   }
+
+  // Админ только что зарегистрировал компанию: сначала первая настройка (её можно пропустить)
+  if (role === 'admin' && onboardingDone === false && pathname !== '/welcome') return <Navigate to="/welcome" replace />
 
   return (
     <TooltipProvider>

@@ -111,6 +111,7 @@ export async function authRoutes(app: FastifyInstance) {
             companyTaxId: '',
             companyLogo: '',
             documentPrefix: body.documentPrefix ?? 'XX',
+            onboardingDone: false,
           },
         })
         .returning({ id: companies.id })

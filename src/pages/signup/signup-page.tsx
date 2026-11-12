@@ -27,7 +27,7 @@ import { startEmptyWorkspace } from '@/data/store'
 import { API_MODE, ApiError, apiErrorText } from '@/lib/api'
 import { t } from '@/i18n'
 import { phoneExample } from '@/lib/phone'
-import { cityKeywords, cityLabel, citySuggestions, countryOptions } from '@/lib/countries'
+import { cityKeywords, cityLabel, citySuggestions, countryOptions, useWorldCities } from '@/lib/countries'
 import { isValidEmail, isValidPhone } from '@/lib/input-rules'
 import { cn } from '@/lib/utils'
 import { usd } from '@/pages/analytics/format'
@@ -71,7 +71,8 @@ const empty: Form = {
   phone: '',
   password: '',
   confirm: '',
-  plan: 'later',
+  // Standard — рекомендуем всем: в нём все возможности системы
+  plan: 'standard',
   agree: false,
 }
 
@@ -135,6 +136,7 @@ export function SignupPage() {
   const session = useSession()
   const navigate = useNavigate()
   const countries = useMemo(() => countryOptions(), [])
+  useWorldCities() // города мира подгружаются отдельно; когда придут, список обновится
   const companies = useCompanies()
   const takenEmails = companies.map((c) => c.adminEmail.toLowerCase())
   const [form, setForm] = useState<Form>(loadDraft)
@@ -169,6 +171,8 @@ export function SignupPage() {
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => set({ [key]: e.target.value }),
   })
   const prefix = prefixFromName(form.company || 'XX')
+  // Команда больше 10 человек: Standard плюс дополнительные места через поддержку
+  const bigTeam = form.teamSize === '11-30' || form.teamSize === '30+'
   const cities = citySuggestions(form.country).map((city) => ({
     value: city,
     label: cityLabel(city),
@@ -209,7 +213,7 @@ export function SignupPage() {
           } catch {
             // ничего
           }
-          navigate('/', { replace: true })
+          navigate('/welcome', { replace: true })
         })
         .catch((error: unknown) => {
           setSubmitting(false)
@@ -244,6 +248,7 @@ export function SignupPage() {
       companyWebsite: website,
       companyTaxId: '',
       documentPrefix: prefix,
+      onboardingDone: false,
     })
     signIn(email)
     try {
@@ -251,7 +256,7 @@ export function SignupPage() {
     } catch {
       // ничего
     }
-    navigate('/', { replace: true })
+    navigate('/welcome', { replace: true })
   }
 
   const submit = (event: FormEvent) => {
@@ -426,10 +431,25 @@ export function SignupPage() {
                     n: TRIAL_DAYS,
                   })}
                 </p>
+                <p className="rounded-md bg-primary/5 px-3 py-2 text-sm" data-testid="plan-advice">
+                  {bigTeam
+                    ? t(
+                        'For a team of {n} people we recommend Standard: all features, 10 users included, and we add more users for you. Write to support after sign-up.',
+                        { n: form.teamSize },
+                      )
+                    : t('We recommend Standard: analytics, team results and your logo on documents.')}
+                </p>
                 <div className="grid gap-2 sm:grid-cols-3">
                   {PAID_PLANS.map((plan) => (
                     <PlanCard key={plan} selected={form.plan === plan} onClick={() => set({ plan })}>
-                      <div className="text-sm font-semibold">{t(planLabels[plan])}</div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-semibold">{t(planLabels[plan])}</span>
+                        {plan === 'standard' && (
+                          <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground">
+                            {t('Recommended')}
+                          </span>
+                        )}
+                      </div>
                       <div className="mt-2 flex items-baseline gap-1">
                         <span className="text-xl font-semibold tabular-nums">{usd(planPrice[plan])}</span>
                         <span className="text-xs text-muted-foreground">/ {t('mo')}</span>
