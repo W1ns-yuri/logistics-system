@@ -211,6 +211,10 @@ export function TermsPage() {
         <div className="mt-6">
           <Sections sections={privacy[lang]} />
         </div>
+        {/* Список городов мира взят из GeoNames, лицензия CC BY 4.0 требует указать источник */}
+        <p className="mt-10 border-t pt-4 text-xs text-muted-foreground">
+          City names: <a href="https://www.geonames.org" className="underline" target="_blank" rel="noopener noreferrer">GeoNames</a>, CC BY 4.0.
+        </p>
       </main>
     </div>
   )
