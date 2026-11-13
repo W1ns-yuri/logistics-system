@@ -625,8 +625,8 @@ export const ru: Record<string, string> = {
   'Help with data import': 'Помощь с переносом данных',
   'How the platform earns: money from licenses, new companies and renewals. Last 12 months, USD.':
     'Как зарабатывает платформа: оплаты лицензий, новые компании и продления. Последние 12 месяцев, USD.',
-  'Inner bar: first payments of new companies': 'Внутренний столбик: первые оплаты новых компаний',
-  'Inner bar: of them started paying': 'Внутренний столбик: из них начали платить',
+  'Green: first payments of new companies': 'Зелёным: первые оплаты новых компаний',
+  'Green: of them started paying': 'Зелёным: из них начали платить',
   'License ends within 14 days or ended recently': 'Лицензия кончается в ближайшие 14 дней или недавно кончилась',
   'License payments': 'Оплаты лицензий',
   MRR: 'MRR (выручка в месяц)',
@@ -1141,4 +1141,5 @@ export const ru: Record<string, string> = {
   'Extra users: {n}': 'Дополнительных мест: {n}',
   'Payment request closed': 'Заявка на оплату закрыта',
   'Payment requested: {plan}, {n} mo.': 'Заявка на оплату: {plan}, {n} мес.',
+  'Smooth lines': 'Плавные линии',
 }
