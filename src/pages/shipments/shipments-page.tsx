@@ -74,64 +74,67 @@ export function ShipmentsPage() {
       <PageHeader
         title="Shipments"
         description="Active and completed shipments with ETD, ETA and status tracking."
+        stacked
         actions={
-          <DocumentToolbar
-            hasSelection={!!selected}
-            canModify={canModify}
-            ownerName={ownerName}
-            editDisabled={selected?.status === 'cancelled'}
-            onNew={() => setFormMode('new')}
-            onOpen={() => selected && open(selected)}
-            onEdit={() => setFormMode('edit')}
-            onCopy={() => {
-              const copy = selected && copyShipment(selected.id)
-              if (copy) setSelectedId(copy.id)
-            }}
-            onDelete={() => setConfirmOpen(true)}
-          />
+          <>
+            <DocumentToolbar
+              hasSelection={!!selected}
+              canModify={canModify}
+              ownerName={ownerName}
+              editDisabled={selected?.status === 'cancelled'}
+              onNew={() => setFormMode('new')}
+              onOpen={() => selected && open(selected)}
+              onEdit={() => setFormMode('edit')}
+              onCopy={() => {
+                const copy = selected && copyShipment(selected.id)
+                if (copy) setSelectedId(copy.id)
+              }}
+              onDelete={() => setConfirmOpen(true)}
+            />
+            {/* Таблица или доска и фильтр «Опаздывают» — в той же строке, что и кнопки */}
+            <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+              <div className="inline-flex rounded-lg border bg-muted/50 p-0.5" role="radiogroup" aria-label={t('View')}>
+                {VIEWS.map((v) => (
+                  <button
+                    key={v.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={view === v.value}
+                    onClick={() => changeView(v.value)}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors',
+                      view === v.value
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    <v.icon className="size-4" />
+                    {t(v.label)}
+                  </button>
+                ))}
+              </div>
+              {(lateCount > 0 || onlyLate) && (
+                <button
+                  type="button"
+                  aria-pressed={onlyLate}
+                  onClick={() => setOnlyLate((v) => !v)}
+                  data-testid="late-filter"
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-sm transition-colors',
+                    onlyLate
+                      ? 'border-destructive bg-destructive/10 text-destructive'
+                      : 'text-muted-foreground hover:border-destructive/50 hover:text-destructive',
+                  )}
+                >
+                  <Clock className="size-4" />
+                  {t('Late')}
+                  <span className="font-medium tabular-nums">{lateCount}</span>
+                </button>
+              )}
+            </div>
+          </>
         }
       />
-
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex rounded-lg border bg-muted/50 p-0.5" role="radiogroup" aria-label={t('View')}>
-          {VIEWS.map((v) => (
-            <button
-              key={v.value}
-              type="button"
-              role="radio"
-              aria-checked={view === v.value}
-              onClick={() => changeView(v.value)}
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors',
-                view === v.value
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <v.icon className="size-4" />
-              {t(v.label)}
-            </button>
-          ))}
-        </div>
-        {(lateCount > 0 || onlyLate) && (
-          <button
-            type="button"
-            aria-pressed={onlyLate}
-            onClick={() => setOnlyLate((v) => !v)}
-            data-testid="late-filter"
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-sm transition-colors',
-              onlyLate
-                ? 'border-destructive bg-destructive/10 text-destructive'
-                : 'text-muted-foreground hover:border-destructive/50 hover:text-destructive',
-            )}
-          >
-            <Clock className="size-4" />
-            {t('Late')}
-            <span className="font-medium tabular-nums">{lateCount}</span>
-          </button>
-        )}
-      </div>
 
       {view === 'board' ? (
         <ShipmentBoard shipments={visible} />

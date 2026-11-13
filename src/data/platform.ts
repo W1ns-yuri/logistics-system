@@ -82,8 +82,8 @@ type State = {
   currentCompanyId: string
 }
 
-// v2: у компаний появились оплаты лицензий
-const STORAGE_KEY = 'platform-v2'
+// v2: у компаний появились оплаты лицензий. v3: демо-компания на Standard, чтобы в демо была видна аналитика
+const STORAGE_KEY = 'platform-v3'
 const newId = () => crypto.randomUUID()
 
 // Сколько дней осталось: 0 — последний день сегодня, отрицательное — уже истекла

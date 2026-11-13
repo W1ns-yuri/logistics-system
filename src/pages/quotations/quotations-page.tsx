@@ -43,6 +43,7 @@ export function QuotationsPage() {
       <PageHeader
         title="Quotations"
         description="Price offers for customers: route, cargo, calculation and margin."
+        stacked
         actions={
           <DocumentToolbar
             hasSelection={!!selected}
