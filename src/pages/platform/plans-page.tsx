@@ -4,8 +4,10 @@ import { PageHeader } from '@/components/page-header'
 import {
   licenseStatus,
   planLabels,
+  planLimits,
   planPrice,
   planSeats,
+  RECOMMENDED_PLAN,
   TRIAL_DAYS,
   useCompanies,
   YEAR_PRICE_MONTHS,
@@ -14,7 +16,7 @@ import {
 import { t } from '@/i18n'
 import { usd } from '@/pages/analytics/format'
 
-// Тарифы: цена, места, сколько компаний на каждом. Цены примерные — обсудим с клиентом
+// Тарифы в продаже: цена, места, что входит и сколько компаний на каждом
 export function PlansPage() {
   const companies = useCompanies()
   const count = (plan: Plan) =>
@@ -23,34 +25,52 @@ export function PlansPage() {
       return c.plan === plan && status !== 'expired' && status !== 'blocked'
     }).length
 
-  // Что входит. Ограничения включены: аналитика, результаты команды и логотип в PDF (planFeatures)
+  // Что входит. Ограничения Basic: лимиты в месяц, без аналитики, логотипа и выгрузки в Excel (planFeatures, planLimits)
+  const basic = planLimits.lite
   const cards: { plan: Plan; features: string[]; missing?: string[] }[] = [
     { plan: 'trial', features: ['All features', '{n}-day free period'] },
     {
       plan: 'lite',
-      features: ['Quotations and shipments', 'Customers and vendors', 'Invoices and payments', 'Email support'],
-      missing: ['Analytics', 'Results by member'],
+      features: [
+        'Quotations and shipments',
+        'Customers and vendors',
+        'Invoices and payments',
+        t('Up to {shipments} shipments and {quotations} quotations a month', {
+          shipments: basic?.shipments ?? 0,
+          quotations: basic?.quotations ?? 0,
+        }),
+      ],
+      missing: ['Analytics', 'Results by member', 'Your logo on documents', 'Export to Excel'],
     },
     {
       plan: 'lite_plus',
-      features: ['Everything in Lite', 'Results by member', 'Invoice PDF with your logo', 'Email support'],
-      missing: ['Analytics'],
-    },
-    {
-      plan: 'standard',
-      features: ['Everything in Lite+', 'Analytics', 'Priority support', 'Help with data import'],
+      features: [
+        'Everything in Basic',
+        'No monthly limits',
+        'Analytics',
+        'Results by member',
+        'Your logo on documents',
+        'Export to Excel',
+      ],
     },
   ]
 
   return (
     <div className="mx-auto max-w-6xl space-y-5 p-4 sm:p-6">
       <PageHeader title="Plans" description="Price per month for the whole team. A yearly payment costs 10 months." />
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {cards.map(({ plan, features, missing = [] }) => {
           const seats = planSeats[plan]
           return (
             <section key={plan} className="flex flex-col rounded-xl border bg-card p-5 shadow-xs">
-              <h2 className="text-sm font-semibold">{t(planLabels[plan])}</h2>
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold">{t(planLabels[plan])}</h2>
+                {plan === RECOMMENDED_PLAN && (
+                  <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground">
+                    {t('Recommended')}
+                  </span>
+                )}
+              </div>
               <div className="mt-3 flex items-baseline gap-1">
                 <span className="text-3xl font-semibold tracking-tight tabular-nums">{usd(planPrice[plan])}</span>
                 <span className="text-sm text-muted-foreground">/ {t('mo')}</span>

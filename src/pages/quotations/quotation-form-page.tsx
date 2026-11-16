@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { quotationStatuses } from '@/components/status-badge'
 import { useCanModify, usePermissions } from '@/data/auth'
+import { usePlanLimit } from '@/data/limits'
 import { useSettings } from '@/data/settings'
 import { createQuotation, updateQuotation, useQuotation, useQuotations, useVendors } from '@/data/store'
 import type { Customer } from '@/types/directory'
@@ -167,6 +168,7 @@ export function QuotationFormPage() {
   const isEdit = !!id
   const canModify = useCanModify(existing)
   const { canEditOrders } = usePermissions()
+  const limit = usePlanLimit('quotations')
 
   // Если в адресе id несуществующей котировки — показываем 404
   if (isEdit && !existing) return <NotFoundPage />
@@ -174,6 +176,8 @@ export function QuotationFormPage() {
   if (isEdit && !canModify) return <Navigate to={`/quotations/${id}`} replace />
   // Бухгалтер или истекшая лицензия: новую котировку создать нельзя, не даём заполнять форму впустую
   if (!isEdit && !canEditOrders) return <Navigate to="/quotations" replace />
+  // Basic: лимит новых котировок за месяц кончился — список покажет, почему
+  if (!isEdit && limit?.reached) return <Navigate to="/quotations" replace />
   // key сбрасывает форму, если перешли с одной котировки на другую
   return <QuotationForm key={id ?? 'new'} existing={existing} />
 }

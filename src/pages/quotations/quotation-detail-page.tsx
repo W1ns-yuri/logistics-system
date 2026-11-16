@@ -17,6 +17,7 @@ import {
   useLinkedShipment,
 } from '@/data/store'
 import { useCanModify, usePermissions } from '@/data/auth'
+import { usePlanLimit } from '@/data/limits'
 import { t, type Language } from '@/i18n'
 import { formatDate } from '@/lib/format'
 import { NotFoundPage } from '@/pages/not-found'
@@ -36,6 +37,8 @@ export function QuotationDetailPage() {
   const [tab, setTab] = useState('general')
   const { canEditOrders } = usePermissions()
   const canModify = useCanModify(quotation)
+  const quotationLimit = usePlanLimit('quotations')
+  const shipmentLimit = usePlanLimit('shipments')
   const ownerName = useMemberName(quotation?.createdBy)
 
   if (!quotation) return <NotFoundPage />
@@ -47,7 +50,7 @@ export function QuotationDetailPage() {
     printQuotation(quotation.id, language)
   }
 
-  const canCreateShipment = quotation.status !== 'cancelled'
+  const canCreateShipment = quotation.status !== 'cancelled' && !shipmentLimit?.reached
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
@@ -103,6 +106,8 @@ export function QuotationDetailPage() {
             <Button
               size="sm"
               variant="outline"
+              disabled={!!quotationLimit?.reached}
+              title={quotationLimit?.reached ? t('The monthly limit of your plan is reached') : undefined}
               onClick={() => {
                 const copy = copyQuotation(quotation.id)
                 if (copy) navigate(`/quotations/${copy.id}`)

@@ -26,6 +26,7 @@ const terms: Record<'en' | 'ru', Section[]> = {
       title: '2. Trial and subscription',
       items: [
         'A new company gets a free 14-day trial with all features.',
+        'The free trial is given once per company. Registering the same company again to get a new trial may lead to the accounts being blocked.',
         'After the trial the subscription is paid in advance for a month or a year, at the price of the chosen plan. A yearly payment costs 10 months.',
         'Payment is made by bank transfer against the Provider’s invoice. The license is extended once the payment is received.',
         'If the subscription is not renewed, your data stays visible but cannot be changed until you pay. Prices may change; a new price applies from the next payment.',
@@ -35,7 +36,7 @@ const terms: Record<'en' | 'ru', Section[]> = {
       title: '3. Your data',
       items: [
         'Everything your team enters or uploads belongs to your company. The Provider uses it only to run the service and never sells it.',
-        'You can export your lists to Excel at any time. After the subscription ends the data is kept, so you can come back. On request we delete it completely.',
+        'On the Lite plan you can export your lists to Excel at any time; on any plan we export your data for you on request. After the subscription ends the data is kept, so you can come back. On request we delete it completely.',
         'The database is backed up every day. Backups are kept for 14 days.',
       ],
     },

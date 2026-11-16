@@ -13,9 +13,12 @@ import { signIn, useSession } from '@/data/auth'
 import { signUpRemote } from '@/data/remote'
 import {
   planLabels,
+  planLimits,
   planPrice,
   planSeats,
+  RECOMMENDED_PLAN,
   registerCompany,
+  SOLD_PLANS,
   TEAM_SIZES,
   useCompanies,
   TRIAL_DAYS,
@@ -71,8 +74,8 @@ const empty: Form = {
   phone: '',
   password: '',
   confirm: '',
-  // Standard — рекомендуем всем: в нём все возможности системы
-  plan: 'standard',
+  // Lite — рекомендуем всем: все возможности без ограничений
+  plan: RECOMMENDED_PLAN,
   agree: false,
 }
 
@@ -82,7 +85,7 @@ const STEPS = [
   { title: 'Plan', description: 'After the trial' },
 ] as const
 
-const PAID_PLANS: Plan[] = ['lite', 'lite_plus', 'standard']
+const PAID_PLANS: Plan[] = SOLD_PLANS
 
 // Проверка одного шага: возвращает ошибки только его полей
 // Черновик анкеты переживает обновление страницы и кнопку «Назад». Пароли не сохраняем
@@ -171,7 +174,7 @@ export function SignupPage() {
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => set({ [key]: e.target.value }),
   })
   const prefix = prefixFromName(form.company || 'XX')
-  // Команда больше 10 человек: Standard плюс дополнительные места через поддержку
+  // Команда больше 10 человек: Lite плюс дополнительные места через поддержку
   const bigTeam = form.teamSize === '11-30' || form.teamSize === '30+'
   const cities = citySuggestions(form.country).map((city) => ({
     value: city,
@@ -434,17 +437,17 @@ export function SignupPage() {
                 <p className="rounded-md bg-primary/5 px-3 py-2 text-sm" data-testid="plan-advice">
                   {bigTeam
                     ? t(
-                        'For a team of {n} people we recommend Standard: all features, 10 users included, and we add more users for you. Write to support after sign-up.',
+                        'For a team of {n} people we recommend Lite: all features without limits, 5 users included, and we add more users for you. Write to support after sign-up.',
                         { n: form.teamSize },
                       )
-                    : t('We recommend Standard: analytics, team results and your logo on documents.')}
+                    : t('We recommend Lite: no monthly limits, analytics, team results and your logo on documents.')}
                 </p>
-                <div className="grid gap-2 sm:grid-cols-3">
+                <div className="grid gap-2 sm:grid-cols-2">
                   {PAID_PLANS.map((plan) => (
                     <PlanCard key={plan} selected={form.plan === plan} onClick={() => set({ plan })}>
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-sm font-semibold">{t(planLabels[plan])}</span>
-                        {plan === 'standard' && (
+                        {plan === RECOMMENDED_PLAN && (
                           <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground">
                             {t('Recommended')}
                           </span>
@@ -458,7 +461,7 @@ export function SignupPage() {
                         {planSeats[plan] === null ? t('Unlimited users') : t('Up to {n} users', { n: planSeats[plan] })}
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">
-                        {plan === 'standard' ? t('With analytics') : t('No analytics')}
+                        {planLimits[plan] ? t('Monthly limits, no analytics') : t('No limits, with analytics')}
                       </div>
                     </PlanCard>
                   ))}

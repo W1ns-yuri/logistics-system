@@ -18,6 +18,7 @@ import {
 import { ArrowDown, ArrowUp, ChevronsUpDown, FileSpreadsheet, Search } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { usePermissions } from '@/data/auth'
 import { buildXlsx, downloadBlob, type Cell } from '@/lib/xlsx'
 
 import { Input } from '@/components/ui/input'
@@ -109,7 +110,9 @@ export function DataTable<TData>({
   const rows = table.getRowModel().rows
 
   // Выгружаем то, что человек сейчас видит: с поиском, фильтрами, сортировкой и видимыми колонками, но все страницы
+  const canExport = usePermissions().features.export
   const exportToExcel = () => {
+    if (!canExport) return
     const columns = table
       .getVisibleLeafColumns()
       .filter((c) => c.columnDef.meta?.label || typeof c.columnDef.header === 'string')
@@ -148,16 +151,13 @@ export function DataTable<TData>({
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {actions}
           {exportName && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8"
-              onClick={exportToExcel}
-              title={t('Download what is shown as an Excel file')}
-            >
-              <FileSpreadsheet />
-              Excel
-            </Button>
+            // Выгрузка в Excel не входит в Basic: кнопка видна, но неактивна (подсказка — где она есть)
+            <span title={canExport ? t('Download what is shown as an Excel file') : t('Export to Excel is part of the Lite plan')}>
+              <Button variant="outline" size="sm" className="h-8" onClick={exportToExcel} disabled={!canExport}>
+                <FileSpreadsheet />
+                Excel
+              </Button>
+            </span>
           )}
           <DataTableViewOptions table={table} />
         </div>

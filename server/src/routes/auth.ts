@@ -44,6 +44,8 @@ const signupBody = z.object({
     .string()
     .regex(/^[A-Z0-9]{2,4}$/)
     .optional(),
+  // Случайный id браузера: тот же браузер регистрирует вторую компанию — владелец увидит пометку
+  device: z.string().regex(/^[0-9a-f-]{36}$/).optional(),
 })
 
 const loginBody = z.object({ email, password: z.string().min(1).max(200) })
@@ -92,6 +94,7 @@ export async function authRoutes(app: FastifyInstance) {
           country: body.country,
           paidUntil,
           profile: body.profile,
+          signup: { ip: request.ip, device: body.device, emailDomain: body.email.split('@')[1] },
           events: [
             {
               id: crypto.randomUUID(),
@@ -109,6 +112,8 @@ export async function authRoutes(app: FastifyInstance) {
             companyPhone: body.profile?.phone ?? '',
             companyWebsite: body.profile?.website ?? '',
             companyTaxId: '',
+            companyShowTaxId: true,
+            companyShowWebsite: true,
             companyLogo: '',
             documentPrefix: body.documentPrefix ?? 'XX',
             onboardingDone: false,

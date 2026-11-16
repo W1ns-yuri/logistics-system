@@ -29,11 +29,13 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { findNavItem } from '@/config/navigation'
 import { signOut, usePermissions, useSession } from '@/data/auth'
+import { usePlanLimit } from '@/data/limits'
 import { initials, updateSettings, useSettings } from '@/data/settings'
 import { useTheme } from '@/hooks/use-theme'
 import { LANGUAGES, t, type Language } from '@/i18n'
 import { roleLabels } from '@/types/team'
 import { GlobalSearch } from './global-search'
+import { FeedbackButton } from './feedback-button'
 import { NotificationsMenu } from './notifications-menu'
 
 export function AppHeader({ onMenu }: { onMenu: () => void }) {
@@ -43,6 +45,9 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
   const settings = useSettings()
   const session = useSession()
   const { canEditOrders } = usePermissions()
+  // Basic: месячный лимит кончился — новые котировки и перевозки отсюда не создаются
+  const quotationLimit = usePlanLimit('quotations')
+  const shipmentLimit = usePlanLimit('shipments')
   const navigate = useNavigate()
   const userName = session?.name ?? ''
 
@@ -76,13 +81,13 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem asChild>
+              <DropdownMenuItem asChild disabled={!!quotationLimit?.reached}>
                 <Link to="/quotations/new">
                   <FileText />
                   {t('Quotation')}
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
+              <DropdownMenuItem asChild disabled={!!shipmentLimit?.reached}>
                 <Link to="/shipments?new=1">
                   <Truck />
                   {t('Shipment')}
@@ -132,6 +137,8 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
         <Button variant="ghost" size="icon-sm" onClick={toggleTheme} aria-label={t('Toggle theme')}>
           {theme === 'dark' ? <Sun /> : <Moon />}
         </Button>
+
+        <FeedbackButton />
 
         <NotificationsMenu />
 

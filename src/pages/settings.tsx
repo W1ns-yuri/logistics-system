@@ -105,6 +105,37 @@ const COMPANY_KEYS: (keyof CompanyDraft)[] = [
 
 const draftFrom = (settings: Settings) =>
   Object.fromEntries(COMPANY_KEYS.map((key) => [key, String(settings[key] ?? '')])) as CompanyDraft
+const showFrom = (settings: Settings) => ({
+  taxId: settings.companyShowTaxId !== false,
+  website: settings.companyShowWebsite !== false,
+})
+
+// Галочка под ИНН и сайтом: печатать ли их в котировках и инвойсах
+function ShowInDocuments({ id, checked, onChange }: { id: string; checked: boolean; onChange: (value: boolean) => void }) {
+  return (
+    <label htmlFor={id} className="flex items-center gap-2 text-sm text-muted-foreground">
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="size-4 rounded border-input accent-primary"
+      />
+      {t('Show in documents')}
+    </label>
+  )
+}
+
+// Необязательное поле в просмотре: пусто — «Не указано», скрыто из документов — с пометкой
+function OptionalValue({ value, shown }: { value: string; shown: boolean }) {
+  if (!value.trim()) return <span className="text-muted-foreground">{t('Not specified')}</span>
+  return (
+    <>
+      {value}
+      {!shown && <span className="ml-1.5 text-xs text-muted-foreground">({t('hidden in documents')})</span>}
+    </>
+  )
+}
 
 // Реквизиты компании: по умолчанию только просмотр, менять — через «Изменить» (только админ).
 // В мастере первого входа (onSaved) форма открыта сразу, а после сохранения — следующий шаг
@@ -114,9 +145,12 @@ export function CompanySection({ onSaved }: { onSaved?: () => void } = {}) {
   const company = useCurrentCompany()
   const [draft, setDraft] = useState<CompanyDraft | undefined>(() => (onSaved ? draftFrom(settings) : undefined))
   const [errors, setErrors] = useState<Partial<Record<keyof CompanyDraft, string>>>({})
+  // Печатать ли ИНН и сайт в документах: можно заполнить, но не показывать клиентам
+  const [show, setShow] = useState(() => showFrom(settings))
 
   const startEdit = () => {
     setDraft(draftFrom(settings))
+    setShow(showFrom(settings))
     setErrors({})
   }
   const field = (key: keyof CompanyDraft) => ({
@@ -141,7 +175,11 @@ export function CompanySection({ onSaved }: { onSaved?: () => void } = {}) {
       next.companyWebsite = t('Enter a valid website, e.g. winfin.tm')
     setErrors(next)
     if (Object.keys(next).length) return
-    updateSettings(Object.fromEntries(COMPANY_KEYS.map((key) => [key, draft[key].trim()])) as Partial<Settings>)
+    updateSettings({
+      ...(Object.fromEntries(COMPANY_KEYS.map((key) => [key, draft[key].trim()])) as Partial<Settings>),
+      companyShowTaxId: show.taxId,
+      companyShowWebsite: show.website,
+    })
     if (onSaved) return onSaved()
     setDraft(undefined)
   }
@@ -152,8 +190,12 @@ export function CompanySection({ onSaved }: { onSaved?: () => void } = {}) {
       <InfoField label="Address">{settings.companyAddress}</InfoField>
       <InfoField label="Email">{settings.companyEmail}</InfoField>
       <InfoField label="Phone">{settings.companyPhone}</InfoField>
-      <InfoField label="Tax ID">{settings.companyTaxId}</InfoField>
-      <InfoField label="Website">{settings.companyWebsite}</InfoField>
+      <InfoField label="Tax ID">
+        <OptionalValue value={settings.companyTaxId} shown={settings.companyShowTaxId !== false} />
+      </InfoField>
+      <InfoField label="Website">
+        <OptionalValue value={settings.companyWebsite} shown={settings.companyShowWebsite !== false} />
+      </InfoField>
     </div>
   )
 
@@ -201,22 +243,38 @@ export function CompanySection({ onSaved }: { onSaved?: () => void } = {}) {
                 placeholder={phoneExample(company?.country)}
               />
             </FormField>
-            <FormField
-              label="Tax ID"
-              htmlFor="companyTaxId"
-              error={errors.companyTaxId}
-              hint="Your company tax number. Invoices to companies usually must show it. Leave empty if you do not need it."
-            >
-              <Input {...field('companyTaxId')} maxLength={30} placeholder={t('e.g. 101234567890')} />
-            </FormField>
-            <FormField
-              label="Website"
-              htmlFor="companyWebsite"
-              error={errors.companyWebsite}
-              hint="Optional. Printed next to the contacts on PDFs."
-            >
-              <Input {...field('companyWebsite')} maxLength={100} placeholder="company.com" />
-            </FormField>
+            <div className="space-y-2">
+              <FormField
+                label="Tax ID"
+                htmlFor="companyTaxId"
+                optional
+                error={errors.companyTaxId}
+                hint="Your company tax number. Invoices to companies usually must show it. Leave empty if you do not need it."
+              >
+                <Input {...field('companyTaxId')} maxLength={30} placeholder={t('e.g. 101234567890')} />
+              </FormField>
+              <ShowInDocuments
+                id="companyShowTaxId"
+                checked={show.taxId}
+                onChange={(taxId) => setShow((prev) => ({ ...prev, taxId }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <FormField
+                label="Website"
+                htmlFor="companyWebsite"
+                optional
+                error={errors.companyWebsite}
+                hint="Printed next to the contacts on PDFs. Leave empty if you have no website."
+              >
+                <Input {...field('companyWebsite')} maxLength={100} placeholder="company.com" />
+              </FormField>
+              <ShowInDocuments
+                id="companyShowWebsite"
+                checked={show.website}
+                onChange={(website) => setShow((prev) => ({ ...prev, website }))}
+              />
+            </div>
           </div>
           <div className="flex justify-end gap-2">
             {!onSaved && (
@@ -263,7 +321,7 @@ export function LogoSection() {
       </p>
       {!features.logo && (
         <p className="mb-4 rounded-md bg-warning/10 px-3 py-2 text-sm text-warning-text">
-          {t('Your plan prints the company name instead of the logo. The logo is included in Lite+ and Standard.')}
+          {t('Your plan prints the company name instead of the logo. The logo is included in Lite.')}
         </p>
       )}
       <div className="flex flex-wrap items-center gap-4">

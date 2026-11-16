@@ -5,9 +5,11 @@ import { useNavigate } from 'react-router'
 import { ConfirmDelete } from '@/components/confirm-delete'
 import { DataTable } from '@/components/data-table/data-table'
 import { DocumentToolbar } from '@/components/document-toolbar'
+import { LimitNotice } from '@/components/limit-notice'
 import { PageHeader } from '@/components/page-header'
 import { shipmentStatuses } from '@/components/status-badge'
 import { useCanModify, usePermissions } from '@/data/auth'
+import { usePlanLimit } from '@/data/limits'
 import { useFormMode } from '@/hooks/use-form-mode'
 import { copyShipment, deleteShipment, useInvoices, useMemberName, useShipments } from '@/data/store'
 import { t } from '@/i18n'
@@ -49,6 +51,7 @@ export function ShipmentsPage() {
   const { mode: formMode, setMode: setFormMode, close: closeForm } = useFormMode()
   const [view, setView] = useState<View>(readView)
   const [onlyLate, setOnlyLate] = useState(false)
+  const shipmentLimit = usePlanLimit('shipments')
   const changeView = (value: View) => {
     setView(value)
     try {
@@ -82,6 +85,7 @@ export function ShipmentsPage() {
               canModify={canModify}
               ownerName={ownerName}
               editDisabled={selected?.status === 'cancelled'}
+              limitKind="shipments"
               onNew={() => setFormMode('new')}
               onOpen={() => selected && open(selected)}
               onEdit={() => setFormMode('edit')}
@@ -136,6 +140,8 @@ export function ShipmentsPage() {
         }
       />
 
+      <LimitNotice kind="shipments" />
+
       {view === 'board' ? (
         <ShipmentBoard shipments={visible} />
       ) : (
@@ -165,7 +171,8 @@ export function ShipmentsPage() {
       )}
 
       <ShipmentFormDialog
-        open={!!formMode}
+        // Basic: при исчерпанном лимите новую перевозку не открываем (например, по ссылке ?new=1)
+        open={!!formMode && !(formMode === 'new' && shipmentLimit?.reached)}
         onOpenChange={(value) => !value && closeForm()}
         shipment={formMode === 'edit' ? selected : undefined}
         onSaved={(s) => setSelectedId(s.id)}

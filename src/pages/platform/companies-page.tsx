@@ -34,6 +34,19 @@ const columns: ColumnDef<CompanyRow, unknown>[] = [
               {t('Wants to pay')}
             </span>
           )}
+          {row.original.promoUntil && (
+            <span className="ml-2 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+              {t('Free access')}
+            </span>
+          )}
+          {!!row.original.suspects?.length && (
+            <span
+              className="ml-2 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning-text"
+              data-testid="repeat-badge"
+            >
+              {t('Possible repeat')}
+            </span>
+          )}
         </div>
         <div className="text-xs text-muted-foreground">{row.original.adminEmail}</div>
       </div>

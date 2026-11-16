@@ -9,7 +9,7 @@ export function CompanyMark({
   withLogo = true,
 }: {
   company: Pick<Settings, 'companyLogo' | 'companyName'>
-  // Логотип в PDF входит в тарифы Lite+ и Standard
+  // Логотип в PDF входит в Free и Lite (на Basic — название компании)
   withLogo?: boolean
 }) {
   if (company.companyLogo && withLogo)

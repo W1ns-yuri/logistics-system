@@ -2,6 +2,7 @@ import { Copy, FolderOpen, Pencil, Plus, Trash2, Truck } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { usePermissions } from '@/data/auth'
+import { usePlanLimit, type LimitKind } from '@/data/limits'
 import { t } from '@/i18n'
 
 type DocumentToolbarProps = {
@@ -18,6 +19,8 @@ type DocumentToolbarProps = {
   ownerName?: string
   // Запись закрыта для правок (отменённая перевозка), удалить и скопировать её можно
   editDisabled?: boolean
+  // Что создаёт New и Copy: на Basic по исчерпании месячного лимита эти кнопки неактивны
+  limitKind?: LimitKind
 }
 
 // Тулбар из презентации: New / Open / Copy / Create shipment / Delete (+ Edit).
@@ -36,8 +39,13 @@ export function DocumentToolbar({
   canModify = true,
   ownerName,
   editDisabled,
+  limitKind,
 }: DocumentToolbarProps) {
   const { canEditOrders } = usePermissions()
+  const ownLimit = usePlanLimit(limitKind ?? 'shipments')
+  const shipmentLimit = usePlanLimit('shipments')
+  const limitReached = !!limitKind && !!ownLimit?.reached
+  const limitTitle = limitReached ? t('The monthly limit of your plan is reached') : undefined
   const locked = hasSelection && !canModify
   const lockedTitle = locked
     ? t('Only {name} or an admin can change this record', { name: ownerName ?? '' })
@@ -46,7 +54,7 @@ export function DocumentToolbar({
   return (
     <>
       {canEditOrders && onNew && (
-        <Button size="sm" onClick={onNew}>
+        <Button size="sm" onClick={onNew} disabled={limitReached} title={limitTitle}>
           <Plus />
           {t('New')}
         </Button>
@@ -71,9 +79,9 @@ export function DocumentToolbar({
         <Button
           size="sm"
           variant="outline"
-          disabled={!hasSelection}
+          disabled={!hasSelection || limitReached}
           onClick={onCopy}
-          title={t('New document with the same customer, route and rates')}
+          title={limitTitle ?? t('New document with the same customer, route and rates')}
         >
           <Copy />
           {t('Copy')}
@@ -83,8 +91,8 @@ export function DocumentToolbar({
         <Button
           size="sm"
           variant="outline"
-          disabled={!hasSelection || createShipmentDisabled || locked}
-          title={lockedTitle}
+          disabled={!hasSelection || createShipmentDisabled || locked || !!shipmentLimit?.reached}
+          title={shipmentLimit?.reached ? t('The monthly limit of your plan is reached') : lockedTitle}
           onClick={onCreateShipment}
         >
           <Truck />

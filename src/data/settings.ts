@@ -20,6 +20,9 @@ export type Settings = {
   // Реквизиты для документов: заполняются после регистрации в Settings
   companyTaxId: string
   companyWebsite: string
+  // Печатать ли ИНН и сайт в документах (заполнены, но компания не хочет их показывать)
+  companyShowTaxId: boolean
+  companyShowWebsite: boolean
   // Логотип для шапки PDF: картинка, уменьшенная и сохранённая прямо в настройках (data URL). '' — нет логотипа
   companyLogo: string
   // Первые буквы номера документов: компания Win Fin → WF000001
@@ -56,6 +59,8 @@ export const defaultSettings: Settings = {
   companyPhone: '+993 00 000000',
   companyTaxId: '',
   companyWebsite: '',
+  companyShowTaxId: true,
+  companyShowWebsite: true,
   companyLogo: '',
   documentPrefix: 'AT',
   language: browserLanguage(),
@@ -80,6 +85,8 @@ export const COMPANY_SETTING_KEYS = [
   'companyPhone',
   'companyTaxId',
   'companyWebsite',
+  'companyShowTaxId',
+  'companyShowWebsite',
   'companyLogo',
   'documentPrefix',
   'defaultCurrency',

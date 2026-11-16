@@ -89,7 +89,7 @@ export function AnalyticsPage() {
       </div>
     )
 
-  // Тариф без аналитики: Lite+ видит результаты команды, Lite — только предложение перейти на Standard
+  // Тариф без аналитики (Basic): только предложение перейти на Lite
   if (!features.analytics)
     return (
       <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
@@ -525,18 +525,18 @@ export function Empty() {
   )
 }
 
-// Аналитика входит в тариф Standard: показываем, что там есть, и к кому обратиться
+// Аналитика входит в тариф Lite: показываем, что там есть, и где перейти
 function PlanUpsell() {
   return (
     <div className="rounded-xl border border-dashed bg-card p-6 text-center sm:p-10" data-testid="plan-upsell">
-      <h2 className="text-lg font-semibold">{t('Analytics is part of the Standard plan')}</h2>
+      <h2 className="text-lg font-semibold">{t('Analytics is part of the Lite plan')}</h2>
       <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
         {t(
-          'Revenue and profit by month, margin by route and customer, conversion of quotations and money you are owed. To switch the plan, write to support.',
+          'Revenue and profit by month, margin by route and customer, conversion of quotations and money you are owed. Lite also has no monthly limits.',
         )}
       </p>
       <Button asChild className="mt-5">
-        <Link to="/support">{t('Contact support')}</Link>
+        <Link to="/settings?tab=subscription">{t('Switch to Lite')}</Link>
       </Button>
     </div>
   )

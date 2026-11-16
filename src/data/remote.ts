@@ -307,8 +307,22 @@ export async function signInRemote(email: string, password: string) {
   await enter(await api<Viewer>('/api/auth/login', { body: { email, password } }))
 }
 
-export async function signUpRemote(body: unknown) {
-  await enter(await api<Viewer>('/api/auth/signup', { body }))
+export async function signUpRemote(body: Record<string, unknown>) {
+  await enter(await api<Viewer>('/api/auth/signup', { body: { ...body, device: deviceId() } }))
+}
+
+// Случайный id этого браузера. Переживает выход из аккаунта: по нему владелец видит повторные пробные периоды
+const DEVICE_KEY = 'omni-device'
+function deviceId() {
+  try {
+    const saved = localStorage.getItem(DEVICE_KEY)
+    if (saved && /^[0-9a-f-]{36}$/.test(saved)) return saved
+    const id = crypto.randomUUID()
+    localStorage.setItem(DEVICE_KEY, id)
+    return id
+  } catch {
+    return undefined
+  }
 }
 
 export async function acceptInvite(token: string, password: string) {

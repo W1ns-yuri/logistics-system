@@ -68,6 +68,7 @@ export function apiErrorText(error: unknown): string {
     forbidden: 'You do not have permission for this action.',
     not_owner: 'Only the author or an admin can change this record.',
     seat_limit: 'All seats of your plan are taken.',
+    monthly_limit: 'The monthly limit of your plan is reached. Lite has no limits.',
     last_admin: 'The company must keep at least one admin.',
     already_member: 'This email is already in the team.',
     email_shared: 'This person also works in another company, so their email cannot be changed here.',
