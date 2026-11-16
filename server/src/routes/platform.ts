@@ -9,11 +9,12 @@ import { z } from 'zod'
 
 import { createLimiter, MINUTE } from '../auth/rate-limit.ts'
 import { hashToken, newToken } from '../auth/session.ts'
-import { companies, memberships, ownerSessions, users, type LicenseEvent } from '../db/schema.ts'
+import { companies, feedback, memberships, ownerSessions, users, type LicenseEvent } from '../db/schema.ts'
+import { findSuspects } from '../lib/suspects.ts'
 import { companyForClient, findCompany } from '../lib/company.ts'
 import { HttpError } from '../lib/http-error.ts'
 import { issueInvite } from './team.ts'
-import { addDays, daysBetween, paymentAmount, periodEnd, planLabels, PLANS, todayIso, type Plan } from '../lib/plans.ts'
+import { addDays, daysBetween, paymentAmount, periodEnd, planLabels, PLANS, PROMO_GRACE_DAYS, todayIso, type Plan } from '../lib/plans.ts'
 
 export const OWNER_COOKIE = 'omni_owner'
 const OWNER_SESSION_HOURS = 12
@@ -36,6 +37,8 @@ const actionBody = z.discriminatedUnion('type', [
   z.object({ type: z.literal('seats'), extra: z.number().int().min(0).max(1000) }),
   // Заявку на оплату обработали без оплаты (передумали, договорились иначе)
   z.object({ type: z.literal('dismiss_request') }),
+  // Бесплатный доступ приглашённой компании до даты; null — отменить
+  z.object({ type: z.literal('promo'), until: z.iso.date().nullable() }),
   z.object({ type: z.literal('plan'), plan: z.enum(PLANS) }),
   z.object({ type: z.literal('block'), blocked: z.boolean() }),
   z.object({ type: z.literal('note'), note: z.string().max(2000) }),
@@ -91,7 +94,32 @@ export async function platformRoutes(app: FastifyInstance) {
 
   app.get('/api/platform/companies', { preHandler: requireOwner }, async () => {
     const rows = await db.select().from(companies).orderBy(desc(companies.createdAt))
-    return { companies: await Promise.all(rows.map((c) => companyForClient(db, c, { withNote: true }))) }
+    const suspects = findSuspects(rows)
+    return {
+      companies: await Promise.all(
+        rows.map(async (c) => ({ ...(await companyForClient(db, c, { withNote: true })), suspects: suspects.get(c.id) })),
+      ),
+    }
+  })
+
+  // Предложения и жалобы сотрудников, новые сверху
+  app.get('/api/platform/feedback', { preHandler: requireOwner }, async () => {
+    const rows = await db
+      .select({
+        id: feedback.id,
+        companyId: feedback.companyId,
+        companyName: companies.name,
+        userName: feedback.userName,
+        userEmail: feedback.userEmail,
+        text: feedback.text,
+        page: feedback.page,
+        createdAt: feedback.createdAt,
+      })
+      .from(feedback)
+      .innerJoin(companies, eq(companies.id, feedback.companyId))
+      .orderBy(desc(feedback.createdAt))
+      .limit(500)
+    return { feedback: rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })) }
   })
 
   // Админ компании забыл пароль: владелец даёт ему ссылку, по которой тот задаст новый.
@@ -180,6 +208,17 @@ export async function platformRoutes(app: FastifyInstance) {
         break
       case 'dismiss_request':
         patch = { planRequest: null, events: event('Payment request closed') }
+        break
+      case 'promo':
+        // Полный тариф (Lite) до даты, потом ещё PROMO_GRACE_DAYS на оплату. Отмена срок лицензии не трогает
+        patch = action.until
+          ? {
+              promoUntil: action.until,
+              plan: 'lite_plus',
+              paidUntil: addDays(action.until, PROMO_GRACE_DAYS),
+              events: event('Free access until {date}', { date: action.until }),
+            }
+          : { promoUntil: null, events: event('Free access cancelled') }
         break
       case 'plan':
         patch = { plan: action.plan, events: event('Plan changed to {plan}', { plan: planLabels[action.plan] }) }

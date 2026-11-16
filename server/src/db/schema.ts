@@ -47,8 +47,15 @@ export const companies = pgTable('companies', {
   extraSeats: integer('extra_seats').notNull().default(0),
   // Компания нажала «Хочу оплатить»: какой тариф и на сколько. Владелец видит заявку в админке
   planRequest: jsonb('plan_request').$type<PlanRequest | null>(),
+  // Приглашённая компания: бесплатный доступ ко всему до этой даты (включительно)
+  promoUntil: date('promo_until'),
+  // С чего регистрировались: по этому владелец видит, что пробный период берут повторно
+  signup: jsonb('signup').$type<SignupMeta | null>(),
   createdAt: createdAt(),
 })
+
+// device — случайный id браузера (localStorage), emailDomain — домен почты админа
+export type SignupMeta = { ip?: string; device?: string; emailDomain?: string }
 
 export type LicenseEvent = { id: string; at: string; text: string; params?: Record<string, string | number> }
 export type LicensePayment = { id: string; date: string; from: string; amount: number; months: number; plan: string }
@@ -128,6 +135,8 @@ export const records = pgTable(
     // Номер документа (AT000001, SHP-AT-000001, INV-AT-000001): уникален внутри компании
     number: text('number'),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    // Когда запись создали (для месячных лимитов тарифа Basic). У записей до 16.11 пусто
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (t) => [
@@ -174,4 +183,22 @@ export const invites = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index('invites_user_idx').on(t.userId)],
+)
+
+// Предложения и жалобы от сотрудников компаний (кнопка «Предложить улучшение»). Видит владелец платформы
+export const feedback = pgTable(
+  'feedback',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    companyId: uuid('company_id')
+      .notNull()
+      .references(() => companies.id, { onDelete: 'cascade' }),
+    userName: text('user_name').notNull(),
+    userEmail: text('user_email').notNull(),
+    text: text('text').notNull(),
+    // Страница, с которой написали: помогает понять, о чём речь
+    page: text('page').notNull().default(''),
+    createdAt: createdAt(),
+  },
+  (t) => [index('feedback_created_idx').on(t.createdAt)],
 )

@@ -175,8 +175,12 @@ test('реквизиты меняет только админ', async () => {
 })
 
 test('команда: лимит мест, последний админ, смена email переносит авторство', async () => {
-  // Пробный тариф — 3 места, все заняты
-  const full = await inject({ method: 'POST', url: '/api/team', cookies: admin, payload: { name: 'Four', email: 'four@company.com', role: 'employee' } })
+  // Пробный тариф (Free) — 5 мест: добавляем ещё двоих, шестой уже не помещается
+  for (const name of ['four', 'five']) {
+    const add = await inject({ method: 'POST', url: '/api/team', cookies: admin, payload: { name, email: `${name}@company.com`, role: 'employee' } })
+    assert.equal(add.statusCode, 201, add.body)
+  }
+  const full = await inject({ method: 'POST', url: '/api/team', cookies: admin, payload: { name: 'Six', email: 'six@company.com', role: 'employee' } })
   assert.equal(full.json().error, 'seat_limit')
   const me = (await inject({ method: 'GET', url: '/api/auth/me', cookies: admin })).json()
   const demote = await inject({ method: 'PATCH', url: `/api/team/${me.user.id}`, cookies: admin, payload: { role: 'employee' } })
@@ -233,7 +237,8 @@ test('владелец платформы видит компании и про�
   assert.equal(ext.statusCode, 200, ext.body)
   assert.equal(ext.json().company.plan, 'lite')
   assert.equal(ext.json().company.payments.length, 1)
-  assert.equal(ext.json().company.payments[0].amount, 100)
+  // Basic: $15 в месяц, год — как 10 месяцев
+  assert.equal(ext.json().company.payments[0].amount, 150)
   // После продления компания снова может работать
   const back = await put(admin, 'customers', 'c-4', { name: 'Back' })
   assert.equal(back.statusCode, 200, back.body)
@@ -268,9 +273,11 @@ test('владелец платформы видит компании и про�
 test('заявка «Хочу оплатить», продление на 3 месяца, ± дни и дополнительные места', async () => {
   const login = await inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'manager@company.com', password: 'brand-new-pass-1' } })
   const boss = sessionCookie(login)
-  const req = await inject({ method: 'POST', url: '/api/company/plan-request', cookies: boss, payload: { plan: 'standard', months: 12 } })
+  const req = await inject({ method: 'POST', url: '/api/company/plan-request', cookies: boss, payload: { plan: 'lite_plus', months: 12 } })
   assert.equal(req.statusCode, 200, req.body)
-  assert.equal(req.json().company.planRequest.plan, 'standard')
+  assert.equal(req.json().company.planRequest.plan, 'lite_plus')
+  // Standard пока не продаём
+  assert.equal((await inject({ method: 'POST', url: '/api/company/plan-request', cookies: boss, payload: { plan: 'standard', months: 1 } })).statusCode, 400)
   assert.equal((await inject({ method: 'POST', url: '/api/company/plan-request', cookies: employee.cookie, payload: { plan: 'lite', months: 1 } })).statusCode, 403)
   assert.equal((await inject({ method: 'POST', url: '/api/company/plan-request', cookies: boss, payload: { plan: 'trial', months: 1 } })).statusCode, 400)
 
@@ -283,7 +290,7 @@ test('заявка «Хочу оплатить», продление на 3 ме
 
   const three = await act({ type: 'extend', months: 3, plan: 'standard' })
   assert.equal(three.statusCode, 200, three.body)
-  assert.equal(three.json().company.payments.at(-1).amount, 60)
+  assert.equal(three.json().company.payments.at(-1).amount, 90)
   assert.equal(three.json().company.planRequest, undefined, 'оплата закрывает заявку')
   const until = three.json().company.paidUntil
 
@@ -299,4 +306,98 @@ test('заявка «Хочу оплатить», продление на 3 ме
   assert.equal(seats.json().company.extraSeats, 2)
   assert.equal((await act({ type: 'seats', extra: -1 })).statusCode, 400)
   assert.equal((await inject({ method: 'POST', url: `/api/platform/companies/${winfin.id}/actions`, cookies: boss, payload: { type: 'seats', extra: 100 } })).statusCode, 401)
+})
+
+test('Basic: месячный лимит новых котировок, начатые меняются как обычно', async () => {
+  const login = await inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'manager@company.com', password: 'brand-new-pass-1' } })
+  const boss = sessionCookie(login)
+  const me = (await inject({ method: 'GET', url: '/api/auth/me', cookies: boss })).json()
+  await ctx.db.update(companies).set({ plan: 'lite', paidUntil: '2099-01-01', blocked: false }).where(eq(companies.id, me.company.id))
+  const sync = (await inject({ method: 'GET', url: '/api/sync', cookies: boss })).json()
+  const used = sync.company.usage.quotations as number
+  // Доводим до лимита (100) прямо в базе, как будто котировки создали в этом месяце
+  const { records } = await import('../src/db/schema.ts')
+  const fill = Array.from({ length: 100 - used }, (_, i) => ({
+    companyId: me.company.id,
+    collection: 'quotations',
+    id: `fill-${i}`,
+    data: { id: `fill-${i}`, reference: `WF9${String(i).padStart(5, '0')}` },
+    number: `WF9${String(i).padStart(5, '0')}`,
+  }))
+  if (fill.length) await ctx.db.insert(records).values(fill)
+  const over = await put(boss, 'quotations', 'q-over', { reference: 'WF777777', customer: 'X' })
+  assert.equal(over.statusCode, 403)
+  assert.equal(over.json().error, 'monthly_limit')
+  // Существующую котировку менять можно
+  const edit = await put(boss, 'quotations', 'fill-0', { reference: 'WF900000', customer: 'Changed' })
+  assert.equal(edit.statusCode, 200, edit.body)
+  // Перевозки считаются отдельно
+  assert.equal((await put(boss, 'shipments', 's-new', { number: 'SHP-WF-000099' })).statusCode, 200)
+  const after = (await inject({ method: 'GET', url: '/api/sync', cookies: boss })).json()
+  assert.equal(after.company.usage.quotations, 100)
+  // На Lite лимита нет
+  await ctx.db.update(companies).set({ plan: 'lite_plus' }).where(eq(companies.id, me.company.id))
+  assert.equal((await put(boss, 'quotations', 'q-over', { reference: 'WF777777', customer: 'X' })).statusCode, 200)
+})
+
+test('бесплатный доступ, предложения и пометка повторной регистрации', async () => {
+  const ownerLogin = await inject({ method: 'POST', url: '/api/platform/login', payload: { email: 'owner@platform.com', password: 'owner-password-1' } })
+  const owner = { omni_owner: ownerLogin.cookies.find((c) => c.name === 'omni_owner')!.value }
+  const list = (await inject({ method: 'GET', url: '/api/platform/companies', cookies: owner })).json().companies
+  const winfin = list.find((c: { adminEmail: string }) => c.adminEmail === 'manager@company.com')
+  const act = (payload: object) => inject({ method: 'POST', url: `/api/platform/companies/${winfin.id}/actions`, cookies: owner, payload })
+
+  const promo = await act({ type: 'promo', until: '2026-12-31' })
+  assert.equal(promo.statusCode, 200, promo.body)
+  assert.equal(promo.json().company.promoUntil, '2026-12-31')
+  assert.equal(promo.json().company.plan, 'lite_plus')
+  assert.equal(promo.json().company.paidUntil, '2027-01-03', 'после бесплатного доступа ещё 3 дня на оплату')
+  const cancel = await act({ type: 'promo', until: null })
+  assert.equal(cancel.json().company.promoUntil, undefined)
+  assert.equal(cancel.json().company.paidUntil, '2027-01-03')
+
+  // Предложение от сотрудника видит владелец
+  const login = await inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'manager@company.com', password: 'brand-new-pass-1' } })
+  const boss = sessionCookie(login)
+  const sent = await inject({ method: 'POST', url: '/api/feedback', cookies: boss, payload: { text: 'Add customs status', page: '/shipments' } })
+  assert.equal(sent.statusCode, 201, sent.body)
+  assert.equal((await inject({ method: 'POST', url: '/api/feedback', cookies: boss, payload: { text: 'x' } })).statusCode, 400)
+  assert.equal((await inject({ method: 'POST', url: '/api/feedback', payload: { text: 'anonymous' } })).statusCode, 401)
+  assert.equal((await inject({ method: 'GET', url: '/api/platform/feedback', cookies: boss })).statusCode, 401)
+  const fb = (await inject({ method: 'GET', url: '/api/platform/feedback', cookies: owner })).json().feedback
+  assert.equal(fb[0].text, 'Add customs status')
+  assert.equal(fb[0].companyName, 'Win Fin Logistics')
+
+  // Та же компания с того же браузера и с почтой на том же домене: обе помечены
+  const device = '11111111-2222-3333-4444-555555555555'
+  await ctx.db.update(companies).set({ signup: { device, emailDomain: 'company.com' } }).where(eq(companies.id, winfin.id))
+  const again = await inject({
+    method: 'POST',
+    url: '/api/auth/signup',
+    payload: { ...signupPayload, companyName: 'Win Fin Logistics 2', email: 'boss2@company.com', device },
+  })
+  assert.equal(again.statusCode, 201, again.body)
+  const marked = (await inject({ method: 'GET', url: '/api/platform/companies', cookies: owner })).json().companies
+  const second = marked.find((c: { adminEmail: string }) => c.adminEmail === 'boss2@company.com')
+  const first = marked.find((c: { adminEmail: string }) => c.adminEmail === 'manager@company.com')
+  assert.deepEqual(second.suspects[0].reasons.sort(), ['device', 'email'])
+  assert.equal(second.suspects[0].id, winfin.id)
+  assert.equal(first.suspects[0].name, 'Win Fin Logistics 2')
+  // Компании сами пометку не видят
+  const own = (await inject({ method: 'GET', url: '/api/sync', cookies: sessionCookie(again) })).json()
+  assert.equal(own.company.suspects, undefined)
+  // Бесплатная почта (gmail) — не повод для пометки
+  const gmail = await inject({ method: 'POST', url: '/api/auth/signup', payload: { ...signupPayload, companyName: 'Other Co', email: 'someone@gmail.com' } })
+  assert.equal(gmail.statusCode, 201, gmail.body)
+  const third = (await inject({ method: 'GET', url: '/api/platform/companies', cookies: owner })).json().companies
+  assert.equal(third.find((c: { adminEmail: string }) => c.adminEmail === 'someone@gmail.com').suspects, undefined)
+})
+
+test('ИНН и сайт можно скрыть из документов', async () => {
+  const login = await inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'manager@company.com', password: 'brand-new-pass-1' } })
+  const boss = sessionCookie(login)
+  const res = await inject({ method: 'PUT', url: '/api/settings', cookies: boss, payload: { companyShowTaxId: false, companyShowWebsite: true } })
+  assert.equal(res.statusCode, 200, res.body)
+  assert.equal(res.json().settings.companyShowTaxId, false)
+  assert.equal((await inject({ method: 'PUT', url: '/api/settings', cookies: boss, payload: { companyShowTaxId: 'no' } })).statusCode, 400)
 })

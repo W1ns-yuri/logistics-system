@@ -16,6 +16,7 @@ export function FormField({
   label,
   htmlFor,
   required,
+  optional,
   error,
   hint,
   className,
@@ -24,6 +25,8 @@ export function FormField({
   label: string
   htmlFor?: string
   required?: boolean
+  // Пометка «необязательно» рядом с подписью
+  optional?: boolean
   error?: string
   hint?: string
   className?: string
@@ -42,6 +45,7 @@ export function FormField({
         <Label htmlFor={htmlFor} className="block leading-snug">
           {t(label)}
           {required && <span className="ml-0.5 text-destructive">*</span>}
+          {optional && <span className="ml-1 text-xs font-normal text-muted-foreground">({t('optional')})</span>}
         </Label>
         {hint && <FieldHint text={hint} />}
       </div>

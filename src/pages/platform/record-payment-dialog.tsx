@@ -17,6 +17,8 @@ import {
   daysLeft,
   extendLicense,
   paymentAmount,
+  promoDiscount,
+  SOLD_PLANS,
   periodEnd,
   planLabels,
   renewalPlan,
@@ -28,7 +30,6 @@ import { t } from '@/i18n'
 import { apiErrorText } from '@/lib/api'
 import { formatDate } from '@/lib/format'
 
-const PAID_PLANS: Plan[] = ['lite', 'lite_plus', 'standard']
 const PERIODS = [1, 2, 3, 6, 12]
 
 /*
@@ -48,9 +49,14 @@ export function RecordPaymentDialog({
   // Компания оставила заявку «Хочу оплатить» — подставляем её тариф и срок
   const startPlan = company.planRequest?.plan ?? renewalPlan(company)
   const startMonths = company.planRequest?.months ?? 1
+  // Приглашённая компания платит впервые: −30% от цены месяца
+  const firstPromo = !!company.promoUntil && !company.payments.length
+  const price = (p: Plan, n: number) => paymentAmount(p, n) - (firstPromo ? promoDiscount(p) : 0)
+  // Тарифы в продаже; старый тариф компании (Standard) тоже оставляем в списке
+  const planOptions: Plan[] = SOLD_PLANS.includes(startPlan) ? SOLD_PLANS : [...SOLD_PLANS, startPlan]
   const [months, setMonths] = useState(startMonths)
   const [plan, setPlan] = useState<Plan>(startPlan)
-  const [amount, setAmount] = useState(String(paymentAmount(startPlan, startMonths)))
+  const [amount, setAmount] = useState(String(price(startPlan, startMonths)))
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   // Двойной клик: второй клик приходит раньше, чем React успевает выключить кнопку
@@ -67,7 +73,7 @@ export function RecordPaymentDialog({
   const pick = (nextMonths: number, nextPlan: Plan) => {
     setMonths(nextMonths)
     setPlan(nextPlan)
-    setAmount(String(paymentAmount(nextPlan, nextMonths)))
+    setAmount(String(price(nextPlan, nextMonths)))
   }
 
   const submit = (event: FormEvent) => {
@@ -136,7 +142,7 @@ export function RecordPaymentDialog({
               <div className="space-y-1.5">
                 <Label htmlFor="pay-plan">{t('Plan')}</Label>
                 <NativeSelect id="pay-plan" value={plan} onChange={(e) => pick(months, e.target.value as Plan)}>
-                  {PAID_PLANS.map((p) => (
+                  {planOptions.map((p) => (
                     <option key={p} value={p}>
                       {t(planLabels[p])}
                     </option>
@@ -153,9 +159,12 @@ export function RecordPaymentDialog({
                   aria-invalid={!valid}
                 />
                 <p className="text-xs text-muted-foreground">
-                  {t('By the price list: {price}. Change it if you agreed on a different price.', {
-                    price: `$${paymentAmount(plan, months)}`,
-                  })}
+                  {t(
+                    firstPromo
+                      ? 'By the price list with 30% off the first month: {price}. Change it if you agreed on a different price.'
+                      : 'By the price list: {price}. Change it if you agreed on a different price.',
+                    { price: `$${price(plan, months)}` },
+                  )}
                 </p>
               </div>
             </div>

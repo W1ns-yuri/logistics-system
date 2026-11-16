@@ -143,9 +143,9 @@ export function seedCompanies(): Company[] {
   companies[5] = make('c5', COMPANIES[5]!, addDays(today, -17), { neverPaid: true, blocked: true, users: 1 })
   companies[4] = make('c4', COMPANIES[4]!, addDays(today, -200), { plan: 'standard', months: 12, users: 9 })
 
-  // Рабочее пространство этого браузера: демо-компания на Business, платит помесячно
+  // Рабочее пространство этого браузера: демо-компания на Standard (видно всё, включая аналитику), платит помесячно
   const demo = make('demo', ['Logistics', 'Turkmenistan', 'Manager', 'company.com'], addDays(today, -320), {
-    plan: 'lite_plus',
+    plan: 'standard',
     months: 1,
     users: 3,
   })

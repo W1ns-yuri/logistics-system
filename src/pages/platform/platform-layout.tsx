@@ -1,19 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import {
-  BarChart3,
-  Building2,
-  ChevronDown,
-  ChevronRight,
-  CreditCard,
-  ExternalLink,
-  Languages,
-  Layers,
-  LogOut,
-  Menu,
-  Moon,
-  ShieldCheck,
-  Sun,
-} from 'lucide-react'
+import { BarChart3, Building2, ChevronDown, ChevronRight, CreditCard, ExternalLink, Languages, Layers, Lightbulb, LogOut, Menu, Moon, ShieldCheck, Sun } from 'lucide-react'
 import { Link, Outlet, useLocation } from 'react-router'
 
 import { AppSidebar } from '@/components/layout/app-sidebar'
@@ -48,6 +34,7 @@ const groups: NavGroup[] = [
       { title: 'Companies', path: '/platform/companies', icon: Building2 },
       { title: 'License payments', path: '/platform/payments', icon: CreditCard },
       { title: 'Plans', path: '/platform/plans', icon: Layers },
+      { title: 'Feedback', path: '/platform/feedback', icon: Lightbulb },
     ],
   },
 ]

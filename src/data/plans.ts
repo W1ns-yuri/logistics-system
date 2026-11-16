@@ -3,25 +3,52 @@
 export const PLANS = ['trial', 'lite', 'lite_plus', 'standard'] as const
 export type Plan = (typeof PLANS)[number]
 
-// Мест (сотрудников) по тарифу; null — без лимита. Lite+ обещаем «5–7», лимит ставим по верхней границе
-export const planSeats: Record<Plan, number | null> = { trial: 3, lite: 3, lite_plus: 7, standard: 10 }
+/*
+ * Тарифы с 16.11 (от заказчика). Внутренние id не меняли, чтобы не переделывать базу:
+ * trial — Free (14 дней, всё доступно), lite — Basic ($15, с ограничениями), lite_plus — Lite ($20, без ограничений).
+ * Standard пока не продаём: добавим позже с обновлениями, id оставлен на будущее.
+ */
+export const SOLD_PLANS: Plan[] = ['lite', 'lite_plus']
+// Основной тариф: на него ведём людей (метка «Рекомендуем»)
+export const RECOMMENDED_PLAN: Plan = 'lite_plus'
+
+// Мест (сотрудников) по тарифу; null — без лимита. Больше — места сверх тарифа ставит владелец платформы
+export const planSeats: Record<Plan, number | null> = { trial: 5, lite: 3, lite_plus: 5, standard: 10 }
 export const planLabels: Record<Plan, string> = {
-  trial: 'Trial',
-  lite: 'Lite',
-  lite_plus: 'Lite+',
+  trial: 'Free',
+  lite: 'Basic',
+  lite_plus: 'Lite',
   standard: 'Standard',
 }
-// Цена в месяц, USD — от клиента (07.11)
-export const planPrice: Record<Plan, number> = { trial: 0, lite: 10, lite_plus: 15, standard: 20 }
+// Цена в месяц, USD — от заказчика (16.11)
+export const planPrice: Record<Plan, number> = { trial: 0, lite: 15, lite_plus: 20, standard: 30 }
 
-// Что входит в тариф (страница Plans в админке). Пробный период — всё, чтобы клиент попробовал систему целиком
-export type PlanFeatures = { analytics: boolean; memberResults: boolean; logo: boolean }
+// Что входит в тариф. Пробный период — всё, чтобы клиент попробовал систему целиком
+export type PlanFeatures = { analytics: boolean; memberResults: boolean; logo: boolean; export: boolean }
 export const planFeatures: Record<Plan, PlanFeatures> = {
-  trial: { analytics: true, memberResults: true, logo: true },
-  lite: { analytics: false, memberResults: false, logo: false },
-  lite_plus: { analytics: false, memberResults: true, logo: true },
-  standard: { analytics: true, memberResults: true, logo: true },
+  trial: { analytics: true, memberResults: true, logo: true, export: true },
+  lite: { analytics: false, memberResults: false, logo: false, export: false },
+  lite_plus: { analytics: true, memberResults: true, logo: true, export: true },
+  standard: { analytics: true, memberResults: true, logo: true, export: true },
 }
+
+// Сколько новых перевозок и котировок можно создать за календарный месяц; null — без лимита.
+// Кончился лимит — нельзя только создавать новые, начатые заказы работают как обычно
+export type MonthlyLimits = { shipments: number; quotations: number }
+export const planLimits: Record<Plan, MonthlyLimits | null> = {
+  trial: null,
+  lite: { shipments: 30, quotations: 100 },
+  lite_plus: null,
+  standard: null,
+}
+// С какой доли лимита предупреждаем
+export const LIMIT_WARNING = 0.8
+
+// Бесплатный доступ для приглашённых компаний (до Нового года): после него ещё столько дней на оплату
+export const PROMO_GRACE_DAYS = 3
+// Скидка приглашённым компаниям на первый оплаченный месяц
+export const PROMO_DISCOUNT = 0.3
+export const DEFAULT_PROMO_UNTIL = '2026-12-31'
 
 // Старые id тарифов (до 06.11) → новые, для данных, сохранённых в браузере
 export const LEGACY_PLANS: Record<string, Plan> = { start: 'lite', business: 'lite_plus', enterprise: 'standard' }
@@ -33,6 +60,9 @@ export const YEAR_PRICE_MONTHS = 10
 export function paymentAmount(plan: Plan, months: number) {
   return planPrice[plan] * (months === 12 ? YEAR_PRICE_MONTHS : months)
 }
+
+// Первая оплата приглашённой компании: минус 30% от цены одного месяца
+export const promoDiscount = (plan: Plan) => Math.round(planPrice[plan] * PROMO_DISCOUNT)
 
 export const TRIAL_DAYS = 14
 

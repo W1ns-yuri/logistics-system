@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, Ban, CalendarPlus, CalendarRange, KeyRound, LockOpen, Pencil, Trash2, Wallet } from 'lucide-react'
+import { ArrowLeft, Ban, CalendarPlus, CalendarRange, Gift, KeyRound, LockOpen, Pencil, ShieldAlert, Trash2, Wallet } from 'lucide-react'
 import { Link, useParams } from 'react-router'
 
 import { DateInput } from '@/components/date-input'
@@ -26,6 +26,7 @@ import {
   addDays,
   adjustLicenseDays,
   changePlan,
+  DEFAULT_PROMO_UNTIL,
   dismissPlanRequest,
   issueAdminLink,
   setExtraSeats,
@@ -36,7 +37,10 @@ import {
   setBlocked,
   setCompanyNote,
   setLicenseUntil,
+  setPromo,
+  PROMO_GRACE_DAYS,
   type LicensePayment,
+  type SuspectReason,
   type Plan,
 } from '@/data/platform'
 import { t } from '@/i18n'
@@ -48,6 +52,13 @@ import { NotFoundPage } from '@/pages/not-found'
 import { usd } from '@/pages/analytics/format'
 import { useCompanyRows } from './company-rows'
 import { RecordPaymentDialog } from './record-payment-dialog'
+
+const suspectReasonLabels: Record<SuspectReason, string> = {
+  device: 'same browser',
+  ip: 'same IP at sign-up',
+  email: 'same email domain',
+  taxId: 'same tax ID',
+}
 
 // Карточка компании: лицензия, продление, блокировка, заметка и история изменений
 export function CompanyPage() {
@@ -67,6 +78,8 @@ export function CompanyPage() {
   const [days, setDays] = useState('')
   const [seatsOpen, setSeatsOpen] = useState(false)
   const [extra, setExtra] = useState('')
+  const [promoOpen, setPromoOpen] = useState(false)
+  const [promoUntil, setPromoUntil] = useState(DEFAULT_PROMO_UNTIL)
 
   if (!company) return <NotFoundPage />
   // Действие ушло на сервер: если не вышло (нет связи, сессия кончилась) — показываем почему
@@ -154,6 +167,31 @@ export function CompanyPage() {
         </div>
       )}
 
+      {!!company.suspects?.length && (
+        <div
+          className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-text"
+          data-testid="repeat-trial"
+        >
+          <ShieldAlert className="mt-0.5 size-4 shrink-0" />
+          <div className="min-w-0 space-y-1">
+            <div className="font-medium">{t('Possibly the same company as:')}</div>
+            <ul className="space-y-0.5">
+              {company.suspects.map((s) => (
+                <li key={s.id}>
+                  <Link to={`/platform/companies/${s.id}`} className="font-medium underline underline-offset-2">
+                    {s.name}
+                  </Link>{' '}
+                  <span className="opacity-80">({s.reasons.map((r) => t(suspectReasonLabels[r])).join(', ')})</span>
+                </li>
+              ))}
+            </ul>
+            <div className="text-xs opacity-80">
+              {t('Maybe they take the free trial again. Check and decide: extend, block or contact them.')}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-5 lg:grid-cols-[1fr_1.4fr]">
         <SectionCard title="Company">
           <div className="grid gap-4">
@@ -232,6 +270,11 @@ export function CompanyPage() {
             <InfoField label="Paid until">
               <span className="text-lg font-semibold tabular-nums">{formatDate(company.paidUntil)}</span>{' '}
               <DaysLeft days={company.left} className="text-sm" />
+              {company.promoUntil && (
+                <div className="text-sm text-success" data-testid="promo-until">
+                  {t('Free access until {date}', { date: formatDate(company.promoUntil) })}
+                </div>
+              )}
             </InfoField>
             <div className="space-y-1.5">
               <label htmlFor="company-plan" className="text-xs text-muted-foreground">
@@ -280,6 +323,17 @@ export function CompanyPage() {
               <CalendarRange />
               {t('Add or remove days')}
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setPromoUntil(company.promoUntil ?? DEFAULT_PROMO_UNTIL)
+                setPromoOpen(true)
+              }}
+            >
+              <Gift />
+              {t('Free access')}
+            </Button>
             <div className="ml-auto flex items-center gap-2">
               <DateInput
                 aria-label={t('Paid until')}
@@ -306,7 +360,7 @@ export function CompanyPage() {
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
             {t(
-              'An expired license keeps the data visible but read-only. A trial becomes the plan picked at sign-up (or Lite) when paid. Each payment extends the license from its current end date.',
+              'An expired license keeps the data visible but read-only. A trial becomes the plan picked at sign-up (or Basic) when paid. Each payment extends the license from its current end date.',
             )}
           </p>
         </SectionCard>
@@ -428,6 +482,56 @@ export function CompanyPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={promoOpen} onOpenChange={setPromoOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('Free access')}</DialogTitle>
+            <DialogDescription>
+              {t(
+                'For invited companies: all features (Lite plan) free until the date, then {n} more days to pay. Their first payment gets 30% off.',
+                { n: PROMO_GRACE_DAYS },
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="grid gap-4"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (!promoUntil) return
+              setPromoOpen(false)
+              run(setPromo(company.id, promoUntil))
+            }}
+          >
+            <DateInput aria-label={t('Free until')} value={promoUntil} clearable={false} onChange={setPromoUntil} />
+            <p className="rounded-md bg-muted px-3 py-2 text-sm">
+              {t('Paid until')}: {formatDate(company.paidUntil)} →{' '}
+              <span className="font-semibold">{promoUntil ? formatDate(addDays(promoUntil, PROMO_GRACE_DAYS)) : '—'}</span>
+            </p>
+            <div className="flex flex-wrap justify-end gap-2">
+              {company.promoUntil && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="mr-auto text-destructive hover:text-destructive"
+                  onClick={() => {
+                    setPromoOpen(false)
+                    run(setPromo(company.id, null))
+                  }}
+                >
+                  {t('Cancel free access')}
+                </Button>
+              )}
+              <Button type="button" variant="outline" onClick={() => setPromoOpen(false)}>
+                {t('Cancel')}
+              </Button>
+              <Button type="submit" disabled={!promoUntil}>
+                {t('Confirm')}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <DaysDialog
         open={daysOpen}

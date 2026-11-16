@@ -1,6 +1,7 @@
 import { CompanyMark } from '@/components/company-mark'
 import { usePermissions } from '@/data/auth'
 import { useSettings } from '@/data/settings'
+import { PRODUCT_NAME } from '@/lib/brand'
 import { t } from '@/i18n'
 import { invoiceTotals } from '@/lib/calculation'
 import { formatDate, formatMoney } from '@/lib/format'
@@ -15,6 +16,7 @@ import type { Invoice } from '@/types/invoice'
  */
 export function InvoicePreview({ invoice, className }: { invoice: Invoice; className?: string }) {
   const company = useSettings()
+  const { features } = usePermissions()
   const { total, balanceDue } = invoiceTotals(invoice)
   const number = (value: number) =>
     new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)
@@ -31,14 +33,17 @@ export function InvoicePreview({ invoice, className }: { invoice: Invoice; class
     >
       {/* Шапка: логотип (или название) компании слева, реквизиты справа */}
       <div className="flex flex-wrap items-start justify-between gap-6">
-        <CompanyMark company={company} withLogo={usePermissions().features.logo} />
+        <CompanyMark company={company} withLogo={features.logo} />
         <div className="text-right leading-relaxed">
           <div className="font-semibold">{company.companyName}</div>
           <div className="text-neutral-600">{company.companyAddress}</div>
           <div className="text-neutral-600">{company.companyPhone}</div>
           <div className="text-neutral-600">{company.companyEmail}</div>
-          {company.companyWebsite && <div className="text-neutral-600">{company.companyWebsite}</div>}
-          {company.companyTaxId && (
+          {/* Сайт и ИНН необязательны: пустые или скрытые галочкой в настройках не печатаем */}
+          {company.companyWebsite && company.companyShowWebsite !== false && (
+            <div className="text-neutral-600">{company.companyWebsite}</div>
+          )}
+          {company.companyTaxId && company.companyShowTaxId !== false && (
             <div className="text-neutral-600">{t('Tax ID: {id}', { id: company.companyTaxId })}</div>
           )}
         </div>
@@ -107,6 +112,12 @@ export function InvoicePreview({ invoice, className }: { invoice: Invoice; class
       </div>
 
       <div className="mt-16 w-56 border-t border-neutral-400 pt-2 text-neutral-700">{t('Authorized signature')}</div>
+      {/* Basic: внизу документа маленькая подпись сервиса вместо своего логотипа */}
+      {!features.logo && (
+        <div className="mt-8 text-center text-[10px] text-neutral-400" data-testid="made-with">
+          {t('Made with {name}', { name: PRODUCT_NAME })}
+        </div>
+      )}
     </div>
   )
 }

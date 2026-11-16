@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 
 import { DaysLeft, LicenseStatusBadge } from '@/components/license'
@@ -8,7 +8,7 @@ import { t } from '@/i18n'
 import { countryLabel } from '@/lib/countries'
 import { formatDate } from '@/lib/format'
 import { Empty, KpiCard, Panel } from '@/pages/analytics/analytics-page'
-import { BarList, Donut, LegendRow, RevenueChart } from '@/pages/analytics/charts'
+import { BarList, ChartViewSwitch, Donut, LegendRow, readChartView, TrendChart } from '@/pages/analytics/charts'
 import { monthLabel, usd, usdShort } from '@/pages/analytics/format'
 import { buildPlatformAnalytics } from './platform-analytics'
 
@@ -23,6 +23,7 @@ const planColors: Record<Plan, string> = {
 export function PlatformDashboardPage() {
   const companies = useCompanies()
   const data = useMemo(() => buildPlatformAnalytics(companies), [companies])
+  const [chartView, setChartView] = useState(readChartView)
   const last = data.trend.length - 1
   const revenueTrend = data.trend.map((p, i) => ({
     label: monthLabel(p.month),
@@ -87,16 +88,18 @@ export function PlatformDashboardPage() {
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-3">
         <Panel
           title="Revenue by month"
-          description="Inner bar: first payments of new companies"
+          description="Green: first payments of new companies"
           className="xl:col-span-2"
           action={
             <div className="flex items-center gap-4 text-xs">
               <LegendRow color="var(--chart-1)" label={t('All payments')} />
               <LegendRow color="var(--chart-2)" label={t('New companies')} />
+              <ChartViewSwitch value={chartView} onChange={setChartView} />
             </div>
           }
         >
-          <RevenueChart
+          <TrendChart
+            view={chartView}
             data={revenueTrend}
             height={320}
             format={usdShort}
@@ -135,16 +138,18 @@ export function PlatformDashboardPage() {
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2 xl:grid-cols-3">
         <Panel
           title="New companies by month"
-          description="Inner bar: of them started paying"
+          description="Green: of them started paying"
           className="xl:col-span-2"
           action={
             <div className="flex items-center gap-4 text-xs">
               <LegendRow color="var(--chart-1)" label={t('Registered')} />
               <LegendRow color="var(--chart-2)" label={t('Started paying')} />
+              <ChartViewSwitch value={chartView} onChange={setChartView} />
             </div>
           }
         >
-          <RevenueChart
+          <TrendChart
+            view={chartView}
             data={signupTrend}
             height={260}
             format={(v) => String(Math.round(v))}

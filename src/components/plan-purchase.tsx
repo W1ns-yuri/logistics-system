@@ -5,8 +5,12 @@ import { Button } from '@/components/ui/button'
 import {
   paymentAmount,
   planLabels,
+  planLimits,
   planSeats,
+  promoDiscount,
+  RECOMMENDED_PLAN,
   requestPlan,
+  SOLD_PLANS,
   useCurrentCompany,
   type Plan,
 } from '@/data/platform'
@@ -16,7 +20,6 @@ import { formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 export const SUPPORT_EMAIL = 'support@omniroute.app'
-const PAID: Plan[] = ['lite', 'lite_plus', 'standard']
 
 /*
  * «Хочу оплатить». Онлайн-оплаты пока нет: компания выбирает тариф и срок, заявка уходит владельцу платформы,
@@ -24,13 +27,16 @@ const PAID: Plan[] = ['lite', 'lite_plus', 'standard']
  */
 export function PlanPurchase() {
   const company = useCurrentCompany()
-  const start = company?.planRequest?.plan ?? (company?.plan !== 'trial' ? company?.plan : undefined) ?? company?.profile?.plannedPlan ?? 'standard'
-  const [plan, setPlan] = useState<Plan>(start)
+  const wanted =
+    company?.planRequest?.plan ?? (company?.plan !== 'trial' ? company?.plan : undefined) ?? company?.profile?.plannedPlan
+  const [plan, setPlan] = useState<Plan>(wanted && SOLD_PLANS.includes(wanted) ? wanted : RECOMMENDED_PLAN)
   const [months, setMonths] = useState(company?.planRequest?.months === 12 ? 12 : 1)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   if (!company) return null
   const request = company.planRequest
+  // Приглашённая компания (бесплатный доступ) ещё ни разу не платила: −30% на первый месяц
+  const discount = company.promoUntil && !company.payments.length ? promoDiscount(plan) : 0
 
   const send = () => {
     if (busy) return
@@ -43,8 +49,8 @@ export function PlanPurchase() {
 
   return (
     <div className="space-y-4" data-testid="plan-purchase">
-      <div className="grid gap-2 sm:grid-cols-3">
-        {PAID.map((p) => (
+      <div className="grid gap-2 sm:grid-cols-2">
+        {SOLD_PLANS.map((p) => (
           <button
             key={p}
             type="button"
@@ -57,7 +63,7 @@ export function PlanPurchase() {
           >
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-semibold">{t(planLabels[p])}</span>
-              {p === 'standard' && (
+              {p === RECOMMENDED_PLAN && (
                 <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground">
                   {t('Recommended')}
                 </span>
@@ -67,6 +73,9 @@ export function PlanPurchase() {
               ${paymentAmount(p, 1)} <span className="text-xs font-normal text-muted-foreground">/ {t('mo')}</span>
             </div>
             <div className="text-xs text-muted-foreground">{t('Up to {n} users', { n: planSeats[p] ?? 0 })}</div>
+            <div className="text-xs text-muted-foreground">
+              {planLimits[p] ? t('Monthly limits, no analytics') : t('No limits, with analytics')}
+            </div>
           </button>
         ))}
       </div>
@@ -77,9 +86,18 @@ export function PlanPurchase() {
           </Button>
         ))}
         <span className="ml-auto text-sm">
-          {t('Total')}: <span className="font-semibold tabular-nums">${paymentAmount(plan, months)}</span>
+          {t('Total')}:{' '}
+          {discount > 0 && (
+            <span className="mr-1 text-muted-foreground tabular-nums line-through">${paymentAmount(plan, months)}</span>
+          )}
+          <span className="font-semibold tabular-nums">${paymentAmount(plan, months) - discount}</span>
         </span>
       </div>
+      {discount > 0 && (
+        <p className="text-sm text-success" data-testid="promo-discount">
+          {t('You were with us from the start: {percent}% off the first month.', { percent: 30 })}
+        </p>
+      )}
       {request && (
         <p className="flex items-start gap-2 rounded-md bg-success/10 px-3 py-2 text-sm text-success" role="status">
           <Check className="mt-0.5 size-4 shrink-0" />

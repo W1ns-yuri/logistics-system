@@ -16,6 +16,7 @@ import {
   periodEnd,
   planLabels,
   planSeats,
+  PROMO_GRACE_DAYS,
   todayIso,
   TRIAL_DAYS,
   type Plan,
@@ -59,7 +60,18 @@ export type Company = {
   extraSeats?: number
   // Компания нажала «Хочу оплатить»: владелец видит заявку и связывается с ней
   planRequest?: PlanRequest
+  // Приглашённая компания: бесплатный доступ ко всему до этой даты (YYYY-MM-DD), потом PROMO_GRACE_DAYS на оплату
+  promoUntil?: string
+  // Сколько перевозок и котировок создано в этом месяце (считает сервер; нужно для лимитов Basic)
+  usage?: MonthlyUsage
+  // Только в админке: похоже, что это та же компания, что уже брала пробный период
+  suspects?: Suspect[]
 }
+
+export type MonthlyUsage = { shipments: number; quotations: number }
+// Почему компания похожа на другую: тот же браузер, IP регистрации, домен почты или ИНН
+export type SuspectReason = 'device' | 'ip' | 'email' | 'taxId'
+export type Suspect = { id: string; name: string; reasons: SuspectReason[] }
 
 export type PlanRequest = { plan: Plan; months: number; at: string }
 
@@ -82,8 +94,8 @@ type State = {
   currentCompanyId: string
 }
 
-// v2: у компаний появились оплаты лицензий
-const STORAGE_KEY = 'platform-v2'
+// v2: у компаний появились оплаты лицензий. v3: демо-компания на Standard, чтобы в демо была видна аналитика
+const STORAGE_KEY = 'platform-v3'
 const newId = () => crypto.randomUUID()
 
 // Сколько дней осталось: 0 — последний день сегодня, отрицательное — уже истекла
@@ -175,6 +187,7 @@ type Action =
   | { type: 'adjust_days'; days: number }
   | { type: 'seats'; extra: number }
   | { type: 'dismiss_request' }
+  | { type: 'promo'; until: string | null }
   | { type: 'plan'; plan: Plan }
   | { type: 'block'; blocked: boolean }
   | { type: 'note'; note: string }
@@ -272,6 +285,19 @@ export async function adjustLicenseDays(id: string, days: number) {
 export async function setExtraSeats(id: string, extra: number) {
   if (API_MODE) return remoteAction(id, { type: 'seats', extra })
   updateCompany(id, { extraSeats: extra }, 'Extra users: {n}', { n: extra })
+}
+
+// Бесплатный доступ для приглашённой компании: полный тариф (Lite) до даты, потом ещё PROMO_GRACE_DAYS на оплату.
+// until = null — отменить (дата окончания лицензии не меняется)
+export async function setPromo(id: string, until: string | null) {
+  if (API_MODE) return remoteAction(id, { type: 'promo', until })
+  if (!until) return updateCompany(id, { promoUntil: undefined }, 'Free access cancelled')
+  updateCompany(
+    id,
+    { promoUntil: until, plan: 'lite_plus', paidUntil: addDays(until, PROMO_GRACE_DAYS) },
+    'Free access until {date}',
+    { date: until },
+  )
 }
 
 export async function dismissPlanRequest(id: string) {

@@ -9,10 +9,11 @@ import { z } from 'zod'
 
 import { assertAdmin, assertWritable, requireMember, viewerOf, type Viewer } from '../auth/session.ts'
 import type { Db } from '../db/client.ts'
-import { companies, memberships, records, users } from '../db/schema.ts'
-import { companyForClient } from '../lib/company.ts'
+import { companies, feedback, memberships, records, users } from '../db/schema.ts'
+import { createLimiter, MINUTE } from '../auth/rate-limit.ts'
+import { companyForClient, monthlyUsage } from '../lib/company.ts'
 import { forbidden, HttpError } from '../lib/http-error.ts'
-import { planLabels } from '../lib/plans.ts'
+import { planLabels, planLimits, SOLD_PLANS, type Plan } from '../lib/plans.ts'
 
 export const COLLECTIONS = ['quotations', 'shipments', 'customers', 'vendors', 'invoices', 'cities'] as const
 export type Collection = (typeof COLLECTIONS)[number]
@@ -211,6 +212,9 @@ const settingsBody = z
     companyPhone: z.string().trim().max(30),
     companyTaxId: z.string().trim().max(30),
     companyWebsite: z.string().trim().max(100),
+    // Печатать ли ИНН и сайт в документах
+    companyShowTaxId: z.boolean(),
+    companyShowWebsite: z.boolean(),
     // Логотип — только ссылка на загруженный файл этой компании (или пусто)
     companyLogo: z.union([z.literal(''), z.string().regex(/^\/api\/files\/[0-9a-f-]{36}$/)]),
     documentPrefix: z.string().regex(/^[A-Z0-9]{2,4}$/),
@@ -266,6 +270,12 @@ export async function dataRoutes(app: FastifyInstance) {
     const problem = recordProblem(data)
     if (problem) throw new HttpError(400, problem)
     const existing = await findRecord(db, viewer.company.id, collection, id)
+    // Basic: сверх месячного лимита новые перевозки и котировки не создаём. Начатые меняются как обычно
+    const limits = planLimits[viewer.company.plan as Plan]
+    if (!existing && limits && (collection === 'shipments' || collection === 'quotations')) {
+      const usage = await monthlyUsage(db, viewer.company.id)
+      if (usage[collection] >= limits[collection]) throw new HttpError(403, 'monthly_limit')
+    }
     const merged = mergeForWrite(viewer, collection, existing?.data, { ...data, id })
     const saved = await saveRecord(db, viewer.company.id, collection, id, merged)
     return { data: forViewer(viewer, collection, saved) }
@@ -298,13 +308,30 @@ export async function dataRoutes(app: FastifyInstance) {
     return { settings }
   })
 
+  // «Предложить улучшение»: любой сотрудник пишет владельцу платформы. Работает и при истёкшей лицензии
+  const feedbackLimit = createLimiter({ limit: 20, windowMs: 60 * MINUTE })
+  app.post('/api/feedback', { preHandler: member }, async (request, reply) => {
+    const viewer = viewerOf(request)
+    const body = z.object({ text: z.string().trim().min(3).max(2000), page: z.string().max(200).default('') }).strict().parse(request.body)
+    if (feedbackLimit.isBlocked(viewer.user.id)) return reply.code(429).send({ error: 'too_many_attempts' })
+    feedbackLimit.hit(viewer.user.id)
+    await db.insert(feedback).values({
+      companyId: viewer.company.id,
+      userName: viewer.user.name,
+      userEmail: viewer.user.email,
+      text: body.text,
+      page: body.page,
+    })
+    return reply.code(201).send({ ok: true })
+  })
+
   // «Хочу оплатить»: админ компании выбирает тариф и срок, владелец платформы видит заявку и связывается.
   // Работает и при истёкшей лицензии: именно тогда она нужнее всего
   app.post('/api/company/plan-request', { preHandler: member }, async (request) => {
     const viewer = viewerOf(request)
     assertAdmin(viewer)
     const body = z
-      .object({ plan: z.enum(['lite', 'lite_plus', 'standard']), months: z.union([z.literal(1), z.literal(12)]) })
+      .object({ plan: z.enum(SOLD_PLANS), months: z.union([z.literal(1), z.literal(12)]) })
       .parse(request.body)
     const planRequest = { ...body, at: new Date().toISOString() }
     const events = [

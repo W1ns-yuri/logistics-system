@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router'
 import { ConfirmDelete } from '@/components/confirm-delete'
 import { DataTable } from '@/components/data-table/data-table'
 import { DocumentToolbar } from '@/components/document-toolbar'
+import { LimitNotice } from '@/components/limit-notice'
 import { PageHeader } from '@/components/page-header'
 import { quotationStatuses } from '@/components/status-badge'
 import { useCanModify } from '@/data/auth'
@@ -43,11 +44,13 @@ export function QuotationsPage() {
       <PageHeader
         title="Quotations"
         description="Price offers for customers: route, cargo, calculation and margin."
+        stacked
         actions={
           <DocumentToolbar
             hasSelection={!!selected}
             canModify={canModify}
             ownerName={ownerName}
+            limitKind="quotations"
             onNew={() => navigate('/quotations/new')}
             onEdit={() => selected && navigate(`/quotations/${selected.id}/edit`)}
             onOpen={() => selected && open(selected)}
@@ -64,6 +67,8 @@ export function QuotationsPage() {
           />
         }
       />
+
+      <LimitNotice kind="quotations" />
 
       <DataTable
         exportName="Quotations"

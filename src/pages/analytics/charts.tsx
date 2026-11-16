@@ -1,4 +1,7 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { ChartColumn, ChartNoAxesGantt, ChartSpline } from 'lucide-react'
+
+import { t } from '@/i18n'
 
 import { cn } from '@/lib/utils'
 
@@ -184,6 +187,232 @@ export function RevenueChart({
   )
 }
 
+// Плавная кривая через точки без «перелётов» (монотонный сплайн): линия не уходит ниже нуля между месяцами
+function smoothPath(points: { x: number; y: number }[]) {
+  const n = points.length
+  if (n === 0) return ''
+  if (n === 1) return `M${points[0]!.x},${points[0]!.y}`
+  const dx = points.slice(1).map((p, i) => p.x - points[i]!.x)
+  const slope = points.slice(1).map((p, i) => (p.y - points[i]!.y) / dx[i]!)
+  const tangent = points.map((_, i) => {
+    if (i === 0) return slope[0]!
+    if (i === n - 1) return slope[n - 2]!
+    const a = slope[i - 1]!
+    const b = slope[i]!
+    return a * b <= 0
+      ? 0
+      : (3 * (dx[i - 1]! + dx[i]!)) / ((2 * dx[i]! + dx[i - 1]!) / a + (dx[i]! + 2 * dx[i - 1]!) / b)
+  })
+  let d = `M${points[0]!.x},${points[0]!.y}`
+  for (let i = 0; i < n - 1; i++) {
+    const p = points[i]!
+    const q = points[i + 1]!
+    const h = dx[i]! / 3
+    d += ` C${p.x + h},${p.y + tangent[i]! * h} ${q.x - h},${q.y - tangent[i + 1]! * h} ${q.x},${q.y}`
+  }
+  return d
+}
+
+// Две плавные линии с мягкой заливкой: синяя — всего (выручка), зелёная — часть (прибыль, новые).
+// Текущий месяц не закончен — последний отрезок пунктиром
+export function AreaTrend({
+  data,
+  height = 300,
+  format,
+  barLabel,
+  lineLabel,
+  partialLabel,
+}: {
+  data: BarLinePoint[]
+  height?: number
+  format: (value: number) => string
+  barLabel: string
+  lineLabel: string
+  partialLabel?: string
+}) {
+  const [ref, width] = useWidth<HTMLDivElement>()
+  const [hover, setHover] = useState<number>()
+  // На странице два таких графика: id градиентов и обрезки у каждого свои
+  const uid = 'a' + useId().replace(/[^a-zA-Z0-9]/g, '')
+  const pad = { top: 16, right: 16, bottom: 28, left: 52 }
+  const innerW = Math.max(0, width - pad.left - pad.right)
+  const innerH = height - pad.top - pad.bottom
+  const ticks = niceTicks(Math.max(...data.map((d) => Math.max(d.bar, d.line)), 0))
+  const max = ticks.at(-1) || 1
+  const step = data.length > 1 ? innerW / (data.length - 1) : 0
+  const x = (i: number) => pad.left + (data.length > 1 ? step * i : innerW / 2)
+  const y = (v: number) => pad.top + innerH - (v / max) * innerH
+  const series = [
+    { key: 'bar', color: 'var(--chart-1)', points: data.map((d, i) => ({ x: x(i), y: y(d.bar) })) },
+    { key: 'line', color: 'var(--chart-2)', points: data.map((d, i) => ({ x: x(i), y: y(d.line) })) },
+  ]
+  const partial = data.at(-1)?.partial && data.length > 1
+  const bottom = y(0)
+
+  return (
+    <div
+      ref={ref}
+      className="relative"
+      style={{ height }}
+      onMouseLeave={() => setHover(undefined)}
+      data-testid="area-trend"
+    >
+      {width > 0 && (
+        <svg width={width} height={height} className="overflow-visible">
+          <defs>
+            {series.map((s) => (
+              <linearGradient key={s.key} id={`${uid}-${s.key}`} x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stopColor={s.color} stopOpacity="0.32" />
+                <stop offset="100%" stopColor={s.color} stopOpacity="0" />
+              </linearGradient>
+            ))}
+          </defs>
+
+          {ticks.map((tick) => (
+            <g key={tick}>
+              <line
+                x1={pad.left}
+                x2={width - pad.right}
+                y1={y(tick)}
+                y2={y(tick)}
+                className="stroke-border"
+                strokeDasharray={tick ? '3 4' : undefined}
+              />
+              <text
+                x={pad.left - 10}
+                y={y(tick)}
+                dy="0.32em"
+                textAnchor="end"
+                className="fill-muted-foreground text-[11px]"
+              >
+                {format(tick)}
+              </text>
+            </g>
+          ))}
+
+          {/* Текущий месяц не закончен: та же кривая, но после предпоследней точки — пунктиром */}
+          {partial && (
+            <defs>
+              <clipPath id={`${uid}-done`}>
+                <rect x={0} y={0} width={x(data.length - 2)} height={height} />
+              </clipPath>
+              <clipPath id={`${uid}-open`}>
+                <rect x={x(data.length - 2)} y={0} width={width} height={height} />
+              </clipPath>
+            </defs>
+          )}
+          {series.map((s) => {
+            const line = smoothPath(s.points)
+            const first = s.points[0]
+            const last = s.points.at(-1)
+            return (
+              <g key={s.key}>
+                {first && last && (
+                  <path d={`${line} L${last.x},${bottom} L${first.x},${bottom} Z`} fill={`url(#${uid}-${s.key})`} />
+                )}
+                <path
+                  d={line}
+                  fill="none"
+                  stroke={s.color}
+                  strokeWidth={3}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  clipPath={partial ? `url(#${uid}-done)` : undefined}
+                />
+                {partial && (
+                  <path
+                    d={line}
+                    fill="none"
+                    stroke={s.color}
+                    strokeWidth={2.5}
+                    strokeDasharray="4 5"
+                    strokeLinecap="round"
+                    clipPath={`url(#${uid}-open)`}
+                  />
+                )}
+              </g>
+            )
+          })}
+
+          {hover !== undefined && (
+            <g className="pointer-events-none">
+              <line x1={x(hover)} x2={x(hover)} y1={pad.top} y2={bottom} className="stroke-border" strokeWidth={1.5} />
+              {series.map((s) => (
+                <circle
+                  key={s.key}
+                  cx={s.points[hover]!.x}
+                  cy={s.points[hover]!.y}
+                  r={5}
+                  fill="var(--background)"
+                  stroke={s.color}
+                  strokeWidth={2.5}
+                />
+              ))}
+            </g>
+          )}
+
+          {data.map((d, i) => (
+            <text
+              key={d.label}
+              x={x(i)}
+              y={height - 8}
+              textAnchor="middle"
+              className="fill-muted-foreground text-[11px]"
+            >
+              {d.label}
+            </text>
+          ))}
+
+          {/* Зоны наведения: каждая — от середины до середины между месяцами */}
+          {data.map((d, i) => (
+            <rect
+              key={d.label}
+              x={x(i) - (step || innerW) / 2}
+              y={pad.top}
+              width={step || innerW}
+              height={innerH}
+              fill="transparent"
+              onMouseEnter={() => setHover(i)}
+            />
+          ))}
+        </svg>
+      )}
+      {hover !== undefined && data[hover] && (
+        <Tooltip x={x(hover)} y={y(Math.max(data[hover].bar, data[hover].line))} width={width}>
+          <div className="mb-1 font-medium">
+            {data[hover].label}
+            {data[hover].partial && <span className="font-normal text-muted-foreground"> · {partialLabel}</span>}
+          </div>
+          <LegendRow color="var(--chart-1)" label={barLabel} value={format(data[hover].bar)} />
+          <LegendRow color="var(--chart-2)" label={lineLabel} value={format(data[hover].line)} />
+        </Tooltip>
+      )}
+    </div>
+  )
+}
+
+/* ---------- Вид графика: плавные линии (по умолчанию), полосы прогресса, столбики ---------- */
+
+export type ChartView = 'area' | 'lines' | 'bars'
+const CHART_VIEW_KEY = 'chart-view'
+
+export function readChartView(): ChartView {
+  try {
+    const saved = localStorage.getItem(CHART_VIEW_KEY)
+    return saved === 'lines' || saved === 'bars' ? saved : 'area'
+  } catch {
+    return 'area'
+  }
+}
+
+export function saveChartView(view: ChartView) {
+  try {
+    localStorage.setItem(CHART_VIEW_KEY, view)
+  } catch {
+    // не сохранилось — не страшно
+  }
+}
+
 export function LegendRow({ color, label, value }: { color: string; label: string; value?: string }) {
   return (
     <div className="flex items-center gap-2 whitespace-nowrap">
@@ -248,7 +477,9 @@ export function Donut({
   const [hover, setHover] = useState<string>()
   const total = segments.reduce((acc, s) => acc + s.value, 0)
   const stroke = 22
-  const r = (size - stroke) / 2
+  // При наведении сегмент толще на 4px: оставляем под это место, иначе край кольца обрезается
+  const grow = 4
+  const r = (size - stroke - grow) / 2
   const c = 2 * Math.PI * r
   const gap = total ? 3 : 0
   const active = segments.find((s) => s.key === hover)
@@ -270,7 +501,7 @@ export function Donut({
               r={r}
               fill="none"
               stroke={s.color}
-              strokeWidth={hover === s.key ? stroke + 4 : stroke}
+              strokeWidth={hover === s.key ? stroke + grow : stroke}
               strokeDasharray={`${dash} ${c - dash}`}
               strokeDashoffset={-offset}
               strokeLinecap="butt"
@@ -385,4 +616,56 @@ export function ProgressLines({
       })}
     </ul>
   )
+}
+
+const CHART_VIEWS: { value: ChartView; label: string; icon: typeof ChartSpline }[] = [
+  { value: 'area', label: 'Smooth lines', icon: ChartSpline },
+  { value: 'lines', label: 'Progress lines', icon: ChartNoAxesGantt },
+  { value: 'bars', label: 'Bars and line', icon: ChartColumn },
+]
+
+// Переключатель вида графика. Выбор один на все графики и запоминается в браузере
+export function ChartViewSwitch({ value, onChange }: { value: ChartView; onChange: (view: ChartView) => void }) {
+  return (
+    <div className="inline-flex rounded-lg border bg-muted/50 p-0.5" role="radiogroup" aria-label={t('Chart view')}>
+      {CHART_VIEWS.map((v) => (
+        <button
+          key={v.value}
+          type="button"
+          role="radio"
+          aria-checked={value === v.value}
+          aria-label={t(v.label)}
+          title={t(v.label)}
+          onClick={() => {
+            saveChartView(v.value)
+            onChange(v.value)
+          }}
+          className={cn(
+            'rounded-md p-1.5 transition-colors',
+            value === v.value ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          <v.icon className="size-4" />
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// Один и тот же ряд «всего / часть» в выбранном виде
+export function TrendChart({
+  view,
+  ...props
+}: {
+  view: ChartView
+  data: BarLinePoint[]
+  height?: number
+  format: (value: number) => string
+  barLabel: string
+  lineLabel: string
+  partialLabel?: string
+}) {
+  if (view === 'lines') return <ProgressLines {...props} partialLabel={props.partialLabel ?? ''} />
+  if (view === 'bars') return <RevenueChart {...props} />
+  return <AreaTrend {...props} />
 }

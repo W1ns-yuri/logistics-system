@@ -1,14 +1,4 @@
-import {
-  ArrowDownRight,
-  ArrowUpRight,
-  ChartColumn,
-  ChartNoAxesGantt,
-  CircleDot,
-  MapPin,
-  PackageCheck,
-  Ship,
-  Truck,
-} from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, CircleDot, MapPin, PackageCheck, Ship, Truck } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 
@@ -22,7 +12,16 @@ import { cn } from '@/lib/utils'
 import { transportModeLabels, type TransportMode } from '@/types/logistics'
 import { lostReasonText } from '@/types/quotation'
 import { buildAnalytics, PERIODS, type Analytics, type Period } from './analytics-data'
-import { RevenueChart, BarList, Donut, LegendRow, ProgressLines, Sparkline } from './charts'
+import {
+  BarList,
+  ChartViewSwitch,
+  Donut,
+  LegendRow,
+  readChartView,
+  Sparkline,
+  TrendChart,
+  type ChartView,
+} from './charts'
 import { monthLabel, usd, usdShort } from './format'
 import { findStats, MyResults, TeamResultsTable } from './team-results'
 
@@ -33,21 +32,6 @@ const modeColors: Record<TransportMode, string> = {
   rail: 'var(--chart-2)',
 }
 
-type ChartView = 'lines' | 'bars'
-const CHART_VIEW_KEY = 'analytics-chart-view'
-const CHART_VIEWS: { value: ChartView; label: string; icon: typeof ChartNoAxesGantt }[] = [
-  { value: 'lines', label: 'Progress lines', icon: ChartNoAxesGantt },
-  { value: 'bars', label: 'Bars and line', icon: ChartColumn },
-]
-
-function readChartView(): ChartView {
-  try {
-    return localStorage.getItem(CHART_VIEW_KEY) === 'bars' ? 'bars' : 'lines'
-  } catch {
-    return 'lines'
-  }
-}
-
 export function AnalyticsPage() {
   const quotations = useQuotations()
   const shipments = useShipments()
@@ -55,14 +39,6 @@ export function AnalyticsPage() {
   const vendors = useVendors()
   const [period, setPeriod] = useState<Period>(6)
   const [chartView, setChartView] = useState<ChartView>(readChartView)
-  const changeChartView = (view: ChartView) => {
-    setChartView(view)
-    try {
-      localStorage.setItem(CHART_VIEW_KEY, view)
-    } catch {
-      // приватный режим — просто не запоминаем
-    }
-  }
   const { role, features } = usePermissions()
   const session = useSession()
 
@@ -113,11 +89,15 @@ export function AnalyticsPage() {
       </div>
     )
 
-  // Тариф без аналитики: Lite+ видит результаты команды, Lite — только предложение перейти на Standard
+  // Тариф без аналитики (Basic): только предложение перейти на Lite
   if (!features.analytics)
     return (
       <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
-        <PageHeader title="Analytics" description="Revenue, profit and operations at a glance." actions={periodSwitch} />
+        <PageHeader
+          title="Analytics"
+          description="Revenue, profit and operations at a glance."
+          actions={periodSwitch}
+        />
         <PlanUpsell />
         {features.memberResults && role === 'admin' && (
           <Panel
@@ -181,52 +161,19 @@ export function AnalyticsPage() {
             <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 text-xs">
               <LegendRow color="var(--chart-1)" label={t('Revenue')} />
               <LegendRow color="var(--chart-2)" label={t('Gross profit')} />
-              <div
-                className="inline-flex rounded-lg border bg-muted/50 p-0.5"
-                role="radiogroup"
-                aria-label={t('Chart view')}
-              >
-                {CHART_VIEWS.map((v) => (
-                  <button
-                    key={v.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={chartView === v.value}
-                    aria-label={t(v.label)}
-                    title={t(v.label)}
-                    onClick={() => changeChartView(v.value)}
-                    className={cn(
-                      'rounded-md p-1.5 transition-colors',
-                      chartView === v.value
-                        ? 'bg-background text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    <v.icon className="size-4" />
-                  </button>
-                ))}
-              </div>
+              <ChartViewSwitch value={chartView} onChange={setChartView} />
             </div>
           }
         >
-          {chartView === 'lines' ? (
-            <ProgressLines
-              data={trend}
-              format={usdShort}
-              barLabel={t('Revenue')}
-              lineLabel={t('Gross profit')}
-              partialLabel={t('month in progress')}
-            />
-          ) : (
-            <RevenueChart
-              data={trend}
-              height={340}
-              format={usdShort}
-              barLabel={t('Revenue')}
-              lineLabel={t('Gross profit')}
-              partialLabel={t('month in progress')}
-            />
-          )}
+          <TrendChart
+            view={chartView}
+            data={trend}
+            height={340}
+            format={usdShort}
+            barLabel={t('Revenue')}
+            lineLabel={t('Gross profit')}
+            partialLabel={t('month in progress')}
+          />
         </Panel>
 
         <Panel title="Shipments by mode">
@@ -578,18 +525,18 @@ export function Empty() {
   )
 }
 
-// Аналитика входит в тариф Standard: показываем, что там есть, и к кому обратиться
+// Аналитика входит в тариф Lite: показываем, что там есть, и где перейти
 function PlanUpsell() {
   return (
     <div className="rounded-xl border border-dashed bg-card p-6 text-center sm:p-10" data-testid="plan-upsell">
-      <h2 className="text-lg font-semibold">{t('Analytics is part of the Standard plan')}</h2>
+      <h2 className="text-lg font-semibold">{t('Analytics is part of the Lite plan')}</h2>
       <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
         {t(
-          'Revenue and profit by month, margin by route and customer, conversion of quotations and money you are owed. To switch the plan, write to support.',
+          'Revenue and profit by month, margin by route and customer, conversion of quotations and money you are owed. Lite also has no monthly limits.',
         )}
       </p>
       <Button asChild className="mt-5">
-        <Link to="/support">{t('Contact support')}</Link>
+        <Link to="/settings?tab=subscription">{t('Switch to Lite')}</Link>
       </Button>
     </div>
   )

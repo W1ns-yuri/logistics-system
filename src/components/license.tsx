@@ -1,9 +1,17 @@
-import { AlertTriangle, Lock } from 'lucide-react'
+import { AlertTriangle, Gift, Lock } from 'lucide-react'
 import { Link } from 'react-router'
 
 import { Badge } from '@/components/ui/badge'
 import { usePermissions } from '@/data/auth'
-import { daysLeft, EXPIRING_DAYS, licenseStatus, useCurrentCompany, type LicenseStatus } from '@/data/platform'
+import {
+  daysBetween,
+  daysLeft,
+  EXPIRING_DAYS,
+  licenseStatus,
+  todayIso,
+  useCurrentCompany,
+  type LicenseStatus,
+} from '@/data/platform'
 import { t } from '@/i18n'
 import { formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -47,6 +55,9 @@ export function LicenseBanner() {
   const status = licenseStatus(company)
   const left = daysLeft(company)
   const showSoon = (status === 'expiring' || status === 'trial') && left <= EXPIRING_DAYS
+  // Приглашённая компания на бесплатном доступе (ещё не платила): своя плашка до конца отсрочки
+  if (company.promoUntil && !company.payments.length && (status === 'active' || status === 'expiring'))
+    return <PromoBanner promoUntil={company.promoUntil} paidUntil={company.paidUntil} isAdmin={role === 'admin'} />
   // Пробный период: админу всё время видно, до какого числа и где оплатить
   if (status === 'trial' && !showSoon) {
     if (role !== 'admin') return null
@@ -89,6 +100,44 @@ export function LicenseBanner() {
       {role === 'admin' && (
         <Link to="/settings?tab=subscription" className="underline underline-offset-2">
           {t('Renew')}
+        </Link>
+      )}
+    </div>
+  )
+}
+
+// Бесплатный доступ до даты (до Нового года): всем видно, до какого числа; за неделю — напоминание выбрать тариф,
+// после даты — ещё несколько дней на оплату
+function PromoBanner({ promoUntil, paidUntil, isAdmin }: { promoUntil: string; paidUntil: string; isAdmin: boolean }) {
+  const left = daysBetween(todayIso(), promoUntil)
+  const calm = left > EXPIRING_DAYS
+  const text =
+    left < 0
+      ? t('Free access has ended. Pay for a plan by {date}, otherwise the workspace becomes read-only.', {
+          date: formatDate(paidUntil),
+        })
+      : calm
+        ? t('Free access to all features until {date}. Tell us what is missing with the Suggest an improvement button.', {
+            date: formatDate(promoUntil),
+          })
+        : t('Free access ends on {date} ({n} d left). Choose a plan: 30% off the first month for you.', {
+            date: formatDate(promoUntil),
+            n: left,
+          })
+  return (
+    <div
+      role="status"
+      data-testid="promo-banner"
+      className={cn(
+        'flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-6 py-2 text-sm',
+        calm ? 'bg-success/10 text-success' : 'border-warning/20 bg-warning/10 text-warning-text',
+      )}
+    >
+      {calm ? <Gift className="size-4 shrink-0" /> : <AlertTriangle className="size-4 shrink-0" />}
+      <span className={calm ? undefined : 'font-medium'}>{text}</span>
+      {isAdmin && !calm && (
+        <Link to="/settings?tab=subscription" className="underline underline-offset-2">
+          {t('Choose a plan and pay')}
         </Link>
       )}
     </div>
