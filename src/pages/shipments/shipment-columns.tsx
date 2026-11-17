@@ -1,10 +1,12 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { Link } from 'react-router'
 
+import { catalogLabel } from '@/data/catalog'
 import { LateBadge } from '@/components/late-badge'
 import { ShipmentStatusBadge, shipmentStatuses } from '@/components/status-badge'
 import { TransportModeIcon } from '@/components/transport-mode'
 import { shipmentPayment } from '@/data/store'
+import { cityLabel } from '@/lib/countries'
 import { t } from '@/i18n'
 import { formatDate, formatMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -56,8 +58,18 @@ export function getShipmentColumns({
       meta: { label: 'Customer' },
       cell: ({ row }) => <span className="font-medium">{row.original.customer}</span>,
     },
-    { accessorKey: 'collectionAddress', header: 'Pick up', meta: { label: 'Pick up location' } },
-    { accessorKey: 'deliveryAddress', header: 'Delivery', meta: { label: 'Delivery location' } },
+    {
+    accessorKey: 'collectionAddress',
+    header: 'Pick up',
+    meta: { label: 'Pick up location' },
+    cell: ({ row }) => cityLabel(row.original.collectionAddress),
+  },
+    {
+    accessorKey: 'deliveryAddress',
+    header: 'Delivery',
+    meta: { label: 'Delivery location' },
+    cell: ({ row }) => cityLabel(row.original.deliveryAddress),
+  },
     {
       accessorKey: 'orderDate',
       header: 'Order date',
@@ -86,7 +98,7 @@ export function getShipmentColumns({
       cell: ({ row }) => (
         <span>
           {row.original.transportQuantity > 1 && `${row.original.transportQuantity} × `}
-          {row.original.equipment}
+          {catalogLabel('equipment', row.original.equipment)}
         </span>
       ),
     },

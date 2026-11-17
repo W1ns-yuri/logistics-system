@@ -11,9 +11,11 @@ export type InvoiceLine = {
 }
 
 export const PAYMENT_METHODS = ['cash', 'bank_transfer', 'card', 'other'] as const
-export type PaymentMethod = (typeof PAYMENT_METHODS)[number]
+// Встроенные значения; владелец платформы может добавить свои (src/data/catalog.ts), поэтому ещё и любая строка
+export type BuiltInPaymentMethod = (typeof PAYMENT_METHODS)[number]
+export type PaymentMethod = BuiltInPaymentMethod | (string & {})
 
-export const paymentMethodLabels: Record<PaymentMethod, string> = {
+export const paymentMethodLabels: Record<BuiltInPaymentMethod, string> = {
   cash: 'Cash',
   bank_transfer: 'Bank transfer',
   card: 'Card',

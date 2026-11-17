@@ -8,11 +8,11 @@ import {
   Plus,
   Receipt,
   Trash2,
-  X,
-} from 'lucide-react'
+  X } from 'lucide-react'
 import { useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 
+import { catalogLabel, catalogOptions } from '@/data/catalog'
 import { DateInput } from '@/components/date-input'
 import { ConfirmDelete } from '@/components/confirm-delete'
 import { FormField } from '@/components/form-field'
@@ -27,15 +27,13 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  DialogTitle } from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { VendorPicker } from '@/components/vendor-picker'
@@ -52,8 +50,7 @@ import {
   shipmentPayment,
   useInvoices,
   useQuotation,
-  useVendors,
-} from '@/data/store'
+  useVendors } from '@/data/store'
 import { t } from '@/i18n'
 import { chargeTotals, invoiceTotals, quotationTotals } from '@/lib/calculation'
 import { convert } from '@/lib/currency'
@@ -63,13 +60,10 @@ import { cn } from '@/lib/utils'
 import { InvoiceFormDialog } from '@/pages/payments/invoice-form-dialog'
 import { printInvoice } from '@/pages/payments/invoice-print-page'
 import {
-  PAYMENT_METHODS,
-  paymentMethodLabels,
   type Invoice,
   type Payment,
   type PaymentMethod,
-  type PaymentReceipt,
-} from '@/types/invoice'
+  type PaymentReceipt } from '@/types/invoice'
 import { CURRENCIES, type Currency } from '@/types/logistics'
 import type { ExtraCharge, Shipment, VendorPayment } from '@/types/shipment'
 
@@ -193,7 +187,7 @@ export function CustomerPaymentsSection({ shipment, locked }: { shipment: Shipme
                           <PaymentRow
                             key={p.id}
                             title={formatDate(p.date)}
-                            details={[p.number, t(paymentMethodLabels[p.method]), p.reference]}
+                            details={[p.number, catalogLabel('payment_method', p.method), p.reference]}
                             amount={formatMoney(p.amount, inv.currency)}
                             receipt={p.receipt}
                             onEdit={canEditPayments ? () => setPaying({ invoice: inv, payment: p }) : undefined}
@@ -358,7 +352,7 @@ export function VendorPaymentsSection({ shipment, locked }: { shipment: Shipment
               <PaymentRow
                 key={p.id}
                 title={`${p.number} · ${vendorName(p.vendorId)}`}
-                details={[formatDate(p.date), t(paymentMethodLabels[p.method]), p.reference]}
+                details={[formatDate(p.date), catalogLabel('payment_method', p.method), p.reference]}
                 amount={formatMoney(p.amount, p.currency)}
                 receipt={p.receipt}
                 onEdit={canEditPayments ? () => setForm({ payment: p }) : undefined}
@@ -650,9 +644,9 @@ function VendorPaymentForm({
             value={method}
             onChange={(e) => setMethod(e.target.value as PaymentMethod)}
           >
-            {PAYMENT_METHODS.map((m) => (
-              <option key={m} value={m}>
-                {t(paymentMethodLabels[m])}
+            {catalogOptions('payment_method', method).map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
               </option>
             ))}
           </NativeSelect>

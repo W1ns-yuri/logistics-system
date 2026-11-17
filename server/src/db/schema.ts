@@ -202,3 +202,24 @@ export const feedback = pgTable(
   },
   (t) => [index('feedback_created_idx').on(t.createdAt)],
 )
+
+/*
+ * Справочники платформы, которые владелец меняет без программиста: города, типы транспорта, документов,
+ * подрядчиков, причины отказа, способы оплаты, инкотермс. Встроенные значения живут в коде,
+ * здесь — их переименования, скрытые и новые. Ключ (key) хранится в записях компаний, поэтому не меняется.
+ */
+export const catalogItems = pgTable(
+  'catalog_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    kind: text('kind').notNull(),
+    key: text('key').notNull(),
+    labelEn: text('label_en').notNull(),
+    labelRu: text('label_ru').notNull().default(''),
+    // Для города — страна (английское название), для типа транспорта — виды перевозки через запятую
+    extra: text('extra').notNull().default(''),
+    hidden: boolean('hidden').notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('catalog_items_kind_key_idx').on(t.kind, t.key)],
+)

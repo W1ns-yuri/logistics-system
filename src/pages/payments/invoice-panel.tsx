@@ -1,6 +1,7 @@
 import { Download, FileText, Paperclip, Pencil, Trash2, Wallet } from 'lucide-react'
 import { useRef, useState } from 'react'
 
+import { catalogLabel } from '@/data/catalog'
 import { ConfirmDelete } from '@/components/confirm-delete'
 import { RecordPaymentDialog } from '@/components/record-payment-dialog'
 import { InvoiceStatusBadge } from '@/components/status-badge'
@@ -14,7 +15,7 @@ import { invoiceTotals } from '@/lib/calculation'
 import { acceptFor, fileError, formatSize, readReceipt, RECEIPT_TYPES } from '@/lib/files'
 import { formatDate, formatMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { paymentMethodLabels, type Invoice, type Payment } from '@/types/invoice'
+import { type Invoice, type Payment } from '@/types/invoice'
 import { InvoiceFormDialog } from './invoice-form-dialog'
 import { InvoicePreview } from './invoice-preview'
 import { printInvoice } from './invoice-print-page'
@@ -146,7 +147,7 @@ function PaymentsList({ invoice }: { invoice: Invoice }) {
             <div className="min-w-40 text-right whitespace-nowrap">
               <div className="font-semibold tabular-nums">{money(p.amount)}</div>
               <div className="text-sm text-muted-foreground">
-                {t(paymentMethodLabels[p.method])}
+                {catalogLabel('payment_method', p.method)}
                 {p.discount > 0 && (
                   <span className="ml-1 text-warning-text">
                     · {t('discount')} {money(p.discount)}

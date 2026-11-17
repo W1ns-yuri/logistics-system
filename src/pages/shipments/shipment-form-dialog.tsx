@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 
+import { catalogLabel, equipmentForMode } from '@/data/catalog'
 import { DateInput } from '@/components/date-input'
 import { CityPicker } from '@/components/city-picker'
 import { CustomerPicker } from '@/components/customer-picker'
@@ -14,12 +15,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { createShipment, updateShipment } from '@/data/store'
 import { t } from '@/i18n'
 import {
-  equipmentByMode,
   TRANSPORT_MODES,
   transportModeLabels,
   type EquipmentType,
-  type TransportMode,
-} from '@/types/logistics'
+  type TransportMode } from '@/types/logistics'
 import { SHIPMENT_STATUSES, type Shipment, type ShipmentStatus } from '@/types/shipment'
 
 type FormState = {
@@ -243,7 +242,9 @@ function ShipmentForm({
               setForm((prev) => ({
                 ...prev,
                 mode,
-                equipment: equipmentByMode[mode].includes(prev.equipment) ? prev.equipment : equipmentByMode[mode][0]!,
+                equipment: equipmentForMode(mode).includes(prev.equipment)
+                  ? prev.equipment
+                  : (equipmentForMode(mode)[0] ?? prev.equipment),
               }))
             }}
           >
@@ -256,8 +257,10 @@ function ShipmentForm({
         </FormField>
         <FormField label="Equipment" htmlFor="shipment-equipment" required>
           <NativeSelect {...bind('equipment')}>
-            {[...new Set([...equipmentByMode[form.mode], form.equipment])].map((value) => (
-              <option key={value}>{value}</option>
+            {equipmentForMode(form.mode, form.equipment).map((value) => (
+              <option key={value} value={value}>
+                {catalogLabel('equipment', value)}
+              </option>
             ))}
           </NativeSelect>
         </FormField>

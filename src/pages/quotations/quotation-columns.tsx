@@ -2,6 +2,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { Link } from 'react-router'
 
 import { QuotationStatusBadge, quotationStatuses } from '@/components/status-badge'
+import { cityLabel } from '@/lib/countries'
 import { t } from '@/i18n'
 import { transportModeLabels } from '@/types/logistics'
 import { TransportModeLabel } from '@/components/transport-mode'
@@ -41,8 +42,18 @@ export const quotationColumns: ColumnDef<Quotation, unknown>[] = [
     meta: { label: 'Customer' },
     cell: ({ row }) => <span className="font-medium">{row.original.customer}</span>,
   },
-  { accessorKey: 'collectionAddress', header: 'Pick up', meta: { label: 'Pick up location' } },
-  { accessorKey: 'deliveryAddress', header: 'Delivery', meta: { label: 'Delivery location' } },
+  {
+    accessorKey: 'collectionAddress',
+    header: 'Pick up',
+    meta: { label: 'Pick up location' },
+    cell: ({ row }) => cityLabel(row.original.collectionAddress),
+  },
+  {
+    accessorKey: 'deliveryAddress',
+    header: 'Delivery',
+    meta: { label: 'Delivery location' },
+    cell: ({ row }) => cityLabel(row.original.deliveryAddress),
+  },
   {
     accessorKey: 'weightKg',
     header: 'Weight',

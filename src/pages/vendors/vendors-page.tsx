@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 import { Link, useNavigate } from 'react-router'
 import type { ColumnDef } from '@tanstack/react-table'
 
+import { catalogLabel, catalogOptions } from '@/data/catalog'
 import { DataTable } from '@/components/data-table/data-table'
 import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/ui/button'
@@ -13,7 +14,7 @@ import { useShipments, useVendors } from '@/data/store'
 import { useFormMode } from '@/hooks/use-form-mode'
 import { t } from '@/i18n'
 import { countryLabel } from '@/lib/countries'
-import { VENDOR_TYPES, vendorTypeLabels, type Vendor } from '@/types/directory'
+import { type Vendor } from '@/types/directory'
 import { transportModeLabels } from '@/types/logistics'
 import { VendorFormDialog } from './vendor-form-dialog'
 
@@ -40,9 +41,9 @@ const columns: ColumnDef<VendorRow, unknown>[] = [
   {
     accessorKey: 'type',
     header: 'Type',
-    meta: { label: 'Type', exportValue: (v) => t(vendorTypeLabels[v.type]) },
+    meta: { label: 'Type', exportValue: (v) => catalogLabel('vendor_type', v.type) },
     filterFn: 'arrIncludesSome',
-    cell: ({ row }) => <Badge variant="secondary">{t(vendorTypeLabels[row.original.type])}</Badge>,
+    cell: ({ row }) => <Badge variant="secondary">{catalogLabel('vendor_type', row.original.type)}</Badge>,
   },
   {
     accessorKey: 'modes',
@@ -81,7 +82,6 @@ const columns: ColumnDef<VendorRow, unknown>[] = [
   },
 ]
 
-const typeOptions = VENDOR_TYPES.map((value) => ({ value, label: vendorTypeLabels[value] }))
 
 export function VendorsPage() {
   const vendors = useVendors()
@@ -118,7 +118,7 @@ export function VendorsPage() {
         onSelect={(row) => row && navigate(`/vendors/${row.id}`)}
         onOpen={(row) => navigate(`/vendors/${row.id}`)}
         searchPlaceholder="Search vendor, country, contact..."
-        facetFilters={[{ columnId: 'type', title: 'Type', options: typeOptions }]}
+        facetFilters={[{ columnId: 'type', title: 'Type', options: catalogOptions('vendor_type') }]}
         initialSorting={[{ id: 'shipmentCount', desc: true }]}
       />
       <p className="px-1 text-xs text-muted-foreground">{t('Click a vendor to open the card.')}</p>

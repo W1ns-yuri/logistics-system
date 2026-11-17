@@ -230,7 +230,7 @@ export function CompanyPage() {
                   </div>
                 </InfoField>
                 <InfoField label="Plan chosen at sign-up">
-                  {company.profile.plannedPlan ? t(planLabels[company.profile.plannedPlan]) : t('Decide later')}
+                  {t(planLabels[company.profile.plannedPlan ?? 'trial'])}
                 </InfoField>
               </>
             )}

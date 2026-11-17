@@ -4,7 +4,9 @@ export const TRANSPORT_MODES = ['air', 'sea', 'road', 'rail'] as const
 export type TransportMode = (typeof TRANSPORT_MODES)[number]
 
 export const INCOTERMS = ['EXW', 'FCA', 'FOB', 'CIF', 'DAP', 'DDP', 'DDU'] as const
-export type Incoterm = (typeof INCOTERMS)[number]
+// Встроенные значения; владелец платформы может добавить свои (src/data/catalog.ts), поэтому ещё и любая строка
+export type BuiltInIncoterm = (typeof INCOTERMS)[number]
+export type Incoterm = BuiltInIncoterm | (string & {})
 
 export const MOVEMENTS = ['door_to_door', 'door_to_port', 'port_to_door', 'port_to_port'] as const
 export type Movement = (typeof MOVEMENTS)[number]
@@ -23,10 +25,12 @@ export const EQUIPMENT_TYPES = [
   'Lowbed',
   'Flatbed',
 ] as const
-export type EquipmentType = (typeof EQUIPMENT_TYPES)[number]
+// Встроенные значения; владелец платформы может добавить свои (src/data/catalog.ts), поэтому ещё и любая строка
+export type BuiltInEquipmentType = (typeof EQUIPMENT_TYPES)[number]
+export type EquipmentType = BuiltInEquipmentType | (string & {})
 
 // Какой тип подходит к виду транспорта: самолёт не возит FTL, а фура не возит LCL
-export const equipmentByMode: Record<TransportMode, EquipmentType[]> = {
+export const equipmentByMode: Record<TransportMode, BuiltInEquipmentType[]> = {
   air: ['Air'],
   sea: ['FCL', 'LCL', '20 GP', '40 DV', '40 HQ', '40 OT', '40 RF'],
   road: ['FTL', 'LTL', 'Lowbed', 'Flatbed', '20 GP', '40 DV', '40 HQ'],

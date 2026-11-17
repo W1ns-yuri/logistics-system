@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 import mapImage from '@/assets/auth-map.webp'
 import { updateSettings, useSettings } from '@/data/settings'
 import { LANGUAGES, t } from '@/i18n'
+import { cityLabel } from '@/lib/countries'
 import { ProductMark } from '@/components/product-mark'
 import { PRODUCT_NAME } from '@/lib/brand'
 import { cn } from '@/lib/utils'
@@ -174,7 +175,12 @@ function LiveCard() {
           </span>
           {t('Live')} · {item.ref} · {t(item.mode)}
         </div>
-        <div className="mt-1 text-sm font-medium">{item.route}</div>
+        <div className="mt-1 text-sm font-medium">
+          {item.route
+            .split(' → ')
+            .map((city) => cityLabel(city))
+            .join(' → ')}
+        </div>
         <div className="text-xs text-cyan-300">{t(item.status)}</div>
       </div>
     </div>

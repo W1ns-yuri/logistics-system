@@ -15,9 +15,11 @@ export type ShipmentEvent = {
 
 // Документы прикладывать не обязательно
 export const DOCUMENT_TYPES = ['invoice', 'packing_list', 'cmr', 'awb', 'bl', 'certificate', 'other'] as const
-export type DocumentType = (typeof DOCUMENT_TYPES)[number]
+// Встроенные значения; владелец платформы может добавить свои (src/data/catalog.ts), поэтому ещё и любая строка
+export type BuiltInDocumentType = (typeof DOCUMENT_TYPES)[number]
+export type DocumentType = BuiltInDocumentType | (string & {})
 
-export const documentTypeLabels: Record<DocumentType, string> = {
+export const documentTypeLabels: Record<BuiltInDocumentType, string> = {
   invoice: 'Invoice',
   packing_list: 'Packing list',
   cmr: 'CMR',

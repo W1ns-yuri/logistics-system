@@ -443,3 +443,23 @@ test('ИНН и сайт можно скрыть из документов', asy
   assert.equal(res.json().settings.companyShowTaxId, false)
   assert.equal((await inject({ method: 'PUT', url: '/api/settings', cookies: boss, payload: { companyShowTaxId: 'no' } })).statusCode, 400)
 })
+
+test('справочники: владелец добавляет и правит, остальные только читают', async () => {
+  const login = await inject({ method: 'POST', url: '/api/platform/login', payload: { email: 'owner@platform.com', password: 'owner-password-1' } })
+  const owner = { omni_owner: login.cookies.find((c) => c.name === 'omni_owner')!.value }
+  // Админ компании менять справочники не может
+  const denied = await inject({ method: 'PUT', url: '/api/platform/catalog/city/Anau', cookies: admin, payload: { labelEn: 'Anau', labelRu: 'Анау', extra: 'Turkmenistan' } })
+  assert.equal(denied.statusCode, 401)
+  const city = await inject({ method: 'PUT', url: '/api/platform/catalog/city/Anau', cookies: owner, payload: { labelEn: 'Anau', labelRu: 'Анау', extra: 'Turkmenistan' } })
+  assert.equal(city.statusCode, 200, city.body)
+  // Переименовать встроенный тип и скрыть его; повторный PUT обновляет, а не дублирует
+  await inject({ method: 'PUT', url: '/api/platform/catalog/equipment/Lowbed', cookies: owner, payload: { labelEn: 'Low loader', labelRu: 'Трал' } })
+  await inject({ method: 'PUT', url: '/api/platform/catalog/equipment/Lowbed', cookies: owner, payload: { labelEn: 'Low loader', labelRu: 'Трал', hidden: true } })
+  assert.equal((await inject({ method: 'PUT', url: '/api/platform/catalog/unknown/x', cookies: owner, payload: { labelEn: 'X' } })).statusCode, 400)
+  // Список открыт всем, даже без входа (нужен на регистрации)
+  const list = (await inject({ method: 'GET', url: '/api/catalog' })).json().items
+  assert.equal(list.length, 2)
+  assert.deepEqual(list.find((i: { key: string }) => i.key === 'Lowbed'), { kind: 'equipment', key: 'Lowbed', labelEn: 'Low loader', labelRu: 'Трал', extra: '', hidden: true })
+  await inject({ method: 'DELETE', url: '/api/platform/catalog/equipment/Lowbed', cookies: owner })
+  assert.equal((await inject({ method: 'GET', url: '/api/catalog' })).json().items.length, 1)
+})

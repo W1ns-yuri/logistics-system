@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 
+import { catalogOptions } from '@/data/catalog'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -7,13 +8,12 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { updateQuotation } from '@/data/store'
 import { t } from '@/i18n'
 import { cn } from '@/lib/utils'
-import { LOST_REASONS, lostReasonLabels, type Quotation } from '@/types/quotation'
+import { type Quotation } from '@/types/quotation'
 
 const OTHER = 'other'
 
@@ -45,7 +45,7 @@ export function LostReasonDialog({
   }
 
   const options = [
-    ...LOST_REASONS.map((value) => ({ value, label: lostReasonLabels[value] })),
+    ...catalogOptions('lost_reason'),
     { value: OTHER, label: 'Other' },
   ]
 

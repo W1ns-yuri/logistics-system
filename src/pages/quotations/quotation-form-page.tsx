@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode }
 import { AlertTriangle, ArrowLeft, Calculator, FileText, Plus, Save, Trash2 } from 'lucide-react'
 import { Link, Navigate, useBlocker, useNavigate, useParams, useSearchParams } from 'react-router'
 
+import { catalogLabel, catalogOptions, equipmentForMode } from '@/data/catalog'
 import { CityPicker } from '@/components/city-picker'
 import { Combobox } from '@/components/combobox'
 import { DateInput } from '@/components/date-input'
@@ -29,8 +30,6 @@ import { cn } from '@/lib/utils'
 import { terminalLabels, terminalSuggestions } from '@/lib/terminals'
 import {
   CURRENCIES,
-  equipmentByMode,
-  INCOTERMS,
   MOVEMENTS,
   needsPorts,
   TRANSPORT_MODES,
@@ -40,15 +39,13 @@ import {
   type EquipmentType,
   type Incoterm,
   type Movement,
-  type TransportMode,
-} from '@/types/logistics'
+  type TransportMode } from '@/types/logistics'
 import {
   QUOTATION_STATUSES,
   type CargoLine,
   type Charge,
   type Quotation,
-  type QuotationStatus,
-} from '@/types/quotation'
+  type QuotationStatus } from '@/types/quotation'
 import { NotFoundPage } from '@/pages/not-found'
 
 /*
@@ -258,10 +255,10 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
     setForm((prev) => ({
       ...prev,
       mode,
-      equipment: equipmentByMode[mode].includes(prev.equipment) ? prev.equipment : equipmentByMode[mode][0]!,
+      equipment: equipmentForMode(mode).includes(prev.equipment) ? prev.equipment : (equipmentForMode(mode)[0] ?? prev.equipment),
     }))
   // Старая котировка с неподходящим типом: оставляем его в списке, чтобы не потерять
-  const equipmentOptions = [...new Set([...equipmentByMode[form.mode], form.equipment])]
+  const equipmentOptions = equipmentForMode(form.mode, form.equipment)
   const showPorts = needsPorts(form.mode, form.movement)
   const terminals = terminalLabels(form.mode)
   // Подсказки портов/аэропортов/станций + те, что уже вписывали в других котировках
@@ -508,8 +505,10 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
                     value={form.incoterm}
                     onChange={(e) => set('incoterm', e.target.value as Incoterm)}
                   >
-                    {INCOTERMS.map((value) => (
-                      <option key={value}>{value}</option>
+                    {catalogOptions('incoterm', form.incoterm).map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
                     ))}
                   </NativeSelect>
                 </FormField>
@@ -639,7 +638,9 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
                     onChange={(e) => set('equipment', e.target.value as EquipmentType)}
                   >
                     {equipmentOptions.map((value) => (
-                      <option key={value}>{value}</option>
+                      <option key={value} value={value}>
+                        {catalogLabel('equipment', value)}
+                      </option>
                     ))}
                   </NativeSelect>
                 </FormField>

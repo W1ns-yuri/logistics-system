@@ -52,7 +52,21 @@ export function Combobox({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return options
-    return options.filter((o) => `${o.label} ${o.value} ${o.hint ?? ''} ${o.keywords ?? ''}`.toLowerCase().includes(q))
+    // Сначала то, что начинается с запроса («Стам» → Стамбул), потом совпадения внутри названия,
+    // в конце — найденные только по стране или другим словам (иначе «ист» выдаёт все города Пакистана)
+    const rank = (o: ComboboxOption) => {
+      const label = o.label.toLowerCase()
+      const words = `${label} ${o.value.toLowerCase()} ${(o.keywords ?? '').toLowerCase()}`
+      if (label.startsWith(q)) return 0
+      if (words.split(/[\s-]+/).some((w) => w.startsWith(q))) return 1
+      if (label.includes(q)) return 2
+      return `${words} ${(o.hint ?? '').toLowerCase()}`.includes(q) ? 3 : -1
+    }
+    return options
+      .map((o) => ({ o, r: rank(o) }))
+      .filter(({ r }) => r >= 0)
+      .sort((a, b) => a.r - b.r)
+      .map(({ o }) => o)
   }, [options, query])
 
   const custom =

@@ -33,7 +33,7 @@ export function formatDateTime(iso?: string) {
 
 // 24500 → '24 500 kg'
 export function formatWeight(kg: number) {
-  return `${new Intl.NumberFormat('ru-RU').format(kg)} kg`
+  return `${new Intl.NumberFormat('ru-RU').format(kg)} ${t('kg')}`
 }
 
 export function formatMoney(value: number, currency: string) {

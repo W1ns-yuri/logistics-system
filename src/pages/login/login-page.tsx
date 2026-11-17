@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { BriefcaseBusiness, Calculator, Eye, EyeOff, KeyRound, LockKeyhole, Mail } from 'lucide-react'
+import { Eye, EyeOff, LockKeyhole, Mail } from 'lucide-react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 
 import { AuthLayout } from '@/components/auth-layout'
@@ -17,19 +17,12 @@ import { cn } from '@/lib/utils'
 // Сколько «идёт запрос» при входе, мс. Столько же едет полоса сверху карточки
 const SIGN_IN_DELAY = 900
 
-const DEMO_ACCOUNTS = [
-  { email: 'manager@company.com', label: 'Admin', icon: KeyRound },
-  { email: 'operator@company.com', label: 'Employee', icon: BriefcaseBusiness },
-  { email: 'accountant@company.com', label: 'Accountant', icon: Calculator },
-]
-
 export function LoginPage() {
   const session = useSession()
   const navigate = useNavigate()
   const location = useLocation()
-  // В демо поля уже заполнены, в рабочей сборке — пустые
-  const [email, setEmail] = useState(API_MODE ? '' : 'manager@company.com')
-  const [password, setPassword] = useState(API_MODE ? '' : 'demo-password')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const { ready } = useSyncStatus()
   const [showPassword, setShowPassword] = useState(false)
@@ -170,31 +163,6 @@ export function LoginPage() {
             </Button>
           </form>
         </div>
-
-        {/* Демо-команда: войти под ролью в один клик и посмотреть, что она видит */}
-        {!API_MODE && (
-          <div className="border-t bg-muted/40 px-6 py-4 sm:px-8">
-            <div className="text-sm font-medium">{t('Demo access')}</div>
-            <div className="mt-2 grid grid-cols-3 gap-2">
-              {DEMO_ACCOUNTS.map(({ email: address, label, icon: Icon }) => (
-                <Button
-                  key={address}
-                  type="button"
-                  variant="outline"
-                  className="h-10 bg-card px-2"
-                  disabled={loading}
-                  onClick={() => enter(address)}
-                >
-                  <Icon className="max-sm:hidden" />
-                  {t(label)}
-                </Button>
-              ))}
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {t('No password needed. Pick a role to try the system.')}
-            </p>
-          </div>
-        )}
 
         <div className="border-t px-6 py-3.5 text-center text-sm sm:px-8">
           {t('New company?')}{' '}

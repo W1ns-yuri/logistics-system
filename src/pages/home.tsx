@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { usePermissions } from '@/data/auth'
 import { useSettings } from '@/data/settings'
 import { useCustomers, useActiveInvoices, useQuotations, useShipments, useTeam, useVendors } from '@/data/store'
+import { cityLabel } from '@/lib/countries'
 import { t } from '@/i18n'
 import { invoiceTotals, quotationTotals } from '@/lib/calculation'
 import { toUSD } from '@/lib/currency'
@@ -86,7 +87,7 @@ export function HomePage() {
         reference: q.reference,
         type: 'Quotation' as const,
         customer: q.customer,
-        route: `${q.collectionAddress} → ${q.deliveryAddress}`,
+        route: `${cityLabel(q.collectionAddress)} → ${cityLabel(q.deliveryAddress)}`,
         status: <QuotationStatusBadge status={q.status} />,
         updatedAt: q.createdAt,
         link: `/quotations/${q.id}`,
@@ -96,7 +97,7 @@ export function HomePage() {
         reference: s.number,
         type: 'Shipment' as const,
         customer: s.customer,
-        route: `${s.collectionAddress} → ${s.deliveryAddress}`,
+        route: `${cityLabel(s.collectionAddress)} → ${cityLabel(s.deliveryAddress)}`,
         status: <ShipmentStatusBadge status={s.status} />,
         updatedAt: s.history.at(-1)?.at ?? s.orderDate,
         link: `/shipments/${s.id}`,

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { BarChart3, Building2, ChevronDown, ChevronRight, CreditCard, ExternalLink, Languages, Layers, Lightbulb, LogOut, Menu, Moon, ShieldCheck, Sun } from 'lucide-react'
+import { BarChart3, BookOpen, Building2, ChevronDown, ChevronRight, CreditCard, ExternalLink, Languages, Layers, Lightbulb, LogOut, Menu, Moon, ShieldCheck, Sun } from 'lucide-react'
 import { Link, Outlet, useLocation } from 'react-router'
 
 import { AppSidebar } from '@/components/layout/app-sidebar'
@@ -37,6 +37,8 @@ const groups: NavGroup[] = [
       { title: 'Feedback', path: '/platform/feedback', icon: Lightbulb },
     ],
   },
+  // Списки, из которых выбирают компании: города, типы транспорта и т. п. Меняются без программиста
+  { label: 'Settings', items: [{ title: 'Reference data', path: '/platform/catalog', icon: BookOpen }] },
 ]
 const footer: NavItem[] = [{ title: 'Open the app', path: '/', icon: ExternalLink }]
 const allItems = groups.flatMap((g) => g.items)

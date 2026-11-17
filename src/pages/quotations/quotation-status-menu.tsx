@@ -1,6 +1,7 @@
 import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 
+import { catalogLabel } from '@/data/catalog'
 import { QuotationStatusBadge, quotationStatuses } from '@/components/status-badge'
 import {
   DropdownMenu,
@@ -9,11 +10,10 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { updateQuotation } from '@/data/store'
 import { t } from '@/i18n'
-import { lostReasonText, type Quotation, type QuotationStatus } from '@/types/quotation'
+import { type Quotation, type QuotationStatus } from '@/types/quotation'
 import { LostReasonDialog } from './lost-reason-dialog'
 
 // Что значит каждый статус — подпись под пунктом меню
@@ -32,7 +32,7 @@ export function QuotationStatusMenu({ quotation, editable }: { quotation: Quotat
   // Причина проигрыша рядом со статусом
   const reason = quotation.status === 'failed' && quotation.lostReason && (
     <span className="text-sm text-muted-foreground" data-testid="lost-reason">
-      {t('Reason: {reason}', { reason: t(lostReasonText(quotation.lostReason)) })}
+      {t('Reason: {reason}', { reason: catalogLabel('lost_reason', quotation.lostReason) })}
     </span>
   )
   // По котировке уже есть перевозка — статус ведёт перевозка, вручную не меняем

@@ -63,7 +63,8 @@ export function QuotationsPage() {
               if (shipment) navigate(`/shipments/${shipment.id}`)
             }}
             createShipmentDisabled={!!linked || selected?.status === 'cancelled'}
-            onDelete={() => setConfirmOpen(true)}
+            // По котировке уже есть перевозка — удалять нельзя (перевозка и аналитика держатся за её расчёт)
+            onDelete={linked ? undefined : () => setConfirmOpen(true)}
           />
         }
       />

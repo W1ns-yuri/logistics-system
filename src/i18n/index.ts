@@ -53,6 +53,9 @@ export function t(key: string, vars?: Record<string, string | number>) {
   return text.replace(/\{(\w+)\}/g, (_, name: string) => String(vars[name] ?? ''))
 }
 
+// Перевод на конкретный язык, не на язык интерфейса (админка показывает оба названия рядом)
+export const translateTo = (language: Language, key: string) => dictionaries[language]?.[key] ?? key
+
 // Локаль для дат и чисел
 export function locale() {
   return currentLanguage() === 'ru' ? 'ru-RU' : 'en-GB'

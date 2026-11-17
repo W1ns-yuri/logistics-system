@@ -1,6 +1,7 @@
 import { Paperclip, X } from 'lucide-react'
 import { useRef, useState, type FormEvent } from 'react'
 
+import { catalogOptions } from '@/data/catalog'
 import { DateInput } from '@/components/date-input'
 import { FormField } from '@/components/form-field'
 import { Button } from '@/components/ui/button'
@@ -10,8 +11,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { addPayment, updatePayment } from '@/data/store'
@@ -20,13 +20,10 @@ import { invoiceTotals } from '@/lib/calculation'
 import { acceptFor, fileError, readReceipt, RECEIPT_TYPES } from '@/lib/files'
 import { formatMoney } from '@/lib/format'
 import {
-  PAYMENT_METHODS,
-  paymentMethodLabels,
   type Invoice,
   type Payment,
   type PaymentMethod,
-  type PaymentReceipt,
-} from '@/types/invoice'
+  type PaymentReceipt } from '@/types/invoice'
 
 // Окно «Внести оплату»: сумма, дата, способ, скидка и чек (по желанию).
 // С payment — то же окно для исправления уже внесённой оплаты.
@@ -135,9 +132,9 @@ function PaymentForm({ invoice, payment, onDone }: { invoice: Invoice; payment?:
         </FormField>
         <FormField label="Payment method" htmlFor="payment-method" required>
           <NativeSelect id="payment-method" value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)}>
-            {PAYMENT_METHODS.map((m) => (
-              <option key={m} value={m}>
-                {t(paymentMethodLabels[m])}
+            {catalogOptions('payment_method', method).map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
               </option>
             ))}
           </NativeSelect>

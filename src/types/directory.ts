@@ -13,9 +13,11 @@ export type Customer = {
 }
 
 export const VENDOR_TYPES = ['airline', 'shipping_line', 'trucking', 'rail', 'agent'] as const
-export type VendorType = (typeof VENDOR_TYPES)[number]
+// Встроенные значения; владелец платформы может добавить свои (src/data/catalog.ts), поэтому ещё и любая строка
+export type BuiltInVendorType = (typeof VENDOR_TYPES)[number]
+export type VendorType = BuiltInVendorType | (string & {})
 
-export const vendorTypeLabels: Record<VendorType, string> = {
+export const vendorTypeLabels: Record<BuiltInVendorType, string> = {
   airline: 'Airline',
   shipping_line: 'Shipping line',
   trucking: 'Trucking',

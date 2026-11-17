@@ -12,11 +12,11 @@ import {
   Receipt,
   Trash2,
   Undo2,
-  Wallet,
-} from 'lucide-react'
+  Wallet } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
+import { catalogLabel, catalogOptions } from '@/data/catalog'
 import { ConfirmDelete } from '@/components/confirm-delete'
 import { InfoField } from '@/components/info-field'
 import { SectionCard } from '@/components/section-card'
@@ -35,21 +35,18 @@ import {
   useQuotation,
   useMemberName,
   useShipment,
-  useVendors,
-} from '@/data/store'
+  useVendors } from '@/data/store'
+import { cityLabel } from '@/lib/countries'
 import { t } from '@/i18n'
 import { acceptFor, DOCUMENT_FILE_TYPES, fileError, formatSize, MAX_STORED_FILE, shrinkImage } from '@/lib/files'
 import { formatDate, formatDateTime, formatWeight } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { NotFoundPage } from '@/pages/not-found'
 import {
-  DOCUMENT_TYPES,
   SHIPMENT_STATUSES,
-  documentTypeLabels,
   type DocumentType,
   type Shipment,
-  type ShipmentStatus,
-} from '@/types/shipment'
+  type ShipmentStatus } from '@/types/shipment'
 import { CancelShipmentDialog } from './cancel-shipment-dialog'
 import { ShipmentFormDialog } from './shipment-form-dialog'
 import { CustomerPaymentsSection, VendorPaymentsSection } from './shipment-payments'
@@ -98,7 +95,7 @@ export function ShipmentDetailPage() {
               <LateBadge shipment={shipment} />
             </div>
             <div className="mt-1 text-sm text-muted-foreground">
-              {shipment.customer} · {shipment.collectionAddress} → {shipment.deliveryAddress}
+              {shipment.customer} · {cityLabel(shipment.collectionAddress)} → {cityLabel(shipment.deliveryAddress)}
               {ownerName && <> · {t('Created by {name}', { name: ownerName })}</>}
             </div>
           </div>
@@ -124,26 +121,26 @@ export function ShipmentDetailPage() {
               <Pencil />
               {t('Edit')}
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={shipment.status === 'completed'}
-              onClick={() => setCancelOpen(true)}
-              className="text-destructive hover:text-destructive"
-            >
-              <CircleX />
-              {t('Cancel shipment')}
-            </Button>
-            <Button
-              size="sm"
-              disabled={!nextStatus}
-              onClick={() => nextStatus && setShipmentStatus(shipment.id, nextStatus)}
-            >
-              <ChevronRight />
-              {nextStatus
-                ? t('Mark as: {status}', { status: t(shipmentStatuses[nextStatus].label) })
-                : t('No further status')}
-            </Button>
+            {/* Завершённую перевозку уже не отменить и дальше вести некуда: кнопки не показываем, остаётся «Отменить шаг» */}
+            {shipment.status !== 'completed' && (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setCancelOpen(true)}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <CircleX />
+                  {t('Cancel shipment')}
+                </Button>
+                {nextStatus && (
+                  <Button size="sm" onClick={() => setShipmentStatus(shipment.id, nextStatus)}>
+                    <ChevronRight />
+                    {t('Mark as: {status}', { status: t(shipmentStatuses[nextStatus].label) })}
+                  </Button>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>
@@ -172,8 +169,8 @@ export function ShipmentDetailPage() {
         <div className="space-y-4 lg:col-span-2">
           <SectionCard title="Route & dates">
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-              <InfoField label="Pick up location">{shipment.collectionAddress}</InfoField>
-              <InfoField label="Delivery location">{shipment.deliveryAddress}</InfoField>
+              <InfoField label="Pick up location">{cityLabel(shipment.collectionAddress)}</InfoField>
+              <InfoField label="Delivery location">{cityLabel(shipment.deliveryAddress)}</InfoField>
               <InfoField label="Mode">
                 <TransportModeLabel mode={shipment.mode} />
               </InfoField>
@@ -185,9 +182,9 @@ export function ShipmentDetailPage() {
           <SectionCard title="Cargo">
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
               <InfoField label="Quantity">
-                {shipment.transportQuantity} × {shipment.equipment}
+                {shipment.transportQuantity} × {catalogLabel('equipment', shipment.equipment)}
               </InfoField>
-              <InfoField label="Packages">{shipment.cargoDescription || '—'}</InfoField>
+              <InfoField label="Nature of goods">{shipment.cargoDescription || '—'}</InfoField>
               <InfoField label="Weight">{formatWeight(shipment.weightKg)}</InfoField>
               <InfoField label="Vendor (carrier)">{carriers.join(', ') || '—'}</InfoField>
               <InfoField label="Quotation">
@@ -386,9 +383,9 @@ function DocumentsSection({ shipment, canEdit }: { shipment: Shipment; canEdit: 
               value={type}
               onChange={(e) => setType(e.target.value as DocumentType)}
             >
-              {DOCUMENT_TYPES.map((value) => (
-                <option key={value} value={value}>
-                  {t(documentTypeLabels[value])}
+              {catalogOptions('document', type).map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
                 </option>
               ))}
             </NativeSelect>
@@ -442,7 +439,7 @@ function DocumentsSection({ shipment, canEdit }: { shipment: Shipment; canEdit: 
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-medium">{doc.name}</div>
                 <div className="text-xs text-muted-foreground">
-                  {t(documentTypeLabels[doc.type])} · {formatSize(doc.size)} · {formatDateTime(doc.uploadedAt)}
+                  {catalogLabel('document', doc.type)} · {formatSize(doc.size)} · {formatDateTime(doc.uploadedAt)}
                 </div>
               </div>
               {doc.dataUrl && (

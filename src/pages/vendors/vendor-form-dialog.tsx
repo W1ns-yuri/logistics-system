@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
 
+import { catalogOptions } from '@/data/catalog'
 import { FormField } from '@/components/form-field'
 import { Combobox } from '@/components/combobox'
 import { TransportModeIcon } from '@/components/transport-mode'
@@ -13,7 +14,7 @@ import { phoneExample } from '@/lib/phone'
 import { countryOptions } from '@/lib/countries'
 import { isValidEmail, isValidPhone } from '@/lib/input-rules'
 import { cn } from '@/lib/utils'
-import { VENDOR_TYPES, vendorTypeLabels, type Vendor, type VendorType } from '@/types/directory'
+import { type Vendor, type VendorType } from '@/types/directory'
 import { TRANSPORT_MODES, transportModeLabels, type TransportMode } from '@/types/logistics'
 
 type FormState = Omit<Vendor, 'id' | 'code'>
@@ -137,9 +138,9 @@ function VendorForm({
           hint="What the company is: an airline, a shipping line, a trucking company, a rail operator or an agent who arranges transport for you."
         >
           <NativeSelect id="vendor-type" value={form.type} onChange={(e) => pickType(e.target.value as VendorType)}>
-            {VENDOR_TYPES.map((value) => (
-              <option key={value} value={value}>
-                {t(vendorTypeLabels[value])}
+            {catalogOptions('vendor_type', form.type).map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
               </option>
             ))}
           </NativeSelect>
