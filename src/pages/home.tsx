@@ -44,7 +44,12 @@ export function HomePage() {
     const overdue = invoices.filter((inv) => inv.status === 'overdue').length
     const won = quotations.filter((q) => q.status === 'shipment_created' || q.status === 'completed')
     const income = won.reduce((acc, q) => acc + toUSD(quotationTotals(q).income, q.currency), 0)
-    const profit = won.reduce((acc, q) => acc + toUSD(quotationTotals(q).profit, q.currency), 0)
+    // Доплаты подрядчикам уменьшают прибыль — так же считает аналитика, чтобы маржа совпадала
+    const extras = shipments
+      .filter((s) => s.status !== 'cancelled' && won.some((q) => q.id === s.quotationId))
+      .flatMap((s) => s.extraCharges ?? [])
+      .reduce((acc, c) => acc + toUSD(c.amount, c.currency), 0)
+    const profit = won.reduce((acc, q) => acc + toUSD(quotationTotals(q).profit, q.currency), 0) - extras
     const delivered = shipments.filter((s) => s.status === 'delivered' || s.status === 'completed').length
 
     const list = [

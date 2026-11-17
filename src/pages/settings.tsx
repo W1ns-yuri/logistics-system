@@ -60,7 +60,8 @@ export function SettingsPage() {
         value={tab}
         onValueChange={(value) => setParams(value === 'company' ? {} : { tab: value }, { replace: true })}
       >
-        <TabsList>
+        {/* Четыре вкладки на телефон не влезают: переносим на вторую строку, а не прячем за край */}
+        <TabsList className="h-auto flex-wrap">
           {tabs.map((item) => (
             <TabsTrigger key={item.value} value={item.value}>
               {t(item.label)}
@@ -111,7 +112,15 @@ const showFrom = (settings: Settings) => ({
 })
 
 // Галочка под ИНН и сайтом: печатать ли их в котировках и инвойсах
-function ShowInDocuments({ id, checked, onChange }: { id: string; checked: boolean; onChange: (value: boolean) => void }) {
+function ShowInDocuments({
+  id,
+  checked,
+  onChange,
+}: {
+  id: string
+  checked: boolean
+  onChange: (value: boolean) => void
+}) {
   return (
     <label htmlFor={id} className="flex items-center gap-2 text-sm text-muted-foreground">
       <input
@@ -668,36 +677,39 @@ export function TeamSection() {
           const me = member.email === session?.email
           return (
             <div key={member.id} className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium">
+              {/* На телефоне имя и email — отдельной строкой, роль и кнопки под ними, чтобы текст не наезжал */}
+              <div className="min-w-0 basis-full sm:flex-1 sm:basis-0">
+                <div className="text-sm font-medium break-words">
                   {member.name}
                   {me && <span className="ml-2 text-xs font-normal text-muted-foreground">{t('(you)')}</span>}
                 </div>
-                <div className="text-sm text-muted-foreground">{member.email}</div>
+                <div className="truncate text-sm text-muted-foreground">{member.email}</div>
               </div>
               {member.pending && (
                 <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs text-warning-text">
                   {t('Has not signed in yet')}
                 </span>
               )}
-              <span className="text-sm text-muted-foreground">{t(roleLabels[member.role])}</span>
-              {API_MODE && !me && (
-                <Button variant="ghost" size="sm" onClick={() => issueLink(member)}>
-                  {t('Sign-in link')}
+              <div className="flex items-center gap-1">
+                <span className="mr-2 text-sm text-muted-foreground">{t(roleLabels[member.role])}</span>
+                {API_MODE && !me && (
+                  <Button variant="ghost" size="sm" onClick={() => issueLink(member)}>
+                    {t('Sign-in link')}
+                  </Button>
+                )}
+                <Button variant="ghost" size="icon-sm" aria-label={t('Edit')} onClick={() => setEditing(member)}>
+                  <Pencil />
                 </Button>
-              )}
-              <Button variant="ghost" size="icon-sm" aria-label={t('Edit')} onClick={() => setEditing(member)}>
-                <Pencil />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={t('Remove')}
-                disabled={me}
-                onClick={() => setRemoving(member)}
-              >
-                <Trash2 />
-              </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={t('Remove')}
+                  disabled={me}
+                  onClick={() => setRemoving(member)}
+                >
+                  <Trash2 />
+                </Button>
+              </div>
             </div>
           )
         })}

@@ -102,6 +102,8 @@ export const ru: Record<string, string> = {
   'Visible columns': 'Видимые колонки',
   'Clear filter': 'Сбросить фильтр',
   'Filter by {name}': 'Фильтр: {name}',
+  'Nothing here yet. New records will appear in this list.': 'Здесь пока пусто. Новые записи появятся в этом списке.',
+  Team: 'Команда',
   'Nothing found. Try changing the search or filters.': 'Ничего не найдено. Измените поиск или фильтры.',
   'Rows per page': 'Строк на странице',
   'Page {page} of {pages}': 'Страница {page} из {pages}',
@@ -343,6 +345,8 @@ export const ru: Record<string, string> = {
   // Подрядчики
   'Airlines, shipping lines, trucking and rail operators you buy services from.':
     'Авиакомпании, морские линии, автоперевозчики и ж/д операторы, у которых вы покупаете услуги.',
+  'Search company, email, country...': 'Поиск по компании, email, стране...',
+  'Search company...': 'Поиск по компании...',
   'Search vendor, country, contact...': 'Поиск по подрядчику, стране, контакту...',
   'Used in shipments': 'В перевозках',
   Airline: 'Авиакомпания',
@@ -369,10 +373,10 @@ export const ru: Record<string, string> = {
   'Total invoiced': 'Выставлено всего',
   Received: 'Получено',
   Outstanding: 'К получению',
-  '{n} invoices': '{n} инвойсов',
+  '{n} invoices': '{n} инвойс|{n} инвойса|{n} инвойсов',
   '{n} paid in full': '{n} оплачено полностью',
   'Balance due on all invoices': 'Остаток по всем инвойсам',
-  '{n} invoices past due date': '{n} инвойсов просрочено',
+  '{n} invoices past due date': '{n} инвойс просрочен|{n} инвойса просрочено|{n} инвойсов просрочено',
   'Click an invoice to preview it.': 'Нажмите на инвойс, чтобы посмотреть его.',
   'Invoices are created from a shipment': 'Инвойсы выставляются из перевозки',
   'Totals are converted to USD at fixed rates: 1 USD = 3.5 TMT = 0.93 EUR.': 'Итоги пересчитаны в доллары по фиксированному курсу: 1 USD = 3,5 TMT = 0,93 EUR.',
@@ -387,6 +391,8 @@ export const ru: Record<string, string> = {
   'Sub total': 'Подытог',
   'Thanks for your business.': 'Спасибо за сотрудничество.',
 
+  'Created from quotation {ref}': 'Создана из котировки {ref}',
+  'Copied from {ref}': 'Скопирована из {ref}',
   // Аналитика
   'Revenue and profit are planned: they come from the quotation calculation minus extra charges. A shipment without a quotation counts its invoices and vendor payments. Amounts are in USD at fixed rates: 1 USD = 3.5 TMT = 0.93 EUR.':
     'Выручка и прибыль плановые: из расчёта котировки за вычетом доплат. Перевозка без котировки считается по своим инвойсам и оплатам подрядчикам. Суммы в долларах по фиксированному курсу: 1 USD = 3,5 TMT = 0,93 EUR.',
@@ -408,7 +414,7 @@ export const ru: Record<string, string> = {
   '{n} shp.': '{n} перев.',
   'Quotation conversion': 'Конверсия котировок',
   'Won out of decided quotations': 'Выиграно из решённых котировок',
-  '{n} quotations': '{n} котировок',
+  '{n} quotations': '{n} котировка|{n} котировки|{n} котировок',
   Won: 'Выиграно',
   Lost: 'Проиграно',
   Receivables: 'Дебиторка',
@@ -671,7 +677,7 @@ export const ru: Record<string, string> = {
   'until {date}': 'до {date}',
   'yearly payments': 'оплат за год',
   '{n} companies now': 'Сейчас компаний: {n}',
-  '{n} days': '{n} дней',
+  '{n} days': '{n} день|{n} дня|{n} дней',
   '{n} payments': 'оплат: {n}',
   '{n}-day free period': 'Бесплатно {n} дней',
   '{price} per year': '{price} за год',

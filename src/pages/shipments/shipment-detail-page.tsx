@@ -319,7 +319,7 @@ function TrackingSection({ shipment, canEdit }: { shipment: Shipment; canEdit: b
                   {t(shipmentStatuses[status].label)}
                 </div>
                 {event && <div className="text-xs text-muted-foreground">{formatDateTime(event.at)}</div>}
-                {event?.note && <div className="text-xs text-muted-foreground">{event.note}</div>}
+                {event?.note && <div className="text-xs text-muted-foreground">{historyNote(event.note)}</div>}
               </div>
             </li>
           )
@@ -476,3 +476,10 @@ function DocumentsSection({ shipment, canEdit }: { shipment: Shipment; canEdit: 
 }
 
 // Оплата по шипменту: инвойсы клиенту и сколько он уже заплатил
+
+// Системные пометки истории хранятся по-английски — переводим при показе. Причину отмены (свой текст) оставляем как есть
+function historyNote(note: string) {
+  const match = /^(Created from quotation|Copied from) (\S+)$/.exec(note)
+  if (!match) return note
+  return match[1] === 'Copied from' ? t('Copied from {ref}', { ref: match[2]! }) : t('Created from quotation {ref}', { ref: match[2]! })
+}
