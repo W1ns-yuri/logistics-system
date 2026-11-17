@@ -9,7 +9,7 @@ import { z } from 'zod'
 
 import { assertAdmin, assertWritable, requireMember, viewerOf, type Viewer } from '../auth/session.ts'
 import type { Db } from '../db/client.ts'
-import { companies, feedback, memberships, records, users } from '../db/schema.ts'
+import { companies, feedback, files, memberships, records, users } from '../db/schema.ts'
 import { createLimiter, MINUTE } from '../auth/rate-limit.ts'
 import { companyForClient, monthlyUsage } from '../lib/company.ts'
 import { forbidden, HttpError } from '../lib/http-error.ts'
@@ -90,6 +90,8 @@ export function mergeForWrite(viewer: Viewer, collection: Collection, existing: 
 export function assertCanDelete(viewer: Viewer, collection: Collection, existing: Data) {
   if (collection === 'invoices') return assertAdmin(viewer)
   if (viewer.role === 'accountant') throw forbidden()
+  // Клиентов и подрядчиков удаляет только админ: на них держатся котировки и перевозки всех сотрудников
+  if ((collection === 'customers' || collection === 'vendors') && viewer.role !== 'admin') throw forbidden()
   if ((collection === 'quotations' || collection === 'shipments') && viewer.role === 'employee' && !isOwner(viewer, existing))
     throw forbidden('not_owner')
 }
@@ -172,7 +174,14 @@ async function saveRecord(db: Db, companyId: string, collection: Collection, id:
         .values({ companyId, collection, id, data, number })
         .onConflictDoUpdate({
           target: [records.companyId, records.collection, records.id],
-          set: { data, number, updatedAt: sql`now()`, deletedAt: null },
+          // Запись с id удалённой оживает как новая: считается в месячный лимит Basic заново
+          set: {
+            data,
+            number,
+            updatedAt: sql`now()`,
+            deletedAt: null,
+            createdAt: sql`case when ${records.deletedAt} is null then ${records.createdAt} else now() end`,
+          },
         })
       return data
     } catch (error) {
@@ -300,6 +309,15 @@ export async function dataRoutes(app: FastifyInstance) {
     assertWritable(viewer)
     assertAdmin(viewer)
     const patch = settingsBody.parse(request.body)
+    // Логотип — только файл этой компании
+    if (patch.companyLogo) {
+      const [own] = await db
+        .select({ id: files.id })
+        .from(files)
+        .where(and(eq(files.id, patch.companyLogo.split('/').pop()!), eq(files.companyId, viewer.company.id)))
+        .limit(1)
+      if (!own) throw new HttpError(400, 'file_not_found')
+    }
     const settings = { ...viewer.company.settings, ...patch }
     await db
       .update(companies)

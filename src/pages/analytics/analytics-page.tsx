@@ -115,7 +115,7 @@ export function AnalyticsPage() {
     <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
       <PageHeader
         title="Analytics"
-        description="Revenue, profit and operations at a glance. Amounts are in USD at fixed rates: 1 USD = 3.5 TMT = 0.93 EUR."
+        description="Revenue and profit are planned: they come from the quotation calculation minus extra charges. A shipment without a quotation counts its invoices and vendor payments. Amounts are in USD at fixed rates: 1 USD = 3.5 TMT = 0.93 EUR."
         actions={periodSwitch}
       />
 

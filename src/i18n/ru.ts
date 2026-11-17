@@ -388,6 +388,8 @@ export const ru: Record<string, string> = {
   'Thanks for your business.': 'Спасибо за сотрудничество.',
 
   // Аналитика
+  'Revenue and profit are planned: they come from the quotation calculation minus extra charges. A shipment without a quotation counts its invoices and vendor payments. Amounts are in USD at fixed rates: 1 USD = 3.5 TMT = 0.93 EUR.':
+    'Выручка и прибыль плановые: из расчёта котировки за вычетом доплат. Перевозка без котировки считается по своим инвойсам и оплатам подрядчикам. Суммы в долларах по фиксированному курсу: 1 USD = 3,5 TMT = 0,93 EUR.',
   'Revenue, profit and operations at a glance. Amounts are in USD at fixed rates: 1 USD = 3.5 TMT = 0.93 EUR.':
     'Выручка, прибыль и операции на одном экране. Суммы в долларах по фиксированному курсу: 1 USD = 3,5 TMT = 0,93 EUR.',
   '3 months': '3 месяца',

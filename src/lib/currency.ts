@@ -11,3 +11,8 @@ export const USD_RATES: Record<Currency, number> = {
 export function toUSD(value: number, currency: string) {
   return value * (USD_RATES[currency as Currency] ?? 1)
 }
+
+// Пересчёт между валютами через доллар (по тем же демо-курсам)
+export function convert(value: number, from: string, to: string) {
+  return from === to ? value : toUSD(value, from) / toUSD(1, to)
+}

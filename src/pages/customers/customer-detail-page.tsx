@@ -27,7 +27,7 @@ export function CustomerDetailPage() {
   const quotations = useQuotations()
   const shipments = useShipments()
   const invoices = useInvoices()
-  const { canEditOrders, canSeePayments } = usePermissions()
+  const { canEditOrders, canSeePayments, canDeleteDirectory: canDelete } = usePermissions()
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
 
@@ -68,15 +68,18 @@ export function CustomerDetailPage() {
                 <Pencil />
                 {t('Edit')}
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-destructive hover:text-destructive"
-                onClick={() => setDeleteOpen(true)}
-              >
-                <Trash2 />
-                {t('Delete')}
-              </Button>
+              {/* Удаляет только админ: на клиенте и подрядчике держатся заказы всех сотрудников */}
+              {canDelete && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 />
+                  {t('Delete')}
+                </Button>
+              )}
               <Button size="sm" onClick={() => navigate('/quotations/new')}>
                 <FileText />
                 {t('New quotation')}

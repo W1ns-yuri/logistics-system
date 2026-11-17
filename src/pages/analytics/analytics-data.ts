@@ -48,7 +48,17 @@ export function buildAnalytics({
   const quotationById = new Map(quotations.map((q) => [q.id, q]))
   const money = (s: Shipment) => {
     const q = s.quotationId ? quotationById.get(s.quotationId) : undefined
-    if (!q) return { revenue: 0, profit: 0 }
+    // Перевозка без котировки: выручка — её инвойсы, себестоимость — оплаты подрядчикам и доплаты
+    if (!q) {
+      const revenue = invoices
+        .filter((inv) => inv.shipmentId === s.id)
+        .reduce((acc, inv) => acc + toUSD(invoiceTotals(inv).total, inv.currency), 0)
+      const cost = [...(s.vendorPayments ?? []), ...(s.extraCharges ?? [])].reduce(
+        (acc, p) => acc + toUSD(p.amount, p.currency),
+        0,
+      )
+      return { revenue, profit: revenue - cost }
+    }
     const { income, profit } = quotationTotals(q)
     // Доплаты подрядчику сверх расчёта (штраф, простой) уменьшают прибыль — так же, как в карточке перевозки
     const extras = (s.extraCharges ?? []).reduce((acc, c) => acc + toUSD(c.amount, c.currency), 0)

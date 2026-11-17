@@ -112,7 +112,7 @@ test('бухгалтер вносит оплату в инвойс, но не м
 test('удаление видно другим через sync?since', async () => {
   const first = (await inject({ method: 'GET', url: '/api/sync', cookies: admin })).json()
   await put(employee.cookie, 'customers', 'c-9', { name: 'Temp' })
-  assert.equal((await inject({ method: 'DELETE', url: '/api/records/customers/c-9', cookies: employee.cookie })).statusCode, 204)
+  assert.equal((await inject({ method: 'DELETE', url: '/api/records/customers/c-9', cookies: admin })).statusCode, 204)
   const changes = (await inject({ method: 'GET', url: `/api/sync?since=${encodeURIComponent(first.serverTime)}`, cookies: admin })).json()
   const c = changes.records.find((r: { id: string }) => r.id === 'c-9')
   assert.equal(c.data, null)
@@ -183,6 +183,15 @@ test('чужая компания не может забрать сотрудн�
   await inject({ method: 'DELETE', url: `/api/team/${pending.json().member.id}`, cookies: admin })
   await ctx.db.delete(companies).where(eq(companies.name, 'Rival'))
   await ctx.db.delete(users).where(eq(users.email, 'boss@rival.com'))
+})
+
+test('клиентов и подрядчиков удаляет только админ; чужой файл логотипом не поставить', async () => {
+  await put(admin, 'customers', 'cust-del', { name: 'Keep Me' })
+  assert.equal((await inject({ method: 'DELETE', url: '/api/records/customers/cust-del', cookies: employee.cookie })).statusCode, 403)
+  assert.equal((await put(employee.cookie, 'customers', 'cust-del', { name: 'Keep Me Ltd' })).statusCode, 200)
+  assert.equal((await inject({ method: 'DELETE', url: '/api/records/customers/cust-del', cookies: admin })).statusCode, 204)
+  const logo = await inject({ method: 'PUT', url: '/api/settings', cookies: admin, payload: { companyLogo: '/api/files/00000000-0000-4000-8000-000000000000' } })
+  assert.equal(logo.json().error, 'file_not_found')
 })
 
 test('файл проверяется по содержимому и типу', async () => {
@@ -358,6 +367,16 @@ test('Basic: месячный лимит новых котировок, нача
   assert.equal((await put(boss, 'shipments', 's-new', { number: 'SHP-WF-000099' })).statusCode, 200)
   const after = (await inject({ method: 'GET', url: '/api/sync', cookies: boss })).json()
   assert.equal(after.company.usage.quotations, 100)
+  // Старую удалённую котировку «оживить» мимо лимита нельзя: оживлённая считается новой
+  await ctx.db.update(records).set({ createdAt: new Date('2020-01-01'), deletedAt: new Date() }).where(eq(records.id, 'fill-1'))
+  const usageNow = (await inject({ method: 'GET', url: '/api/sync', cookies: boss })).json().company.usage.quotations
+  assert.equal(usageNow, 99)
+  assert.equal((await put(boss, 'quotations', 'fill-1', { reference: 'WF900001', customer: 'Revived' })).statusCode, 200)
+  assert.equal((await put(boss, 'quotations', 'fill-1', { reference: 'WF900001', customer: 'Revived' })).statusCode, 200)
+  await inject({ method: 'DELETE', url: '/api/records/quotations/fill-1', cookies: boss })
+  await ctx.db.update(records).set({ createdAt: new Date('2020-01-01') }).where(eq(records.id, 'fill-1'))
+  assert.equal((await put(boss, 'quotations', 'fill-1', { reference: 'WF900001', customer: 'Again' })).statusCode, 200)
+  assert.equal((await inject({ method: 'GET', url: '/api/sync', cookies: boss })).json().company.usage.quotations, 100)
   // На Lite лимита нет
   await ctx.db.update(companies).set({ plan: 'lite_plus' }).where(eq(companies.id, me.company.id))
   assert.equal((await put(boss, 'quotations', 'q-over', { reference: 'WF777777', customer: 'X' })).statusCode, 200)
