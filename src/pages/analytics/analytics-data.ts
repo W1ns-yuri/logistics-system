@@ -50,7 +50,9 @@ export function buildAnalytics({
     const q = s.quotationId ? quotationById.get(s.quotationId) : undefined
     if (!q) return { revenue: 0, profit: 0 }
     const { income, profit } = quotationTotals(q)
-    return { revenue: toUSD(income, q.currency), profit: toUSD(profit, q.currency) }
+    // Доплаты подрядчику сверх расчёта (штраф, простой) уменьшают прибыль — так же, как в карточке перевозки
+    const extras = (s.extraCharges ?? []).reduce((acc, c) => acc + toUSD(c.amount, c.currency), 0)
+    return { revenue: toUSD(income, q.currency), profit: toUSD(profit, q.currency) - extras }
   }
 
   const months = lastMonths(period, today)

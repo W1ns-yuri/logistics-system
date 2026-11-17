@@ -70,6 +70,7 @@ function InvoiceForm({ invoice, onDone }: { invoice: Invoice; onDone: () => void
     event.preventDefault()
     const clean = lines.filter((l) => l.item.trim())
     if (!head.billTo.trim() || !clean.length) return setError(t('Bill to and at least one line are required'))
+    if (head.dueDate < head.invoiceDate) return setError(t('The due date cannot be earlier than the invoice date'))
     updateInvoice(invoice.id, {
       ...head,
       billTo: head.billTo.trim(),

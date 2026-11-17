@@ -5,7 +5,7 @@ export type Plan = (typeof PLANS)[number]
 
 /*
  * Тарифы с 16.11 (от заказчика). Внутренние id не меняли, чтобы не переделывать базу:
- * trial — Free (14 дней, всё доступно), lite — Basic ($15, с ограничениями), lite_plus — Lite ($20, без ограничений).
+ * trial — Trial (14 дней, всё доступно), lite — Basic ($15, с ограничениями), lite_plus — Lite ($20, без ограничений).
  * Standard пока не продаём: добавим позже с обновлениями, id оставлен на будущее.
  */
 export const SOLD_PLANS: Plan[] = ['lite', 'lite_plus']
@@ -15,7 +15,7 @@ export const RECOMMENDED_PLAN: Plan = 'lite_plus'
 // Мест (сотрудников) по тарифу; null — без лимита. Больше — места сверх тарифа ставит владелец платформы
 export const planSeats: Record<Plan, number | null> = { trial: 5, lite: 3, lite_plus: 5, standard: 10 }
 export const planLabels: Record<Plan, string> = {
-  trial: 'Free',
+  trial: 'Trial',
   lite: 'Basic',
   lite_plus: 'Lite',
   standard: 'Standard',

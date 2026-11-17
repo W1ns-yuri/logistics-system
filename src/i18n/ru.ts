@@ -517,6 +517,7 @@ export const ru: Record<string, string> = {
     'Инвойс и все его оплаты будут удалены. Это нельзя отменить.',
   'Project name': 'Название проекта',
   'Bill to and at least one line are required': 'Нужны плательщик и хотя бы одна строка',
+  'The due date cannot be earlier than the invoice date': 'Срок оплаты не может быть раньше даты инвойса',
   // Платформа, лицензии, регистрация
   '+1 month': '+1 месяц',
   '+1 year': '+1 год',
@@ -1032,6 +1033,8 @@ export const ru: Record<string, string> = {
   'The link has expired or was already used. Ask your admin for a new one.':
     'Ссылка устарела или уже использована. Попросите у админа новую.',
   'This email is already in the team.': 'Этот email уже есть в команде.',
+  'This person already works in another company. Ask them to use a different email.':
+    'Этот человек уже работает в другой компании. Попросите его указать другой email.',
   'This email is already registered.': 'Этот email уже зарегистрирован.',
   'This person also works in another company, so their email cannot be changed here.':
     'Этот человек работает и в другой компании, поэтому его email здесь не поменять.',
@@ -1199,7 +1202,6 @@ export const ru: Record<string, string> = {
   'The Basic plan limit of {limit} new quotations this month is reached. Current quotations work as usual.': 'Лимит тарифа Basic, {limit} новых котировок в этом месяце, исчерпан. Текущие котировки работают как обычно.',
   'The monthly limit of your plan is reached. Lite has no limits.': 'Месячный лимит вашего тарифа исчерпан. В тарифе Lite лимитов нет.',
   'By the price list with 30% off the first month: {price}. Change it if you agreed on a different price.': 'По прайсу со скидкой 30% на первый месяц: {price}. Измените, если договорились о другой цене.',
-  'Free': 'Free',
   'Basic': 'Basic',
   'Lite': 'Lite',
   'The free trial is given once per company. Registering the same company again to get a new trial may lead to the accounts being blocked.': 'Пробный период даётся компании один раз. Повторная регистрация той же компании ради нового пробного периода может привести к блокировке аккаунтов.',

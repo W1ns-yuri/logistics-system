@@ -72,6 +72,7 @@ export function apiErrorText(error: unknown): string {
     last_admin: 'The company must keep at least one admin.',
     already_member: 'This email is already in the team.',
     email_shared: 'This person also works in another company, so their email cannot be changed here.',
+    member_elsewhere: 'This person already works in another company. Ask them to use a different email.',
     invite_expired: 'The link has expired or was already used. Ask your admin for a new one.',
     cannot_remove_self: 'You cannot remove yourself.',
   }

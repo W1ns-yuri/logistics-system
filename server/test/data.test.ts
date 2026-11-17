@@ -162,6 +162,29 @@ test('другая компания не видит чужие записи и �
   assert.equal(set.statusCode, 200)
 })
 
+test('чужая компания не может забрать сотрудника или выдать ему ссылку на пароль', async () => {
+  const rival = await inject({ method: 'POST', url: '/api/auth/signup', remoteAddress: '10.1.1.1', payload: { ...signupPayload, companyName: 'Rival', email: 'boss@rival.com' } })
+  const cookie = sessionCookie(rival)
+  // Сотрудник с паролем
+  const taken = await inject({ method: 'POST', url: '/api/team', cookies: cookie, payload: { name: 'Victim', email: 'operator@company.com', role: 'employee' } })
+  assert.equal(taken.json().error, 'member_elsewhere')
+  // Приглашённый, но ещё без пароля: его ссылку тоже нельзя перехватить
+  const pending = await inject({ method: 'POST', url: '/api/team', cookies: admin, payload: { name: 'Pending', email: 'pending@company.com', role: 'admin' } })
+  assert.equal(pending.statusCode, 201)
+  // Приглашённый админ ещё не вошёл — единственный настоящий админ не может понизить себя
+  const me = (await inject({ method: 'GET', url: '/api/auth/me', cookies: admin })).json()
+  const demote = await inject({ method: 'PATCH', url: `/api/team/${me.user.id}`, cookies: admin, payload: { role: 'employee' } })
+  assert.equal(demote.json().error, 'last_admin')
+  const hijack = await inject({ method: 'POST', url: '/api/team', cookies: cookie, payload: { name: 'Pending', email: 'pending@company.com', role: 'employee' } })
+  assert.equal(hijack.json().error, 'member_elsewhere')
+  // Ссылка первой компании продолжает работать
+  const info = await inject({ method: 'GET', url: pending.json().inviteUrl.replace('/invite/', '/api/invite/') })
+  assert.equal(info.statusCode, 200)
+  await inject({ method: 'DELETE', url: `/api/team/${pending.json().member.id}`, cookies: admin })
+  await ctx.db.delete(companies).where(eq(companies.name, 'Rival'))
+  await ctx.db.delete(users).where(eq(users.email, 'boss@rival.com'))
+})
+
 test('файл проверяется по содержимому и типу', async () => {
   const fake = await inject({ method: 'POST', url: '/api/files', cookies: admin, headers: { 'content-type': 'application/octet-stream', 'x-file-name': 'invoice.pdf' }, payload: Buffer.from('MZ not a pdf') })
   assert.equal(fake.json().error, 'file_content')
