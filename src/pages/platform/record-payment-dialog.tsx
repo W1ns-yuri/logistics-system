@@ -51,12 +51,15 @@ export function RecordPaymentDialog({
   const startMonths = company.planRequest?.months ?? 1
   // Приглашённая компания платит впервые: −30% от цены месяца
   const firstPromo = !!company.promoUntil && !company.payments.length
-  const price = (p: Plan, n: number) => paymentAmount(p, n) - (firstPromo ? promoDiscount(p) : 0)
+  // Места сверх тарифа: из заявки, иначе те, что уже стоят у компании
+  const startSeats = company.planRequest?.extraSeats ?? company.extraSeats ?? 0
+  const price = (p: Plan, n: number, extra: number) => paymentAmount(p, n, extra) - (firstPromo ? promoDiscount(p) : 0)
   // Тарифы в продаже; старый тариф компании (Standard) тоже оставляем в списке
   const planOptions: Plan[] = SOLD_PLANS.includes(startPlan) ? SOLD_PLANS : [...SOLD_PLANS, startPlan]
   const [months, setMonths] = useState(startMonths)
   const [plan, setPlan] = useState<Plan>(startPlan)
-  const [amount, setAmount] = useState(String(price(startPlan, startMonths)))
+  const [seats, setSeats] = useState(startSeats)
+  const [amount, setAmount] = useState(String(price(startPlan, startMonths, startSeats)))
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   // Двойной клик: второй клик приходит раньше, чем React успевает выключить кнопку
@@ -70,10 +73,11 @@ export function RecordPaymentDialog({
   const valid = amount.trim() !== '' && Number.isFinite(value) && value >= 0 && value <= 1_000_000
 
   // Поменяли период или тариф — подставляем цену по прайсу заново
-  const pick = (nextMonths: number, nextPlan: Plan) => {
+  const pick = (nextMonths: number, nextPlan: Plan, nextSeats = seats) => {
     setMonths(nextMonths)
     setPlan(nextPlan)
-    setAmount(String(price(nextPlan, nextMonths)))
+    setSeats(nextSeats)
+    setAmount(String(price(nextPlan, nextMonths, nextSeats)))
   }
 
   const submit = (event: FormEvent) => {
@@ -89,7 +93,7 @@ export function RecordPaymentDialog({
     sending.current = true
     setBusy(true)
     setError('')
-    extendLicense(company.id, months, { plan, amount: Math.round(value * 100) / 100 })
+    extendLicense(company.id, months, { plan, amount: Math.round(value * 100) / 100, extraSeats: seats })
       // После успеха окно закрывается. Флаг не сбрасываем: каждое открытие — новое окно (key у родителя)
       .then(() => onOpenChange(false))
       .catch((e: unknown) => {
@@ -119,6 +123,8 @@ export function RecordPaymentDialog({
                 <dd>{t(planLabels[plan])}</dd>
                 <dt className="text-muted-foreground">{t('Period')}</dt>
                 <dd>{t('{n} mo.', { n: months })}</dd>
+                <dt className="text-muted-foreground">{t('Extra users')}</dt>
+                <dd className="tabular-nums">{seats}</dd>
                 <dt className="text-muted-foreground">{t('Amount')}</dt>
                 <dd className="font-semibold tabular-nums">${Math.round(value * 100) / 100}</dd>
                 <dt className="text-muted-foreground">{t('License')}</dt>
@@ -150,6 +156,17 @@ export function RecordPaymentDialog({
                 </NativeSelect>
               </div>
               <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="pay-seats">{t('Extra users above the plan')}</Label>
+                <Input
+                  id="pay-seats"
+                  type="number"
+                  min={0}
+                  max={1000}
+                  value={seats}
+                  onChange={(e) => pick(months, plan, Math.min(1000, Math.max(0, Math.floor(Number(e.target.value) || 0))))}
+                />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="pay-amount">{t('Amount received, USD')}</Label>
                 <Input
                   id="pay-amount"
@@ -163,7 +180,7 @@ export function RecordPaymentDialog({
                     firstPromo
                       ? 'By the price list with 30% off the first month: {price}. Change it if you agreed on a different price.'
                       : 'By the price list: {price}. Change it if you agreed on a different price.',
-                    { price: `$${price(plan, months)}` },
+                    { price: `$${price(plan, months, seats)}` },
                   )}
                 </p>
               </div>

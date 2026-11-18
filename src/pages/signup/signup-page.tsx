@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router'
 
@@ -8,23 +8,24 @@ import { FieldError, FormField } from '@/components/form-field'
 import { TransportModeIcon } from '@/components/transport-mode'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { NativeSelect } from '@/components/ui/native-select'
 import { signIn, useSession } from '@/data/auth'
 import { signUpRemote } from '@/data/remote'
 import {
+  addDays,
+  paymentAmount,
   planLabels,
-  planLimits,
-  planPrice,
   planSeats,
   RECOMMENDED_PLAN,
   registerCompany,
   SOLD_PLANS,
-  TEAM_SIZES,
+  todayIso,
   useCompanies,
   TRIAL_DAYS,
   type Plan,
   type TeamSize,
 } from '@/data/platform'
+import { PeriodToggle, PlanCards, type Period } from '@/components/plan-cards'
+import { formatDate } from '@/lib/format'
 import { prefixFromName, updateSettings } from '@/data/settings'
 import { startEmptyWorkspace } from '@/data/store'
 import { API_MODE, ApiError, apiErrorText } from '@/lib/api'
@@ -34,14 +35,14 @@ import { phoneExample } from '@/lib/phone'
 import { cityKeywords, cityLabel, citySuggestions, countryOptions, useWorldCities } from '@/lib/countries'
 import { isValidEmail, isValidPhone } from '@/lib/input-rules'
 import { cn } from '@/lib/utils'
-import { usd } from '@/pages/analytics/format'
 import { TRANSPORT_MODES, transportModeLabels, type TransportMode } from '@/types/logistics'
 
 /*
  * Регистрация компании в три шага:
- *   1. Компания — без чего нельзя начать: название, страна, город, чем занимается, размер команды.
+ *   1. Компания — без чего нельзя начать: название, страна, город, чем занимается, сколько человек будет работать.
  *   2. Аккаунт админа — кто входит первым.
- *   3. Тариф — какой хотят после пробного периода (пока только запоминаем, платить ничего не надо).
+ *   3. Тариф и срок. Пробный период есть всегда; выбрали платный — заявка на оплату уходит владельцу сразу,
+ *      и он присылает счёт (онлайн-оплаты пока нет). Цена сразу с местами для всей команды.
  * Реквизиты для документов (адрес, ИНН, сайт) спрашиваем уже внутри, на главной в «С чего начать»:
  * длинная форма на входе отпугивает, а без реквизитов система всё равно работает.
  */
@@ -51,7 +52,8 @@ type Form = {
   country: string
   city: string
   modes: TransportMode[]
-  teamSize: TeamSize | ''
+  // Сколько человек будет работать в системе (строкой, как в поле ввода)
+  teamCount: string
   website: string
   name: string
   email: string
@@ -59,6 +61,7 @@ type Form = {
   password: string
   confirm: string
   plan: Plan | 'later'
+  period: Period
   agree: boolean
 }
 type Errors = Partial<Record<keyof Form, string>>
@@ -68,7 +71,7 @@ const empty: Form = {
   country: '',
   city: '',
   modes: [],
-  teamSize: '',
+  teamCount: '',
   website: '',
   name: '',
   email: '',
@@ -77,6 +80,7 @@ const empty: Form = {
   confirm: '',
   // Lite — рекомендуем всем: все возможности без ограничений
   plan: RECOMMENDED_PLAN,
+  period: 1,
   agree: false,
 }
 
@@ -85,8 +89,6 @@ const STEPS = [
   { title: 'Your account', description: 'How you sign in' },
   { title: 'Plan', description: 'How to start' },
 ] as const
-
-const PAID_PLANS: Plan[] = SOLD_PLANS
 
 // Проверка одного шага: возвращает ошибки только его полей
 // Черновик анкеты переживает обновление страницы и кнопку «Назад». Пароли не сохраняем
@@ -117,7 +119,9 @@ function validate(step: number, form: Form, takenEmails: string[] = []): Errors 
     if (!form.country) errors.country = t('Required field')
     if (!form.city.trim()) errors.city = t('Required field')
     if (!form.modes.length) errors.modes = t('Pick at least one mode')
-    if (!form.teamSize) errors.teamSize = t('Required field')
+    const count = Number(form.teamCount)
+    if (!form.teamCount.trim()) errors.teamCount = t('Required field')
+    else if (!Number.isInteger(count) || count < 1 || count > 1000) errors.teamCount = t('Enter a number from 1 to 1000')
     if (form.website.trim() && !/^(https?:\/\/)?[\w-]+(\.[\w-]+)+(\/\S*)?$/i.test(form.website.trim()))
       errors.website = t('Enter a valid website, e.g. winfin.tm')
   }
@@ -175,8 +179,10 @@ export function SignupPage() {
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => set({ [key]: e.target.value }),
   })
   const prefix = prefixFromName(form.company || 'XX')
-  // Команда больше 10 человек: Lite плюс дополнительные места через поддержку
-  const bigTeam = form.teamSize === '11-30' || form.teamSize === '30+'
+  const teamCount = Math.max(1, Math.floor(Number(form.teamCount)) || 1)
+  // Сколько мест докупить к тарифу, чтобы поместилась вся команда
+  const extraFor = (plan: Plan) => Math.min(100, Math.max(0, teamCount - (planSeats[plan] ?? teamCount)))
+  const paid = form.plan !== 'later'
   const cities = citySuggestions(form.country).map((city) => ({
     value: city,
     label: cityLabel(city),
@@ -195,10 +201,14 @@ export function SignupPage() {
       city: form.city.trim(),
       phone,
       website: website || undefined,
-      teamSize: form.teamSize as TeamSize,
+      teamSize: teamSizeOf(teamCount),
+      teamCount,
       modes: form.modes,
       plannedPlan: form.plan === 'later' ? undefined : form.plan,
     }
+    // Платный тариф — заявка на оплату уходит сразу, с выбранным сроком и местами для всей команды
+    const planRequest =
+      form.plan === 'later' ? undefined : { plan: form.plan, months: form.period, extraSeats: extraFor(form.plan) }
     if (API_MODE) {
       // Компанию, админа и пробный период создаёт сервер; реквизиты для PDF — тоже
       setSubmitError('')
@@ -209,6 +219,7 @@ export function SignupPage() {
         email,
         password: form.password,
         profile,
+        planRequest,
         documentPrefix: prefix,
       })
         .then(() => {
@@ -233,14 +244,8 @@ export function SignupPage() {
       country: form.country,
       adminName: name,
       adminEmail: email,
-      profile: {
-        city: form.city.trim(),
-        phone,
-        website: website || undefined,
-        teamSize: form.teamSize as TeamSize,
-        modes: form.modes,
-        plannedPlan: form.plan === 'later' ? undefined : form.plan,
-      },
+      profile,
+      planRequest,
     })
     startEmptyWorkspace({ name, email })
     updateSettings({
@@ -351,27 +356,23 @@ export function SignupPage() {
                 </FormField>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <FormField
-                    label="Team size"
-                    htmlFor="signup-teamSize"
+                    label="How many people will use it?"
+                    htmlFor="signup-teamCount"
                     required
-                    error={errors.teamSize}
-                    hint="Helps us suggest a plan. It does not limit anything."
+                    error={errors.teamCount}
+                    hint="Including you. On the next steps we show the price for your whole team."
                   >
-                    <NativeSelect
-                      id="signup-teamSize"
-                      value={form.teamSize}
-                      aria-invalid={!!errors.teamSize}
-                      onChange={(e) => set({ teamSize: e.target.value as TeamSize })}
-                    >
-                      <option value="" disabled>
-                        {t('Select…')}
-                      </option>
-                      {TEAM_SIZES.map((size) => (
-                        <option key={size} value={size}>
-                          {t('{n} people', { n: size })}
-                        </option>
-                      ))}
-                    </NativeSelect>
+                    <Input
+                      id="signup-teamCount"
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      max={1000}
+                      value={form.teamCount}
+                      aria-invalid={!!errors.teamCount}
+                      placeholder="5"
+                      onChange={(e) => set({ teamCount: e.target.value })}
+                    />
                   </FormField>
                 </div>
               </>
@@ -402,7 +403,8 @@ export function SignupPage() {
                     <Input {...bind('phone')} type="tel" autoComplete="tel" placeholder={phoneExample(form.country)} />
                   </FormField>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
+                {/* items-start: подсказка о силе пароля растёт вниз и не сдвигает соседнее поле */}
+                <div className="grid gap-4 sm:grid-cols-2 sm:items-start">
                   <FormField
                     label="Password"
                     htmlFor="signup-password"
@@ -427,56 +429,34 @@ export function SignupPage() {
 
             {step === 2 && (
               <>
-                <p className="text-sm text-muted-foreground">
-                  {t('Start with the trial or pick a plan right away. You can change it later in Settings.')}
-                </p>
-                {/* Совет нужен только большой команде; для остальных хватает значка «Рекомендуем» на карточке */}
-                {bigTeam && (
-                  <p className="rounded-md bg-primary/5 px-3 py-2 text-sm" data-testid="plan-advice">
-                    {t(
-                      'For a team of {n} people we recommend Lite: all features without limits, 5 users included, and we add more users for you. Write to support after sign-up.',
-                      { n: form.teamSize },
-                    )}
-                  </p>
-                )}
-                {/* Три тарифа рядом: пробный, Basic, Lite. Пробный — это «решу потом» */}
-                <div className="grid gap-2 sm:grid-cols-3">
-                  <PlanCard selected={form.plan === 'later'} onClick={() => set({ plan: 'later' })}>
-                    <div className="flex min-h-5 items-center">
-                      <span className="text-sm font-semibold">{t(planLabels.trial)}</span>
-                    </div>
-                    <div className="mt-2 flex items-baseline gap-1">
-                      <span className="text-xl font-semibold tabular-nums">{usd(0)}</span>
-                      <span className="text-xs text-muted-foreground">/ {t('{n} days', { n: TRIAL_DAYS })}</span>
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {t('Up to {n} users', { n: planSeats.trial ?? 5 })}
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">{t('All features')}</div>
-                  </PlanCard>
-                  {PAID_PLANS.map((plan) => (
-                    <PlanCard key={plan} selected={form.plan === plan} onClick={() => set({ plan })}>
-                      <div className="flex min-h-5 items-center justify-between gap-2">
-                        <span className="text-sm font-semibold">{t(planLabels[plan])}</span>
-                        {plan === RECOMMENDED_PLAN && (
-                          <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground">
-                            {t('Recommended')}
-                          </span>
-                        )}
-                      </div>
-                      <div className="mt-2 flex items-baseline gap-1">
-                        <span className="text-xl font-semibold tabular-nums">{usd(planPrice[plan])}</span>
-                        <span className="text-xs text-muted-foreground">/ {t('mo')}</span>
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {planSeats[plan] === null ? t('Unlimited users') : t('Up to {n} users', { n: planSeats[plan] })}
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {planLimits[plan] ? t('Monthly limits, no analytics') : t('No limits, with analytics')}
-                      </div>
-                    </PlanCard>
-                  ))}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm text-muted-foreground">{t('The first {n} days are free on any plan.', { n: TRIAL_DAYS })}</p>
+                  <PeriodToggle value={form.period} onChange={(period) => set({ period })} />
                 </div>
+                <PlanCards
+                  plans={['trial', ...SOLD_PLANS]}
+                  value={form.plan === 'later' ? 'trial' : form.plan}
+                  onChange={(plan) => set({ plan: plan === 'trial' ? 'later' : plan })}
+                  period={form.period}
+                  extraSeats={extraFor}
+                  compact
+                />
+                {/* Что будет после «Создать компанию»: никаких сюрпризов с оплатой */}
+                <p className="rounded-lg bg-muted/60 px-3 py-2.5 text-sm" data-testid="plan-next">
+                  {paid
+                    ? t(
+                        'You start with {n} free days. We get your request for {plan} right away and send an invoice for {amount}. Pay it any time before {date}.',
+                        {
+                          n: TRIAL_DAYS,
+                          plan: t(planLabels[form.plan as Plan]),
+                          amount: `$${paymentAmount(form.plan as Plan, form.period, extraFor(form.plan as Plan))}`,
+                          date: formatDate(addDays(todayIso(), TRIAL_DAYS - 1)),
+                        },
+                      )
+                    : t('You start with {n} free days and all features. Choose a plan later in Settings → Subscription.', {
+                        n: TRIAL_DAYS,
+                      })}
+                </p>
                 <label className="relative flex items-start gap-2 pt-1 text-sm text-muted-foreground">
                   <input
                     id="signup-agree"
@@ -516,7 +496,7 @@ export function SignupPage() {
                     <ArrowRight />
                   </>
                 ) : (
-                  t('Create company')
+                  t(paid ? 'Create company and send the request' : 'Create company')
                 )}
               </Button>
             </div>
@@ -571,18 +551,10 @@ function Stepper({ step, onBack }: { step: number; onBack: (index: number) => vo
   )
 }
 
-function PlanCard({ selected, onClick, children }: { selected: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      onClick={onClick}
-      className={cn(
-        'w-full rounded-lg border p-3 text-left transition-colors hover:bg-accent',
-        selected && 'border-primary bg-primary/5 ring-1 ring-primary',
-      )}
-    >
-      {children}
-    </button>
-  )
+// Число людей → размер команды для владельца платформы (как раньше в выпадающем списке)
+function teamSizeOf(count: number): TeamSize {
+  if (count <= 3) return '1-3'
+  if (count <= 10) return '4-10'
+  if (count <= 30) return '11-30'
+  return '30+'
 }

@@ -17,7 +17,10 @@ export const planLimits: Record<Plan, { shipments: number; quotations: number } 
 // Приглашённая компания: после бесплатного доступа ещё столько дней на оплату
 export const PROMO_GRACE_DAYS = 3
 // Год стоит как 10 месяцев
-export const paymentAmount = (plan: Plan, months: number) => planPrice[plan] * (months === 12 ? 10 : months)
+// Место сверх тарифа — по цене места внутри тарифа (Basic $5, Lite $4)
+export const seatPrice = (plan: Plan) => Math.round((planPrice[plan] / planSeats[plan]) * 100) / 100
+export const paymentAmount = (plan: Plan, months: number, extraSeats = 0) =>
+  Math.round((planPrice[plan] + seatPrice(plan) * extraSeats) * (months === 12 ? 10 : months) * 100) / 100
 
 // Сколько человек может быть в команде: места тарифа плюс добавленные владельцем
 export const seatLimit = (company: { plan: string; extraSeats?: number | null }) =>

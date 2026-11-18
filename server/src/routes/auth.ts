@@ -5,11 +5,11 @@ import type { FastifyInstance, FastifyReply } from 'fastify'
 import { z } from 'zod'
 
 import { createLimiter, MINUTE } from '../auth/rate-limit.ts'
-import { createSession, deleteSession, findViewer, SESSION_COOKIE, type Viewer } from '../auth/session.ts'
+import { createSession, deleteSession, findViewer, SESSION_COOKIE, unauthorized, type Viewer } from '../auth/session.ts'
 import type { Db } from '../db/client.ts'
 import { companies, memberships, users } from '../db/schema.ts'
 import { companyForClient } from '../lib/company.ts'
-import { PLANS, TRIAL_DAYS } from '../lib/plans.ts'
+import { planLabels, PLANS, SOLD_PLANS, TRIAL_DAYS } from '../lib/plans.ts'
 
 // Ответ «кто вошёл»: человек, роль и компания с лицензией
 export async function viewerResponse(db: Db, viewer: Viewer) {
@@ -36,8 +36,18 @@ const signupBody = z.object({
       phone: z.string().trim().max(30),
       website: z.string().trim().max(100).optional(),
       teamSize: z.enum(['1-3', '4-10', '11-30', '30+']),
+      // Точное число людей, если его указали
+      teamCount: z.number().int().min(1).max(1000).optional(),
       modes: z.array(z.string().max(20)).max(10),
       plannedPlan: z.enum(PLANS).optional(),
+    })
+    .optional(),
+  // Выбрали платный тариф на шаге «Тариф» — заявка на оплату уходит владельцу сразу, вторую нажимать не нужно
+  planRequest: z
+    .object({
+      plan: z.enum(SOLD_PLANS),
+      months: z.union([z.literal(1), z.literal(12)]),
+      extraSeats: z.number().int().min(0).max(100).optional(),
     })
     .optional(),
   documentPrefix: z
@@ -95,7 +105,20 @@ export async function authRoutes(app: FastifyInstance) {
           paidUntil,
           profile: body.profile,
           signup: { ip: request.ip, device: body.device, emailDomain: body.email.split('@')[1] },
+          planRequest: body.planRequest
+            ? { ...body.planRequest, extraSeats: body.planRequest.extraSeats || undefined, at: new Date().toISOString() }
+            : null,
           events: [
+            ...(body.planRequest
+              ? [
+                  {
+                    id: crypto.randomUUID(),
+                    at: new Date().toISOString(),
+                    text: 'Payment requested: {plan}, {n} mo.',
+                    params: { plan: planLabels[body.planRequest.plan], n: body.planRequest.months },
+                  },
+                ]
+              : []),
             {
               id: crypto.randomUUID(),
               at: new Date().toISOString(),
@@ -173,7 +196,7 @@ export async function authRoutes(app: FastifyInstance) {
   app.get('/api/auth/me', async (request, reply) => {
     const token = request.cookies[SESSION_COOKIE]
     const viewer = token ? await findViewer(db, token) : null
-    if (!viewer) return reply.code(401).send({ error: 'unauthorized' })
+    if (!viewer) return unauthorized(db, reply, token)
     return viewerResponse(db, viewer)
   })
 }

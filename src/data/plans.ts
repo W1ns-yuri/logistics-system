@@ -57,8 +57,15 @@ export const upgradePlan = (plan: string): Plan => LEGACY_PLANS[plan] ?? (plan a
 // Год стоит как 10 месяцев: два месяца в подарок
 export const YEAR_PRICE_MONTHS = 10
 
-export function paymentAmount(plan: Plan, months: number) {
-  return planPrice[plan] * (months === 12 ? YEAR_PRICE_MONTHS : months)
+// Место сверх тарифа стоит столько же, сколько место внутри тарифа: Basic $15 / 3 = $5, Lite $20 / 5 = $4
+export const seatPrice = (plan: Plan) => (planSeats[plan] ? Math.round((planPrice[plan] / planSeats[plan]) * 100) / 100 : 0)
+
+// Цена в месяц вместе с дополнительными местами
+export const monthlyPrice = (plan: Plan, extraSeats = 0) => planPrice[plan] + seatPrice(plan) * extraSeats
+
+// Сколько заплатить за период; год — по цене 10 месяцев
+export function paymentAmount(plan: Plan, months: number, extraSeats = 0) {
+  return Math.round(monthlyPrice(plan, extraSeats) * (months === 12 ? YEAR_PRICE_MONTHS : months) * 100) / 100
 }
 
 // Первая оплата приглашённой компании: минус 30% от цены одного месяца

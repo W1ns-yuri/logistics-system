@@ -1,6 +1,6 @@
 // Сессии: создать при входе, найти по cookie, удалить при выходе
 import { createHash, randomBytes } from 'node:crypto'
-import { and, eq, gt, lte } from 'drizzle-orm'
+import { and, eq, gt, isNotNull, isNull, lte } from 'drizzle-orm'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 
 import type { Db } from '../db/client.ts'
@@ -18,6 +18,15 @@ export const newToken = () => randomBytes(32).toString('base64url')
 export async function createSession(db: Db, userId: string, companyId: string) {
   const token = newToken()
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000)
+  /*
+   * Один аккаунт — одно рабочее место. Вход на новом устройстве завершает прежние сессии этого человека:
+   * двое под одним логином не поработают одновременно, и места в тарифе так не обойти.
+   * Сессию не удаляем, а помечаем: так прежнее устройство узнает, почему его выкинуло.
+   */
+  await db
+    .update(sessions)
+    .set({ replacedAt: new Date() })
+    .where(and(eq(sessions.userId, userId), isNull(sessions.replacedAt), gt(sessions.expiresAt, new Date())))
   await db.insert(sessions).values({ tokenHash: hashToken(token), userId, companyId, expiresAt })
   // Заодно убираем протухшие сессии этого человека, чтобы таблица не росла вечно
   await db.delete(sessions).where(and(eq(sessions.userId, userId), lte(sessions.expiresAt, new Date())))
@@ -47,7 +56,7 @@ export async function findViewer(db: Db, token: string): Promise<Viewer | null> 
     .innerJoin(users, eq(users.id, sessions.userId))
     .innerJoin(companies, eq(companies.id, sessions.companyId))
     .innerJoin(memberships, and(eq(memberships.userId, sessions.userId), eq(memberships.companyId, sessions.companyId)))
-    .where(and(eq(sessions.tokenHash, hashToken(token)), gt(sessions.expiresAt, new Date())))
+    .where(and(eq(sessions.tokenHash, hashToken(token)), gt(sessions.expiresAt, new Date()), isNull(sessions.replacedAt)))
     .limit(1)
   if (!row) return null
   return { user: { id: row.user.id, email: row.user.email, name: row.user.name }, company: row.company, role: row.role }
@@ -59,12 +68,28 @@ declare module 'fastify' {
   }
 }
 
+// Сессию завершил вход того же человека на другом устройстве
+export async function wasReplaced(db: Db, token: string) {
+  const [row] = await db
+    .select({ tokenHash: sessions.tokenHash })
+    .from(sessions)
+    .where(and(eq(sessions.tokenHash, hashToken(token)), isNotNull(sessions.replacedAt)))
+    .limit(1)
+  return !!row
+}
+
+// Ответ «не вошёл»: отдельный код, если выкинуло из-за входа на другом устройстве
+export async function unauthorized(db: Db, reply: FastifyReply, token: string | undefined) {
+  const error = token && (await wasReplaced(db, token)) ? 'session_replaced' : 'unauthorized'
+  return reply.code(401).send({ error })
+}
+
 // Для маршрутов с данными компании: без входа — 401, заблокированная компания — 403
 export function requireMember(db: Db) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     const token = request.cookies[SESSION_COOKIE]
     const viewer = token ? await findViewer(db, token) : null
-    if (!viewer) return reply.code(401).send({ error: 'unauthorized' })
+    if (!viewer) return unauthorized(db, reply, token)
     if (viewer.company.blocked) return reply.code(403).send({ error: 'blocked' })
     request.viewer = viewer
   }

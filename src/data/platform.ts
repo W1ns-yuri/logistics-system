@@ -73,7 +73,8 @@ export type MonthlyUsage = { shipments: number; quotations: number }
 export type SuspectReason = 'device' | 'ip' | 'email' | 'taxId'
 export type Suspect = { id: string; name: string; reasons: SuspectReason[] }
 
-export type PlanRequest = { plan: Plan; months: number; at: string }
+// extraSeats — места сверх тарифа, если команда больше, чем в тарифе
+export type PlanRequest = { plan: Plan; months: number; extraSeats?: number; at: string }
 
 export const TEAM_SIZES = ['1-3', '4-10', '11-30', '30+'] as const
 export type TeamSize = (typeof TEAM_SIZES)[number]
@@ -83,6 +84,8 @@ export type CompanyProfile = {
   phone: string
   website?: string
   teamSize: TeamSize
+  // Точное число людей, если указали при регистрации
+  teamCount?: number
   modes: TransportMode[]
   // Какой тариф выбрали на после пробного периода; undefined — решат потом
   plannedPlan?: Plan
@@ -181,7 +184,7 @@ export function setWorkspaceCompany(company: Company | undefined) {
 }
 
 type Action =
-  | { type: 'extend'; months: number; amount?: number; plan?: Plan }
+  | { type: 'extend'; months: number; amount?: number; plan?: Plan; extraSeats?: number }
   | { type: 'remove_payment'; paymentId: string }
   | { type: 'set_until'; date: string }
   | { type: 'adjust_days'; days: number }
@@ -222,10 +225,14 @@ export function registerCompany(data: {
   adminName: string
   adminEmail: string
   profile: CompanyProfile
+  // Выбрали платный тариф при регистрации — заявка на оплату создаётся сразу
+  planRequest?: Omit<PlanRequest, 'at'>
 }) {
   const now = new Date().toISOString()
+  const { planRequest, ...rest } = data
   const company: Company = {
-    ...data,
+    ...rest,
+    planRequest: planRequest && { ...planRequest, extraSeats: planRequest.extraSeats || undefined, at: now },
     id: newId(),
     plan: 'trial',
     paidUntil: addDays(now, TRIAL_DAYS - 1),
@@ -234,7 +241,12 @@ export function registerCompany(data: {
     createdAt: now,
     lastActiveAt: now,
     note: '',
-    events: [{ id: newId(), at: now, text: 'Company registered, {n}-day trial started', params: { n: TRIAL_DAYS } }],
+    events: [
+      ...(planRequest
+        ? [{ id: newId(), at: now, text: 'Payment requested: {plan}, {n} mo.', params: { plan: planLabels[planRequest.plan], n: planRequest.months } }]
+        : []),
+      { id: newId(), at: now, text: 'Company registered, {n}-day trial started', params: { n: TRIAL_DAYS } },
+    ],
     payments: [],
   }
   setState((s) => ({ companies: [company, ...s.companies], currentCompanyId: company.id }))
@@ -247,7 +259,11 @@ export const renewalPlan = (company: Company): Plan =>
   company.plan === 'trial' ? (company.profile?.plannedPlan ?? 'lite') : company.plan
 
 // Принять оплату. amount и plan можно поменять, если договорились о другой цене или тарифе
-export async function extendLicense(id: string, months: number, deal: { amount?: number; plan?: Plan } = {}) {
+export async function extendLicense(
+  id: string,
+  months: number,
+  deal: { amount?: number; plan?: Plan; extraSeats?: number } = {},
+) {
   if (API_MODE) return remoteAction(id, { type: 'extend', months, ...deal })
   const company = state.companies.find((c) => c.id === id)
   if (!company) return
@@ -258,13 +274,19 @@ export async function extendLicense(id: string, months: number, deal: { amount?:
     id: newId(),
     date: todayIso(),
     from,
-    amount: deal.amount ?? paymentAmount(plan, months),
+    amount: deal.amount ?? paymentAmount(plan, months, deal.extraSeats ?? 0),
     months,
     plan,
   }
   updateCompany(
     id,
-    { paidUntil, plan, payments: [...company.payments, payment], planRequest: undefined },
+    {
+      paidUntil,
+      plan,
+      payments: [...company.payments, payment],
+      planRequest: undefined,
+      ...(deal.extraSeats !== undefined && { extraSeats: deal.extraSeats }),
+    },
     'Extended by {n} mo. until {date}',
     { n: months, date: paidUntil },
   )
@@ -306,15 +328,15 @@ export async function dismissPlanRequest(id: string) {
 }
 
 // Сторона компании: «Хочу оплатить» — тариф и срок. Владелец платформы увидит заявку в админке
-export async function requestPlan(plan: Plan, months: number) {
+export async function requestPlan(plan: Plan, months: number, extraSeats = 0) {
   if (API_MODE) {
-    const { company } = await api<{ company: Company }>('/api/company/plan-request', { body: { plan, months } })
+    const { company } = await api<{ company: Company }>('/api/company/plan-request', { body: { plan, months, extraSeats } })
     setWorkspaceCompany(company)
     return
   }
   const company = getCurrentCompany()
   if (!company) return
-  updateCompany(company.id, { planRequest: { plan, months, at: new Date().toISOString() } }, 'Payment requested: {plan}, {n} mo.', {
+  updateCompany(company.id, { planRequest: { plan, months, extraSeats: extraSeats || undefined, at: new Date().toISOString() } }, 'Payment requested: {plan}, {n} mo.', {
     plan: planLabels[plan],
     n: months,
   })
