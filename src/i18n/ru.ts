@@ -137,12 +137,12 @@ export const ru: Record<string, string> = {
   'Who sees what?': 'Кто что видит?',
   'Admin sees and changes everything, including the team. Accountant sees orders and invoices and records payments. Employee works with orders and does not see payments.':
     'Админ видит и меняет всё, включая команду. Бухгалтер видит заказы и инвойсы и вносит оплаты. Сотрудник работает с заказами и не видит оплаты.',
-  'How are numbers like AT000001 made?': 'Откуда берутся номера вида AT000001?',
+  'How are numbers like QUO-AB-000001 made?': 'Откуда берутся номера вида QUO-AB-000001?',
   'From the prefix in Settings → Company → Document numbers. Quotations, shipments and invoices each count from 1.':
     'Из префикса в Настройки → Компания → Номера документов. У котировок, перевозок и инвойсов свой счёт с 1.',
   'How do I add a colleague?': 'Как добавить коллегу?',
-  'Settings → Team and roles → Add person. They get an invitation by email and set their own password.':
-    'Настройки → Команда и роли → Добавить сотрудника. Ему придёт приглашение на почту, пароль он задаст сам.',
+  'Settings → Team and roles → Add person. You get a one-time link and send it to them in any messenger or by email. They open it and set their own password.':
+    'Настройки → Команда и роли → Добавить сотрудника. Вы получите одноразовую ссылку и перешлёте её в мессенджере или по почте. Человек откроет её и задаст свой пароль.',
   Menu: 'Меню',
   'Open menu': 'Открыть меню',
 

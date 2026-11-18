@@ -476,7 +476,7 @@ function NumbersSection() {
       </FormField>
       <div className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
         {[
-          ['Quotation', `${prefix}000001`],
+          ['Quotation', `QUO-${prefix}-000001`],
           ['Shipment', `SHP-${prefix}-000001`],
           ['Invoice', `INV-${prefix}-000001`],
         ].map(([label, example]) => (

@@ -318,13 +318,20 @@ export function startEmptyWorkspace(admin: { name: string; email: string }) {
 /* ---------- Нумерация ---------- */
 
 // Номер котировки = префикс компании + 6 цифр: WF000001
+// Номер котировки: QUO-<префикс>-000001, как SHP- у перевозок и INV- у инвойсов.
+// Старые номера без QUO (OL000005) остаются как были, а счёт продолжается после них: следующий QUO-OL-000006
 export function nextDocumentNumber() {
   const prefix = getSettings().documentPrefix || 'XX'
-  const used = state.quotations.map((q) => q.reference)
-  const max = used
-    .filter((ref) => ref.startsWith(prefix))
-    .reduce((acc, ref) => Math.max(acc, Number(ref.slice(prefix.length)) || 0), 0)
-  return prefix + String(max + 1).padStart(6, '0')
+  const max = state.quotations.reduce((acc, q) => {
+    const ref = q.reference
+    const n = ref.startsWith(`QUO-${prefix}-`)
+      ? Number(ref.slice(prefix.length + 5))
+      : /^[A-Z]+\d+$/.test(ref) && ref.startsWith(prefix)
+        ? Number(ref.slice(prefix.length))
+        : 0
+    return Math.max(acc, n || 0)
+  }, 0)
+  return `QUO-${prefix}-${String(max + 1).padStart(6, '0')}`
 }
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -350,8 +357,37 @@ export function createQuotation(data: Omit<Quotation, 'id' | 'reference' | 'crea
   return quotation
 }
 
+// Поля перевозки, которые берутся из котировки при её создании
+const SHIPMENT_FROM_QUOTATION = [
+  'mode',
+  'equipment',
+  'collectionAddress',
+  'deliveryAddress',
+  'transportQuantity',
+  'weightKg',
+] as const
+
 export function updateQuotation(id: string, patch: Partial<Quotation>) {
-  setState((s) => ({ ...s, quotations: s.quotations.map((q) => (q.id === id ? { ...q, ...patch } : q)) }))
+  setState((s) => {
+    const before = s.quotations.find((q) => q.id === id)
+    const shipment = before && linkedShipment(s.shipments, id)
+    // По котировке уже есть перевозка: поменяли вид транспорта, маршрут или вес — перевозка следует за котировкой.
+    // Поле, которое в перевозке уже поправили вручную (не совпадает со старой котировкой), не трогаем
+    const follow: Partial<Shipment> = {}
+    if (before && shipment && shipment.status !== 'completed') {
+      for (const key of SHIPMENT_FROM_QUOTATION) {
+        if (key in patch && patch[key] !== before[key] && shipment[key] === before[key])
+          Object.assign(follow, { [key]: patch[key] })
+      }
+    }
+    return {
+      ...s,
+      quotations: s.quotations.map((q) => (q.id === id ? { ...q, ...patch } : q)),
+      shipments: Object.keys(follow).length
+        ? s.shipments.map((item) => (item.id === shipment!.id ? { ...item, ...follow } : item))
+        : s.shipments,
+    }
+  })
 }
 
 export function copyQuotation(id: string) {
