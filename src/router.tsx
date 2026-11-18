@@ -19,6 +19,7 @@ import { PlatformDashboardPage } from '@/pages/platform/dashboard-page'
 import { LicensePaymentsPage } from '@/pages/platform/license-payments-page'
 import { PlansPage } from '@/pages/platform/plans-page'
 import { FeedbackPage } from '@/pages/platform/feedback-page'
+import { CatalogPage } from '@/pages/platform/catalog-page'
 import { PlatformLayout } from '@/pages/platform/platform-layout'
 import { QuotationDetailPage } from '@/pages/quotations/quotation-detail-page'
 import { QuotationFormPage } from '@/pages/quotations/quotation-form-page'
@@ -52,6 +53,7 @@ export const router = createBrowserRouter([
       { path: 'payments', element: <LicensePaymentsPage /> },
       { path: 'plans', element: <PlansPage /> },
       { path: 'feedback', element: <FeedbackPage /> },
+      { path: 'catalog', element: <CatalogPage /> },
     ],
   },
   // Котировка на печать: без меню и шапки, только документ

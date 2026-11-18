@@ -2,6 +2,7 @@ import { ArrowDownRight, ArrowUpRight, CircleDot, MapPin, PackageCheck, Ship, Tr
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 
+import { catalogLabel } from '@/data/catalog'
 import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/ui/button'
 import { TransportModeIcon } from '@/components/transport-mode'
@@ -10,7 +11,6 @@ import { useActiveInvoices, useQuotations, useShipments, useVendors } from '@/da
 import { t } from '@/i18n'
 import { cn } from '@/lib/utils'
 import { transportModeLabels, type TransportMode } from '@/types/logistics'
-import { lostReasonText } from '@/types/quotation'
 import { buildAnalytics, PERIODS, type Analytics, type Period } from './analytics-data'
 import {
   BarList,
@@ -20,8 +20,7 @@ import {
   readChartView,
   Sparkline,
   TrendChart,
-  type ChartView,
-} from './charts'
+  type ChartView } from './charts'
 import { monthLabel, usd, usdShort } from './format'
 import { findStats, MyResults, TeamResultsTable } from './team-results'
 
@@ -115,7 +114,7 @@ export function AnalyticsPage() {
     <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
       <PageHeader
         title="Analytics"
-        description="Revenue, profit and operations at a glance. Amounts are in USD at fixed rates: 1 USD = 3.5 TMT = 0.93 EUR."
+        description="Revenue and profit are planned: they come from the quotation calculation minus extra charges. A shipment without a quotation counts its invoices and vendor payments. Amounts are in USD at fixed rates: 1 USD = 3.5 TMT = 0.93 EUR."
         actions={periodSwitch}
       />
 
@@ -471,7 +470,7 @@ function ConversionPanel({
             {lossReasons.slice(0, 4).map((r) => (
               <li key={r.reason} className="flex items-baseline justify-between gap-3">
                 <span className="min-w-0 truncate">
-                  {r.reason === 'unknown' ? t('Reason not given') : t(lostReasonText(r.reason))}
+                  {r.reason === 'unknown' ? t('Reason not given') : catalogLabel('lost_reason', r.reason)}
                 </span>
                 <span className="shrink-0 font-medium tabular-nums">{r.count}</span>
               </li>

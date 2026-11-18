@@ -47,23 +47,35 @@ export async function issueInvite(db: Db, companyId: string, userId: string) {
   return `/invite/${token}`
 }
 
+// Админы, которые уже могут войти. Приглашённый без пароля не считается: пока он не открыл ссылку, компания осталась бы без админа
 async function adminCount(db: Db, companyId: string) {
   const [row] = await db
     .select({ value: count() })
     .from(memberships)
-    .where(and(eq(memberships.companyId, companyId), eq(memberships.role, 'admin')))
+    .innerJoin(users, eq(users.id, memberships.userId))
+    .where(and(eq(memberships.companyId, companyId), eq(memberships.role, 'admin'), sql`${users.passwordHash} <> ''`))
   return row?.value ?? 0
 }
 
 async function findMembership(db: Db, companyId: string, userId: string) {
   const [row] = await db
-    .select({ role: memberships.role, email: users.email })
+    .select({ role: memberships.role, email: users.email, active: sql<boolean>`${users.passwordHash} <> ''` })
     .from(memberships)
     .innerJoin(users, eq(users.id, memberships.userId))
     .where(and(eq(memberships.companyId, companyId), eq(memberships.userId, userId)))
     .limit(1)
   if (!row) throw new HttpError(404, 'not_found')
   return row
+}
+
+// Сколько у человека компаний, кроме этой. Чужой компании нельзя ни забрать человека, ни выдать ему ссылку на пароль:
+// иначе админ любой компании мог бы задать пароль чужому сотруднику и войти под ним
+async function otherCompanies(db: Db, userId: string, companyId: string) {
+  const [row] = await db
+    .select({ value: count() })
+    .from(memberships)
+    .where(and(eq(memberships.userId, userId), sql`${memberships.companyId} <> ${companyId}`))
+  return row?.value ?? 0
 }
 
 async function findInvite(db: Db, token: string) {
@@ -94,6 +106,8 @@ export async function teamRoutes(app: FastifyInstance) {
     if (team.some((m) => m.email === body.email)) throw new HttpError(409, 'already_member')
 
     let [user] = await db.select().from(users).where(eq(users.email, body.email)).limit(1)
+    // Человек уже работает (или приглашён) в другой компании: без его согласия не добавляем
+    if (user && (await otherCompanies(db, user.id, companyId)) > 0) throw new HttpError(409, 'member_elsewhere')
     // Новый человек: пароля пока нет (пустой хэш), войти можно только по ссылке-приглашению
     if (!user) [user] = await db.insert(users).values({ email: body.email, name: body.name, passwordHash: '' }).returning()
     await db.insert(memberships).values({ companyId, userId: user!.id, role: body.role })
@@ -113,18 +127,14 @@ export async function teamRoutes(app: FastifyInstance) {
     const current = await findMembership(db, companyId, userId)
 
     // В компании всегда остаётся хотя бы один админ
-    if (patch.role && patch.role !== 'admin' && current.role === 'admin' && (await adminCount(db, companyId)) <= 1)
+    if (patch.role && patch.role !== 'admin' && current.role === 'admin' && current.active && (await adminCount(db, companyId)) <= 1)
       throw new HttpError(409, 'last_admin')
 
     if (patch.email && patch.email !== current.email) {
       const [taken] = await db.select({ id: users.id }).from(users).where(eq(users.email, patch.email)).limit(1)
       if (taken) throw new HttpError(409, 'email_taken')
       // Email — это вход. Менять его можно только тому, кто работает лишь в этой компании
-      const [other] = await db
-        .select({ value: count() })
-        .from(memberships)
-        .where(and(eq(memberships.userId, userId), sql`${memberships.companyId} <> ${companyId}`))
-      if ((other?.value ?? 0) > 0) throw new HttpError(409, 'email_shared')
+      if ((await otherCompanies(db, userId, companyId)) > 0) throw new HttpError(409, 'email_shared')
     }
 
     await db.transaction(async (tx) => {
@@ -161,7 +171,7 @@ export async function teamRoutes(app: FastifyInstance) {
     const companyId = viewer.company.id
     if (userId === viewer.user.id) throw new HttpError(409, 'cannot_remove_self')
     const current = await findMembership(db, companyId, userId)
-    if (current.role === 'admin' && (await adminCount(db, companyId)) <= 1) throw new HttpError(409, 'last_admin')
+    if (current.role === 'admin' && current.active && (await adminCount(db, companyId)) <= 1) throw new HttpError(409, 'last_admin')
     await db.transaction(async (tx) => {
       await tx.delete(memberships).where(and(eq(memberships.companyId, companyId), eq(memberships.userId, userId)))
       // Убранный человек сразу теряет доступ: его сессии в этой компании закрываем
@@ -174,9 +184,12 @@ export async function teamRoutes(app: FastifyInstance) {
   // Новая ссылка: человек потерял приглашение или забыл пароль
   app.post('/api/team/:userId/invite', { preHandler: member }, async (request) => {
     const viewer = viewerOf(request)
+    assertWritable(viewer)
     assertAdmin(viewer)
     const { userId } = userParam.parse(request.params)
     await findMembership(db, viewer.company.id, userId)
+    // Ссылка задаёт пароль для входа во все компании человека, поэтому выдаёт её только его единственная компания
+    if ((await otherCompanies(db, userId, viewer.company.id)) > 0) throw new HttpError(409, 'member_elsewhere')
     return { inviteUrl: await issueInvite(db, viewer.company.id, userId) }
   })
 

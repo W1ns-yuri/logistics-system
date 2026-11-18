@@ -2,7 +2,9 @@ import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode }
 import { AlertTriangle, ArrowLeft, Calculator, FileText, Plus, Save, Trash2 } from 'lucide-react'
 import { Link, Navigate, useBlocker, useNavigate, useParams, useSearchParams } from 'react-router'
 
+import { catalogLabel, catalogOptions, equipmentForMode } from '@/data/catalog'
 import { CityPicker } from '@/components/city-picker'
+import { TransportModeIcon } from '@/components/transport-mode'
 import { Combobox } from '@/components/combobox'
 import { DateInput } from '@/components/date-input'
 import { ConfirmDelete } from '@/components/confirm-delete'
@@ -29,8 +31,6 @@ import { cn } from '@/lib/utils'
 import { terminalLabels, terminalSuggestions } from '@/lib/terminals'
 import {
   CURRENCIES,
-  equipmentByMode,
-  INCOTERMS,
   MOVEMENTS,
   needsPorts,
   TRANSPORT_MODES,
@@ -40,15 +40,13 @@ import {
   type EquipmentType,
   type Incoterm,
   type Movement,
-  type TransportMode,
-} from '@/types/logistics'
+  type TransportMode } from '@/types/logistics'
 import {
   QUOTATION_STATUSES,
   type CargoLine,
   type Charge,
   type Quotation,
-  type QuotationStatus,
-} from '@/types/quotation'
+  type QuotationStatus } from '@/types/quotation'
 import { NotFoundPage } from '@/pages/not-found'
 
 /*
@@ -254,14 +252,23 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
   const size = (value: string) => (value === '' ? undefined : amount(value))
 
   // Сменили вид транспорта — тип подбираем под него (у авиа это всегда Air)
+  // Аэропорт из авиа не подходит станцией для ж/д: подсказку прошлого вида транспорта стираем, своё вписанное оставляем
   const pickMode = (mode: TransportMode) =>
-    setForm((prev) => ({
-      ...prev,
-      mode,
-      equipment: equipmentByMode[mode].includes(prev.equipment) ? prev.equipment : equipmentByMode[mode][0]!,
-    }))
+    setForm((prev) => {
+      const foreign = (value: string) =>
+        terminalSuggestions(prev.mode).includes(value) && !terminalSuggestions(mode).includes(value)
+      return {
+        ...prev,
+        mode,
+        equipment: equipmentForMode(mode).includes(prev.equipment)
+          ? prev.equipment
+          : (equipmentForMode(mode)[0] ?? prev.equipment),
+        portOfDeparture: foreign(prev.portOfDeparture) ? '' : prev.portOfDeparture,
+        portOfDelivery: foreign(prev.portOfDelivery) ? '' : prev.portOfDelivery,
+      }
+    })
   // Старая котировка с неподходящим типом: оставляем его в списке, чтобы не потерять
-  const equipmentOptions = [...new Set([...equipmentByMode[form.mode], form.equipment])]
+  const equipmentOptions = equipmentForMode(form.mode, form.equipment)
   const showPorts = needsPorts(form.mode, form.movement)
   const terminals = terminalLabels(form.mode)
   // Подсказки портов/аэропортов/станций + те, что уже вписывали в других котировках
@@ -426,6 +433,30 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
 
         {/* ---------- General ---------- */}
         <TabsContent value="general" className="space-y-5">
+          {/* Вид транспорта — первым: от него зависят поля ниже (аэропорт, порт или станция, тип транспорта) */}
+          <SectionCard title="Mode">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label={t('Mode')} id="mode">
+              {TRANSPORT_MODES.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={form.mode === value}
+                  data-mode={value}
+                  onClick={() => pickMode(value)}
+                  className={cn(
+                    'flex h-11 items-center justify-center gap-2 rounded-md border text-sm transition-colors',
+                    form.mode === value
+                      ? 'border-primary bg-primary/5 font-medium text-primary'
+                      : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                  )}
+                >
+                  <TransportModeIcon mode={value} />
+                  {t(transportModeLabels[value])}
+                </button>
+              ))}
+            </div>
+          </SectionCard>
           <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
             <SectionCard title="Customer">
               <div className="grid gap-4 sm:grid-cols-2">
@@ -508,8 +539,10 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
                     value={form.incoterm}
                     onChange={(e) => set('incoterm', e.target.value as Incoterm)}
                   >
-                    {INCOTERMS.map((value) => (
-                      <option key={value}>{value}</option>
+                    {catalogOptions('incoterm', form.incoterm).map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
                     ))}
                   </NativeSelect>
                 </FormField>
@@ -621,15 +654,6 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
             description="How we carry: transport type, how many units and the weight on each. The price is based on this."
           >
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <FormField label="Mode" htmlFor="mode" required>
-                <NativeSelect id="mode" value={form.mode} onChange={(e) => pickMode(e.target.value as TransportMode)}>
-                  {TRANSPORT_MODES.map((value) => (
-                    <option key={value} value={value}>
-                      {t(transportModeLabels[value])}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </FormField>
               {/* В авиа выбирать нечего (всегда Air), поэтому поле прячем */}
               {form.mode !== 'air' && (
                 <FormField label="Equipment" htmlFor="equipment" required hint={equipmentHints[form.mode]}>
@@ -639,7 +663,9 @@ function QuotationForm({ existing }: { existing?: Quotation }) {
                     onChange={(e) => set('equipment', e.target.value as EquipmentType)}
                   >
                     {equipmentOptions.map((value) => (
-                      <option key={value}>{value}</option>
+                      <option key={value} value={value}>
+                        {catalogLabel('equipment', value)}
+                      </option>
                     ))}
                   </NativeSelect>
                 </FormField>

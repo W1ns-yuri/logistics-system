@@ -18,6 +18,7 @@ import {
 } from '@/data/store'
 import { useCanModify, usePermissions } from '@/data/auth'
 import { usePlanLimit } from '@/data/limits'
+import { cityLabel } from '@/lib/countries'
 import { t, type Language } from '@/i18n'
 import { formatDate } from '@/lib/format'
 import { NotFoundPage } from '@/pages/not-found'
@@ -71,7 +72,7 @@ export function QuotationDetailPage() {
               <span>{quotation.customer}</span>
               <span>·</span>
               <span>
-                {quotation.collectionAddress} → {quotation.deliveryAddress}
+                {cityLabel(quotation.collectionAddress)} → {cityLabel(quotation.deliveryAddress)}
               </span>
               <span>·</span>
               <span>
@@ -119,15 +120,18 @@ export function QuotationDetailPage() {
           )}
           {canModify && (
             <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setConfirmOpen(true)}
-                className="text-destructive hover:text-destructive"
-              >
-                <Trash2 />
-                {t('Delete')}
-              </Button>
+              {/* По котировке уже есть перевозка: удалять нельзя, иначе перевозка и аналитика потеряют расчёт */}
+              {!linked && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setConfirmOpen(true)}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 />
+                  {t('Delete')}
+                </Button>
+              )}
               {linked ? (
                 <Button size="sm" asChild>
                   <Link to={`/shipments/${linked.id}`}>

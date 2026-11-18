@@ -1,3 +1,4 @@
+import { catalogLabel } from '@/data/catalog'
 import { InfoField } from '@/components/info-field'
 import { SectionCard } from '@/components/section-card'
 import { TransportModeLabel } from '@/components/transport-mode'
@@ -6,6 +7,7 @@ import { cargoTotals, upgradeQuotationCargo, weightsDiffer } from '@/lib/cargo'
 import { formatWeight } from '@/lib/format'
 import { movementLabels, needsPorts } from '@/types/logistics'
 import type { Quotation } from '@/types/quotation'
+import { cityLabel } from '@/lib/countries'
 import { t } from '@/i18n'
 import { terminalLabels } from '@/lib/terminals'
 
@@ -19,9 +21,6 @@ export function QuotationGeneralTab({ quotation }: { quotation: Quotation }) {
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-3">
       <SectionCard title="Customer">
         <div className="space-y-4">
-          <InfoField label="Quotation #">
-            <span className="font-medium">{q.reference}</span>
-          </InfoField>
           <InfoField label="Customer">
             <div className="font-medium">{q.customer}</div>
             <div className="text-sm text-muted-foreground">{q.customerAddress}</div>
@@ -32,8 +31,8 @@ export function QuotationGeneralTab({ quotation }: { quotation: Quotation }) {
 
       <SectionCard title="Route">
         <div className="grid grid-cols-2 gap-4">
-          <InfoField label="Pick up location">{q.collectionAddress}</InfoField>
-          <InfoField label="Delivery location">{q.deliveryAddress}</InfoField>
+          <InfoField label="Pick up location">{cityLabel(q.collectionAddress)}</InfoField>
+          <InfoField label="Delivery location">{cityLabel(q.deliveryAddress)}</InfoField>
           {(needsPorts(q.mode, q.movement) || q.portOfDeparture || q.portOfDelivery) && (
             <>
               <InfoField label={terminalLabels(q.mode).from}>{q.portOfDeparture}</InfoField>
@@ -50,7 +49,7 @@ export function QuotationGeneralTab({ quotation }: { quotation: Quotation }) {
           <InfoField label="Mode">
             <TransportModeLabel mode={q.mode} />
           </InfoField>
-          <InfoField label="Equipment">{q.equipment}</InfoField>
+          <InfoField label="Equipment">{catalogLabel('equipment', q.equipment)}</InfoField>
           <InfoField label="Quantity">{q.transportQuantity}</InfoField>
           <InfoField label="Nature of goods">{q.natureOfGoods}</InfoField>
           <InfoField label="Weight per unit">{formatWeight(perUnit)}</InfoField>

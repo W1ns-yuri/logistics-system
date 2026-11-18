@@ -56,6 +56,8 @@ export function usePermissions() {
     // Создать, изменить, удалить инвойс или оплату: только админ (менеджер)
     canEditInvoices: !readOnly && role === 'admin',
     canManageTeam: !readOnly && role === 'admin',
+    // Удалить клиента или подрядчика: только админ, на них держатся заказы всех сотрудников
+    canDeleteDirectory: !readOnly && role === 'admin',
   }
 }
 

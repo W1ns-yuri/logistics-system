@@ -2,8 +2,6 @@ import { useState } from 'react'
 import { Check } from 'lucide-react'
 import { Navigate, useNavigate } from 'react-router'
 
-import { PlanPurchase } from '@/components/plan-purchase'
-import { SectionCard } from '@/components/section-card'
 import { Button } from '@/components/ui/button'
 import { usePermissions } from '@/data/auth'
 import { updateSettings, useSettings } from '@/data/settings'
@@ -12,10 +10,11 @@ import { cn } from '@/lib/utils'
 import { CompanySection, LogoSection, TeamSection } from '@/pages/settings'
 
 /*
- * Первая настройка после регистрации: реквизиты (ИНН, адрес), логотип, команда, тариф.
+ * Первая настройка после регистрации: реквизиты (ИНН, адрес), логотип, команда.
+ * Тариф здесь не спрашиваем: его уже выбрали при регистрации, сменить можно в Настройках → Подписка.
  * Всё можно пропустить и сделать потом в Настройках. Показываем один раз — пока админ не закончит или не пропустит.
  */
-const STEPS = ['Company details', 'Logo', 'Team', 'Plan'] as const
+const STEPS = ['Company details', 'Logo', 'Team'] as const
 
 export function WelcomePage() {
   const { role } = usePermissions()
@@ -33,21 +32,21 @@ export function WelcomePage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-5 p-4 sm:p-6" data-testid="welcome">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">
             {t('Welcome, {company}!', { company: settings.companyName })}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {t('Four short steps so documents look right and colleagues can join. Everything can be changed later in Settings.')}
+            {t('Three short steps so documents look right and colleagues can join. Everything can be changed later in Settings.')}
           </p>
         </div>
-        <Button variant="ghost" size="sm" onClick={finish}>
+        <Button variant="ghost" size="sm" className="shrink-0" onClick={finish}>
           {t('Skip for now')}
         </Button>
       </div>
 
-      <ol className="grid grid-cols-4 gap-2">
+      <ol className="grid grid-cols-3 gap-2">
         {STEPS.map((label, index) => (
           <li key={label}>
             <button
@@ -76,15 +75,6 @@ export function WelcomePage() {
       {step === 0 && <CompanySection onSaved={next} />}
       {step === 1 && <LogoSection />}
       {step === 2 && <TeamSection />}
-      {step === 3 && (
-        <SectionCard title="Plan">
-          <p className="mb-4 text-sm text-muted-foreground">
-            {t('You are on a free trial with all features. Choose the plan for after it and send a request: we will contact you with payment details.')}
-          </p>
-          <PlanPurchase />
-        </SectionCard>
-      )}
-
       {step > 0 && (
         <div className="flex justify-between gap-2">
           <Button variant="outline" onClick={() => setStep(step - 1)}>

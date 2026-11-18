@@ -227,7 +227,10 @@ export function DataTable<TData>({
           ) : (
             <TableRow className="hover:bg-transparent">
               <TableCell colSpan={columns.length} className="h-32 text-center text-muted-foreground">
-                {t('Nothing found. Try changing the search or filters.')}
+                {/* Новая компания: записей ещё нет, искать и фильтровать нечего */}
+                {data.length === 0
+                  ? t('Nothing here yet. New records will appear in this list.')
+                  : t('Nothing found. Try changing the search or filters.')}
               </TableCell>
             </TableRow>
           )}

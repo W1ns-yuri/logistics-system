@@ -112,8 +112,9 @@ export async function authRoutes(app: FastifyInstance) {
             companyPhone: body.profile?.phone ?? '',
             companyWebsite: body.profile?.website ?? '',
             companyTaxId: '',
-            companyShowTaxId: true,
-            companyShowWebsite: true,
+            companyShowTaxId: false,
+            // Сайт указали при регистрации — печатаем его в документах, пусто — галочка снята
+            companyShowWebsite: !!body.profile?.website,
             companyLogo: '',
             documentPrefix: body.documentPrefix ?? 'XX',
             onboardingDone: false,

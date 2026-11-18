@@ -28,6 +28,7 @@ import {
 import { prefixFromName, updateSettings } from '@/data/settings'
 import { startEmptyWorkspace } from '@/data/store'
 import { API_MODE, ApiError, apiErrorText } from '@/lib/api'
+import { PasswordStrength } from '@/components/password-strength'
 import { t } from '@/i18n'
 import { phoneExample } from '@/lib/phone'
 import { cityKeywords, cityLabel, citySuggestions, countryOptions, useWorldCities } from '@/lib/countries'
@@ -82,7 +83,7 @@ const empty: Form = {
 const STEPS = [
   { title: 'Company', description: 'Who you are' },
   { title: 'Your account', description: 'How you sign in' },
-  { title: 'Plan', description: 'After the trial' },
+  { title: 'Plan', description: 'How to start' },
 ] as const
 
 const PAID_PLANS: Plan[] = SOLD_PLANS
@@ -249,7 +250,9 @@ export function SignupPage() {
       companyEmail: email,
       companyPhone: phone,
       companyWebsite: website,
+      companyShowWebsite: !!website,
       companyTaxId: '',
+      companyShowTaxId: false,
       documentPrefix: prefix,
       onboardingDone: false,
     })
@@ -282,9 +285,7 @@ export function SignupPage() {
         <div className="px-6 pt-6 pb-7 sm:px-8">
           <h1 className="text-2xl font-semibold tracking-tight">{t('Create a company account')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {t('{n}-day free trial. No card needed. You become the admin and invite your team later.', {
-              n: TRIAL_DAYS,
-            })}
+            {t('You become the company admin and invite your team later.')}
           </p>
 
           <Stepper step={step} onBack={(index) => index < step && setStep(index)} />
@@ -301,10 +302,6 @@ export function SignupPage() {
                 >
                   <Input {...bind('company')} maxLength={80} autoFocus placeholder={t('Your company name')} />
                 </FormField>
-                {/* Строка всегда занимает место: пока название пустое, она просто невидима, и форма не дёргается */}
-                <p className={cn('-mt-2 h-4 text-xs text-muted-foreground', !form.company.trim() && 'invisible')}>
-                  {t('Document numbers will look like {example}', { example: `${prefix}000001` })}
-                </p>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <FormField label="Country" htmlFor="signup-country" required error={errors.country}>
                     <Combobox
@@ -419,6 +416,7 @@ export function SignupPage() {
                       autoComplete="new-password"
                       placeholder={t('At least 8 characters')}
                     />
+                    <PasswordStrength password={form.password} className="mt-2" />
                   </FormField>
                   <FormField label="Repeat password" htmlFor="signup-confirm" required error={errors.confirm}>
                     <Input {...bind('confirm')} type="password" autoComplete="new-password" />
@@ -430,22 +428,35 @@ export function SignupPage() {
             {step === 2 && (
               <>
                 <p className="text-sm text-muted-foreground">
-                  {t('The first {n} days are free on any plan. Pick what you want after the trial, or decide later.', {
-                    n: TRIAL_DAYS,
-                  })}
+                  {t('Start with the trial or pick a plan right away. You can change it later in Settings.')}
                 </p>
-                <p className="rounded-md bg-primary/5 px-3 py-2 text-sm" data-testid="plan-advice">
-                  {bigTeam
-                    ? t(
-                        'For a team of {n} people we recommend Lite: all features without limits, 5 users included, and we add more users for you. Write to support after sign-up.',
-                        { n: form.teamSize },
-                      )
-                    : t('We recommend Lite: no monthly limits, analytics, team results and your logo on documents.')}
-                </p>
-                <div className="grid gap-2 sm:grid-cols-2">
+                {/* Совет нужен только большой команде; для остальных хватает значка «Рекомендуем» на карточке */}
+                {bigTeam && (
+                  <p className="rounded-md bg-primary/5 px-3 py-2 text-sm" data-testid="plan-advice">
+                    {t(
+                      'For a team of {n} people we recommend Lite: all features without limits, 5 users included, and we add more users for you. Write to support after sign-up.',
+                      { n: form.teamSize },
+                    )}
+                  </p>
+                )}
+                {/* Три тарифа рядом: пробный, Basic, Lite. Пробный — это «решу потом» */}
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <PlanCard selected={form.plan === 'later'} onClick={() => set({ plan: 'later' })}>
+                    <div className="flex min-h-5 items-center">
+                      <span className="text-sm font-semibold">{t(planLabels.trial)}</span>
+                    </div>
+                    <div className="mt-2 flex items-baseline gap-1">
+                      <span className="text-xl font-semibold tabular-nums">{usd(0)}</span>
+                      <span className="text-xs text-muted-foreground">/ {t('{n} days', { n: TRIAL_DAYS })}</span>
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {t('Up to {n} users', { n: planSeats.trial ?? 5 })}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">{t('All features')}</div>
+                  </PlanCard>
                   {PAID_PLANS.map((plan) => (
                     <PlanCard key={plan} selected={form.plan === plan} onClick={() => set({ plan })}>
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex min-h-5 items-center justify-between gap-2">
                         <span className="text-sm font-semibold">{t(planLabels[plan])}</span>
                         {plan === RECOMMENDED_PLAN && (
                           <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground">
@@ -466,12 +477,6 @@ export function SignupPage() {
                     </PlanCard>
                   ))}
                 </div>
-                <PlanCard selected={form.plan === 'later'} onClick={() => set({ plan: 'later' })}>
-                  <div className="text-sm font-medium">{t('Decide later')}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {t('Use the trial first. We will remind you before it ends.')}
-                  </div>
-                </PlanCard>
                 <label className="relative flex items-start gap-2 pt-1 text-sm text-muted-foreground">
                   <input
                     id="signup-agree"
@@ -511,7 +516,7 @@ export function SignupPage() {
                     <ArrowRight />
                   </>
                 ) : (
-                  t('Start free trial')
+                  t('Create company')
                 )}
               </Button>
             </div>

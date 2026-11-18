@@ -12,7 +12,7 @@ import { usePermissions } from '@/data/auth'
 import { deleteCustomer, useCustomers, useInvoices, useQuotations, useShipments } from '@/data/store'
 import { t } from '@/i18n'
 import { invoiceTotals } from '@/lib/calculation'
-import { countryLabel } from '@/lib/countries'
+import { countryLabel, cityLabel } from '@/lib/countries'
 import { toUSD } from '@/lib/currency'
 import { formatDate, formatMoney } from '@/lib/format'
 import { NotFoundPage } from '@/pages/not-found'
@@ -27,7 +27,7 @@ export function CustomerDetailPage() {
   const quotations = useQuotations()
   const shipments = useShipments()
   const invoices = useInvoices()
-  const { canEditOrders, canSeePayments } = usePermissions()
+  const { canEditOrders, canSeePayments, canDeleteDirectory: canDelete } = usePermissions()
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
 
@@ -60,7 +60,7 @@ export function CustomerDetailPage() {
         back="/customers"
         title={customer.name}
         badge={<span className="font-mono text-xs text-muted-foreground">{customer.code}</span>}
-        subtitle={[customer.city, countryLabel(customer.country)].filter(Boolean).join(', ')}
+        subtitle={[cityLabel(customer.city), countryLabel(customer.country)].filter(Boolean).join(', ')}
         actions={
           canEditOrders && (
             <>
@@ -68,15 +68,18 @@ export function CustomerDetailPage() {
                 <Pencil />
                 {t('Edit')}
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-destructive hover:text-destructive"
-                onClick={() => setDeleteOpen(true)}
-              >
-                <Trash2 />
-                {t('Delete')}
-              </Button>
+              {/* Удаляет только админ: на клиенте и подрядчике держатся заказы всех сотрудников */}
+              {canDelete && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 />
+                  {t('Delete')}
+                </Button>
+              )}
               <Button size="sm" onClick={() => navigate('/quotations/new')}>
                 <FileText />
                 {t('New quotation')}
@@ -114,7 +117,7 @@ export function CustomerDetailPage() {
         <SectionCard title="Contacts">
           <ul className="space-y-3 text-sm">
             <Contact icon={MapPin}>
-              {[customer.address, customer.city, countryLabel(customer.country)].filter(Boolean).join(', ')}
+              {[customer.address, cityLabel(customer.city), countryLabel(customer.country)].filter(Boolean).join(', ')}
             </Contact>
             <Contact icon={User}>{customer.contactPerson}</Contact>
             <Contact icon={Mail}>

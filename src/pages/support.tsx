@@ -21,12 +21,12 @@ const FAQ = [
     a: 'Admin sees and changes everything, including the team. Accountant sees orders and invoices and records payments. Employee works with orders and does not see payments.',
   },
   {
-    q: 'How are numbers like AT000001 made?',
+    q: 'How are numbers like QUO-AB-000001 made?',
     a: 'From the prefix in Settings → Company → Document numbers. Quotations, shipments and invoices each count from 1.',
   },
   {
     q: 'How do I add a colleague?',
-    a: 'Settings → Team and roles → Add person. They get an invitation by email and set their own password.',
+    a: 'Settings → Team and roles → Add person. You get a one-time link and send it to them in any messenger or by email. They open it and set their own password.',
   },
 ]
 

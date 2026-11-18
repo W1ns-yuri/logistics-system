@@ -121,7 +121,7 @@ export function GlobalSearch() {
             onBlur={() => setTimeout(() => setOpen(false), 150)}
             onKeyDown={onKeyDown}
             placeholder={t('Search by reference, customer...')}
-            className={cn('h-9 pl-8', expanded ? 'w-full' : 'w-72')}
+            className={cn('h-9 pl-8', expanded ? 'w-full' : 'w-56 xl:w-72')}
           />
           {open && query.trim().length >= 2 && (
             <ul

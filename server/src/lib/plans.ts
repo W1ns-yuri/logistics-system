@@ -2,10 +2,10 @@
 export const PLANS = ['trial', 'lite', 'lite_plus', 'standard'] as const
 export type Plan = (typeof PLANS)[number]
 
-// trial — Free, lite — Basic, lite_plus — Lite. Standard пока не продаём (id на будущее)
+// trial — Trial, lite — Basic, lite_plus — Lite. Standard пока не продаём (id на будущее)
 export const SOLD_PLANS = ['lite', 'lite_plus'] as const
 export const planSeats: Record<Plan, number> = { trial: 5, lite: 3, lite_plus: 5, standard: 10 }
-export const planLabels: Record<Plan, string> = { trial: 'Free', lite: 'Basic', lite_plus: 'Lite', standard: 'Standard' }
+export const planLabels: Record<Plan, string> = { trial: 'Trial', lite: 'Basic', lite_plus: 'Lite', standard: 'Standard' }
 export const planPrice: Record<Plan, number> = { trial: 0, lite: 15, lite_plus: 20, standard: 30 }
 // Новых перевозок и котировок за календарный месяц; null — без лимита
 export const planLimits: Record<Plan, { shipments: number; quotations: number } | null> = {

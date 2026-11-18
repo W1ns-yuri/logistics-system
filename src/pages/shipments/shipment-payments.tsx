@@ -8,11 +8,11 @@ import {
   Plus,
   Receipt,
   Trash2,
-  X,
-} from 'lucide-react'
+  X } from 'lucide-react'
 import { useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 
+import { catalogLabel, catalogOptions } from '@/data/catalog'
 import { DateInput } from '@/components/date-input'
 import { ConfirmDelete } from '@/components/confirm-delete'
 import { FormField } from '@/components/form-field'
@@ -27,15 +27,13 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  DialogTitle } from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { VendorPicker } from '@/components/vendor-picker'
@@ -52,23 +50,20 @@ import {
   shipmentPayment,
   useInvoices,
   useQuotation,
-  useVendors,
-} from '@/data/store'
+  useVendors } from '@/data/store'
 import { t } from '@/i18n'
 import { chargeTotals, invoiceTotals, quotationTotals } from '@/lib/calculation'
+import { convert } from '@/lib/currency'
 import { acceptFor, fileError, readReceipt, RECEIPT_TYPES } from '@/lib/files'
 import { formatDate, formatMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { InvoiceFormDialog } from '@/pages/payments/invoice-form-dialog'
 import { printInvoice } from '@/pages/payments/invoice-print-page'
 import {
-  PAYMENT_METHODS,
-  paymentMethodLabels,
   type Invoice,
   type Payment,
   type PaymentMethod,
-  type PaymentReceipt,
-} from '@/types/invoice'
+  type PaymentReceipt } from '@/types/invoice'
 import { CURRENCIES, type Currency } from '@/types/logistics'
 import type { ExtraCharge, Shipment, VendorPayment } from '@/types/shipment'
 
@@ -192,7 +187,7 @@ export function CustomerPaymentsSection({ shipment, locked }: { shipment: Shipme
                           <PaymentRow
                             key={p.id}
                             title={formatDate(p.date)}
-                            details={[p.number, t(paymentMethodLabels[p.method]), p.reference]}
+                            details={[p.number, catalogLabel('payment_method', p.method), p.reference]}
                             amount={formatMoney(p.amount, inv.currency)}
                             receipt={p.receipt}
                             onEdit={canEditPayments ? () => setPaying({ invoice: inv, payment: p }) : undefined}
@@ -248,16 +243,18 @@ export function VendorPaymentsSection({ shipment, locked }: { shipment: Shipment
   // Сколько должны подрядчикам — себестоимость из калькуляции котировки.
   // В одной перевозке может быть несколько подрядчиков, поэтому считаем по каждому.
   const costCurrency = quotation?.currency
+  // Оплата в другой валюте (заплатили в манатах за расчёт в долларах) тоже идёт в прогресс — по курсу
+  const inCost = (amount: number, currency: Currency) => (costCurrency ? convert(amount, currency, costCurrency) : amount)
   // Доплаты сверх расчёта (штраф, простой) увеличивают долг подрядчику
   const extrasIn = (vendorId?: string) =>
     extras
-      .filter((c) => c.currency === costCurrency && (vendorId === undefined || c.vendorId === vendorId))
-      .reduce((acc, c) => acc + c.amount, 0)
+      .filter((c) => costCurrency && (vendorId === undefined || c.vendorId === vendorId))
+      .reduce((acc, c) => acc + inCost(c.amount, c.currency), 0)
   const cost = (quotation ? quotationTotals(quotation).cost : 0) + extrasIn()
   const paidTo = (vendorId?: string) =>
     payments
-      .filter((p) => p.currency === costCurrency && (vendorId === undefined || p.vendorId === vendorId))
-      .reduce((acc, p) => acc + p.amount, 0)
+      .filter((p) => costCurrency && (vendorId === undefined || p.vendorId === vendorId))
+      .reduce((acc, p) => acc + inCost(p.amount, p.currency), 0)
   const paidInCost = paidTo()
   const vendorName = (id?: string) => vendors.find((v) => v.id === id)?.name ?? '—'
   const owed = new Map<string, number>()
@@ -265,7 +262,7 @@ export function VendorPaymentsSection({ shipment, locked }: { shipment: Shipment
     if (charge.vendorId) owed.set(charge.vendorId, (owed.get(charge.vendorId) ?? 0) + chargeTotals(charge).cost)
   }
   for (const c of extras)
-    if (c.vendorId && c.currency === costCurrency) owed.set(c.vendorId, (owed.get(c.vendorId) ?? 0) + c.amount)
+    if (c.vendorId && costCurrency) owed.set(c.vendorId, (owed.get(c.vendorId) ?? 0) + inCost(c.amount, c.currency))
   for (const p of payments) if (p.vendorId && !owed.has(p.vendorId)) owed.set(p.vendorId, 0)
   const byVendor = [...owed].map(([vendorId, amount]) => ({ vendorId, owed: amount, paid: paidTo(vendorId) }))
   // Сколько ещё должны подрядчику (может быть меньше нуля — значит, переплатили)
@@ -355,7 +352,7 @@ export function VendorPaymentsSection({ shipment, locked }: { shipment: Shipment
               <PaymentRow
                 key={p.id}
                 title={`${p.number} · ${vendorName(p.vendorId)}`}
-                details={[formatDate(p.date), t(paymentMethodLabels[p.method]), p.reference]}
+                details={[formatDate(p.date), catalogLabel('payment_method', p.method), p.reference]}
                 amount={formatMoney(p.amount, p.currency)}
                 receipt={p.receipt}
                 onEdit={canEditPayments ? () => setForm({ payment: p }) : undefined}
@@ -564,7 +561,7 @@ function VendorPaymentForm({
   // Переплата: платим больше, чем должны этому подрядчику по расчёту и доплатам.
   // При исправлении оплаты её старая сумма уже входит в «оплачено», поэтому прибавляем её обратно
   const value = Number(amount)
-  const owedNow = vendorId ? balance(vendorId) + (payment?.vendorId === vendorId ? payment.amount : 0) : 0
+  const owedNow = vendorId ? balance(vendorId) + (payment?.vendorId === vendorId && costCurrency ? convert(payment.amount, payment.currency, costCurrency) : 0) : 0
   const over =
     vendorId && costCurrency && currency === costCurrency && value > 0
       ? Math.round((value - Math.max(0, owedNow)) * 100) / 100
@@ -647,9 +644,9 @@ function VendorPaymentForm({
             value={method}
             onChange={(e) => setMethod(e.target.value as PaymentMethod)}
           >
-            {PAYMENT_METHODS.map((m) => (
-              <option key={m} value={m}>
-                {t(paymentMethodLabels[m])}
+            {catalogOptions('payment_method', method).map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
               </option>
             ))}
           </NativeSelect>

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { acceptInvite, inviteInfo } from '@/data/remote'
+import { PasswordStrength } from '@/components/password-strength'
 import { t } from '@/i18n'
 import { apiErrorText } from '@/lib/api'
 
@@ -78,6 +79,7 @@ export function InvitePage() {
                   }}
                   className="h-11"
                 />
+                <PasswordStrength password={password} className="pt-1" />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="invite-confirm">{t('Repeat password')}</Label>

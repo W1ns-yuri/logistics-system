@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { usePermissions } from '@/data/auth'
 import { useSettings } from '@/data/settings'
 import { useCustomers, useActiveInvoices, useQuotations, useShipments, useTeam, useVendors } from '@/data/store'
+import { cityLabel } from '@/lib/countries'
 import { t } from '@/i18n'
 import { invoiceTotals, quotationTotals } from '@/lib/calculation'
 import { toUSD } from '@/lib/currency'
@@ -44,7 +45,12 @@ export function HomePage() {
     const overdue = invoices.filter((inv) => inv.status === 'overdue').length
     const won = quotations.filter((q) => q.status === 'shipment_created' || q.status === 'completed')
     const income = won.reduce((acc, q) => acc + toUSD(quotationTotals(q).income, q.currency), 0)
-    const profit = won.reduce((acc, q) => acc + toUSD(quotationTotals(q).profit, q.currency), 0)
+    // Доплаты подрядчикам уменьшают прибыль — так же считает аналитика, чтобы маржа совпадала
+    const extras = shipments
+      .filter((s) => s.status !== 'cancelled' && won.some((q) => q.id === s.quotationId))
+      .flatMap((s) => s.extraCharges ?? [])
+      .reduce((acc, c) => acc + toUSD(c.amount, c.currency), 0)
+    const profit = won.reduce((acc, q) => acc + toUSD(quotationTotals(q).profit, q.currency), 0) - extras
     const delivered = shipments.filter((s) => s.status === 'delivered' || s.status === 'completed').length
 
     const list = [
@@ -81,7 +87,7 @@ export function HomePage() {
         reference: q.reference,
         type: 'Quotation' as const,
         customer: q.customer,
-        route: `${q.collectionAddress} → ${q.deliveryAddress}`,
+        route: `${cityLabel(q.collectionAddress)} → ${cityLabel(q.deliveryAddress)}`,
         status: <QuotationStatusBadge status={q.status} />,
         updatedAt: q.createdAt,
         link: `/quotations/${q.id}`,
@@ -91,7 +97,7 @@ export function HomePage() {
         reference: s.number,
         type: 'Shipment' as const,
         customer: s.customer,
-        route: `${s.collectionAddress} → ${s.deliveryAddress}`,
+        route: `${cityLabel(s.collectionAddress)} → ${cityLabel(s.deliveryAddress)}`,
         status: <ShipmentStatusBadge status={s.status} />,
         updatedAt: s.history.at(-1)?.at ?? s.orderDate,
         link: `/shipments/${s.id}`,

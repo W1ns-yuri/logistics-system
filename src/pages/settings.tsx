@@ -60,7 +60,8 @@ export function SettingsPage() {
         value={tab}
         onValueChange={(value) => setParams(value === 'company' ? {} : { tab: value }, { replace: true })}
       >
-        <TabsList>
+        {/* Четыре вкладки на телефон не влезают: переносим на вторую строку, а не прячем за край */}
+        <TabsList className="h-auto flex-wrap">
           {tabs.map((item) => (
             <TabsTrigger key={item.value} value={item.value}>
               {t(item.label)}
@@ -105,19 +106,35 @@ const COMPANY_KEYS: (keyof CompanyDraft)[] = [
 
 const draftFrom = (settings: Settings) =>
   Object.fromEntries(COMPANY_KEYS.map((key) => [key, String(settings[key] ?? '')])) as CompanyDraft
+// Пустое поле в документы не попадает, поэтому и галочка у него снята
 const showFrom = (settings: Settings) => ({
-  taxId: settings.companyShowTaxId !== false,
-  website: settings.companyShowWebsite !== false,
+  taxId: !!settings.companyTaxId?.trim() && settings.companyShowTaxId !== false,
+  website: !!settings.companyWebsite?.trim() && settings.companyShowWebsite !== false,
 })
+const SHOW_KEY = { companyTaxId: 'taxId', companyWebsite: 'website' } as const
 
 // Галочка под ИНН и сайтом: печатать ли их в котировках и инвойсах
-function ShowInDocuments({ id, checked, onChange }: { id: string; checked: boolean; onChange: (value: boolean) => void }) {
+function ShowInDocuments({
+  id,
+  checked,
+  disabled,
+  onChange,
+}: {
+  id: string
+  checked: boolean
+  disabled?: boolean
+  onChange: (value: boolean) => void
+}) {
   return (
-    <label htmlFor={id} className="flex items-center gap-2 text-sm text-muted-foreground">
+    <label
+      htmlFor={id}
+      className={cn('flex items-center gap-2 text-sm text-muted-foreground', disabled && 'opacity-50')}
+    >
       <input
         id={id}
         type="checkbox"
-        checked={checked}
+        disabled={disabled}
+        checked={checked && !disabled}
         onChange={(e) => onChange(e.target.checked)}
         className="size-4 rounded border-input accent-primary"
       />
@@ -158,7 +175,14 @@ export function CompanySection({ onSaved }: { onSaved?: () => void } = {}) {
     value: draft?.[key] ?? '',
     'aria-invalid': !!errors[key],
     onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
-      setDraft((prev) => prev && { ...prev, [key]: event.target.value })
+      const value = event.target.value
+      // ИНН или сайт впервые вписали — сразу печатаем в документах; стёрли — снимаем галочку
+      if (key === 'companyTaxId' || key === 'companyWebsite') {
+        const was = !!draft?.[key].trim()
+        const now = !!value.trim()
+        if (was !== now) setShow((prev) => ({ ...prev, [SHOW_KEY[key]]: now }))
+      }
+      setDraft((prev) => prev && { ...prev, [key]: value })
       setErrors((prev) => ({ ...prev, [key]: undefined }))
     },
   })
@@ -177,8 +201,8 @@ export function CompanySection({ onSaved }: { onSaved?: () => void } = {}) {
     if (Object.keys(next).length) return
     updateSettings({
       ...(Object.fromEntries(COMPANY_KEYS.map((key) => [key, draft[key].trim()])) as Partial<Settings>),
-      companyShowTaxId: show.taxId,
-      companyShowWebsite: show.website,
+      companyShowTaxId: show.taxId && !!draft.companyTaxId.trim(),
+      companyShowWebsite: show.website && !!draft.companyWebsite.trim(),
     })
     if (onSaved) return onSaved()
     setDraft(undefined)
@@ -256,6 +280,7 @@ export function CompanySection({ onSaved }: { onSaved?: () => void } = {}) {
               <ShowInDocuments
                 id="companyShowTaxId"
                 checked={show.taxId}
+                disabled={!draft.companyTaxId.trim()}
                 onChange={(taxId) => setShow((prev) => ({ ...prev, taxId }))}
               />
             </div>
@@ -272,6 +297,7 @@ export function CompanySection({ onSaved }: { onSaved?: () => void } = {}) {
               <ShowInDocuments
                 id="companyShowWebsite"
                 checked={show.website}
+                disabled={!draft.companyWebsite.trim()}
                 onChange={(website) => setShow((prev) => ({ ...prev, website }))}
               />
             </div>
@@ -324,54 +350,92 @@ export function LogoSection() {
           {t('Your plan prints the company name instead of the logo. The logo is included in Lite.')}
         </p>
       )}
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="flex h-20 w-56 items-center justify-center rounded-lg border bg-white p-2">
-          {settings.companyLogo ? (
-            <img
-              src={settings.companyLogo}
-              alt={settings.companyName}
-              className="max-h-full max-w-full object-contain"
-              data-testid="settings-logo"
-            />
+      {/* Слева загрузка, справа кусок настоящего инвойса: сразу видно, как логотип встанет в шапку */}
+      <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] md:items-start">
+        <div className="space-y-3">
+          {canManageTeam ? (
+            <div className="flex flex-wrap gap-2">
+              <Button asChild size="sm" variant="outline" disabled={busy}>
+                <label className="cursor-pointer">
+                  <ImageUp />
+                  {t(settings.companyLogo ? 'Replace logo' : 'Upload logo')}
+                  <input
+                    type="file"
+                    accept={acceptFor(LOGO_TYPES)}
+                    className="sr-only"
+                    onChange={pick}
+                    data-testid="logo-input"
+                  />
+                </label>
+              </Button>
+              {settings.companyLogo && (
+                <Button size="sm" variant="ghost" onClick={() => updateSettings({ companyLogo: '' })}>
+                  <Trash2 />
+                  {t('Remove')}
+                </Button>
+              )}
+            </div>
           ) : (
-            <span className="text-xs text-neutral-500">{t('No logo yet')}</span>
+            !settings.companyLogo && <p className="text-sm text-muted-foreground">{t('No logo yet')}</p>
+          )}
+          {canManageTeam && (
+            <p className="text-xs text-muted-foreground">
+              {t('PNG, JPG or WebP. A logo on a transparent or white background looks best.')}
+            </p>
           )}
         </div>
-        {canManageTeam && (
-          <div className="flex flex-wrap gap-2">
-            <Button asChild size="sm" variant="outline" disabled={busy}>
-              <label className="cursor-pointer">
-                <ImageUp />
-                {t(settings.companyLogo ? 'Replace logo' : 'Upload logo')}
-                <input
-                  type="file"
-                  accept={acceptFor(LOGO_TYPES)}
-                  className="sr-only"
-                  onChange={pick}
-                  data-testid="logo-input"
-                />
-              </label>
-            </Button>
-            {settings.companyLogo && (
-              <Button size="sm" variant="ghost" onClick={() => updateSettings({ companyLogo: '' })}>
-                <Trash2 />
-                {t('Remove')}
-              </Button>
-            )}
-          </div>
-        )}
+        <LogoOnDocument settings={settings} withLogo={features.logo} />
       </div>
-      {canManageTeam && (
-        <p className="mt-3 text-xs text-muted-foreground">
-          {t('PNG, JPG or WebP. A logo on a transparent or white background looks best.')}
-        </p>
-      )}
       {error && (
         <p className="mt-2 text-sm text-destructive" role="alert">
           {error}
         </p>
       )}
     </SectionCard>
+  )
+}
+
+// Верх инвойса в миниатюре: логотип (или название) слева, реквизиты справа, ниже заголовок и строки-заглушки
+function LogoOnDocument({ settings, withLogo }: { settings: Settings; withLogo: boolean }) {
+  return (
+    <figure className="space-y-1.5">
+      <figcaption className="text-xs text-muted-foreground">{t('How it looks on an invoice')}</figcaption>
+      <div
+        className="relative overflow-hidden rounded-lg border bg-white p-5 text-[11px] text-neutral-900 shadow-xs"
+        data-testid="logo-preview"
+      >
+        <div className="flex items-start justify-between gap-4">
+          {settings.companyLogo && withLogo ? (
+            <img
+              src={settings.companyLogo}
+              alt={settings.companyName}
+              className="max-h-12 max-w-[160px] object-contain object-left"
+              data-testid="settings-logo"
+            />
+          ) : (
+            <div className="text-lg leading-tight font-bold tracking-tight text-neutral-800">{settings.companyName}</div>
+          )}
+          <div className="min-w-0 text-right leading-snug">
+            <div className="truncate font-semibold">{settings.companyName}</div>
+            <div className="truncate text-neutral-500">{settings.companyAddress}</div>
+            <div className="truncate text-neutral-500">{settings.companyPhone}</div>
+          </div>
+        </div>
+        <div className="mt-4 flex items-center gap-3">
+          <span className="h-px flex-1 bg-neutral-300" />
+          <span className="tracking-wide text-neutral-600">{t('INVOICE')}</span>
+          <span className="h-px w-1/4 bg-neutral-300" />
+        </div>
+        <div className="mt-4 space-y-2" aria-hidden>
+          <div className="h-2 w-1/3 rounded bg-neutral-200" />
+          <div className="h-2 w-1/2 rounded bg-neutral-100" />
+          <div className="mt-3 h-5 rounded bg-neutral-100" />
+          <div className="h-2 w-full rounded bg-neutral-100" />
+        </div>
+        {/* Низ листа растворяется: это кусок документа, а не весь инвойс */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-white" />
+      </div>
+    </figure>
   )
 }
 
@@ -412,7 +476,7 @@ function NumbersSection() {
       </FormField>
       <div className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
         {[
-          ['Quotation', `${prefix}000001`],
+          ['Quotation', `QUO-${prefix}-000001`],
           ['Shipment', `SHP-${prefix}-000001`],
           ['Invoice', `INV-${prefix}-000001`],
         ].map(([label, example]) => (
@@ -655,7 +719,15 @@ export function TeamSection() {
       title="Team and roles"
       action={
         <div className="flex items-center gap-3">
-          {full && <span className="text-xs text-muted-foreground">{t('All {n} seats are taken', { n: limit })}</span>}
+          {/* Сколько мест занято из тарифа: «3 из 5» */}
+          {limit !== null && (
+            <span
+              className={cn('text-xs tabular-nums', full ? 'text-warning-text' : 'text-muted-foreground')}
+              data-testid="seats-used"
+            >
+              {t('{used} of {n} seats used', { used: team.length, n: limit })}
+            </span>
+          )}
           <Button size="sm" variant="outline" disabled={full} onClick={() => setEditing('new')}>
             <UserPlus />
             {t('Add person')}
@@ -668,36 +740,39 @@ export function TeamSection() {
           const me = member.email === session?.email
           return (
             <div key={member.id} className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium">
+              {/* На телефоне имя и email — отдельной строкой, роль и кнопки под ними, чтобы текст не наезжал */}
+              <div className="min-w-0 basis-full sm:flex-1 sm:basis-0">
+                <div className="text-sm font-medium break-words">
                   {member.name}
                   {me && <span className="ml-2 text-xs font-normal text-muted-foreground">{t('(you)')}</span>}
                 </div>
-                <div className="text-sm text-muted-foreground">{member.email}</div>
+                <div className="truncate text-sm text-muted-foreground">{member.email}</div>
               </div>
               {member.pending && (
                 <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs text-warning-text">
                   {t('Has not signed in yet')}
                 </span>
               )}
-              <span className="text-sm text-muted-foreground">{t(roleLabels[member.role])}</span>
-              {API_MODE && !me && (
-                <Button variant="ghost" size="sm" onClick={() => issueLink(member)}>
-                  {t('Sign-in link')}
+              <div className="flex items-center gap-1">
+                <span className="mr-2 text-sm text-muted-foreground">{t(roleLabels[member.role])}</span>
+                {API_MODE && !me && (
+                  <Button variant="ghost" size="sm" onClick={() => issueLink(member)}>
+                    {t('Sign-in link')}
+                  </Button>
+                )}
+                <Button variant="ghost" size="icon-sm" aria-label={t('Edit')} onClick={() => setEditing(member)}>
+                  <Pencil />
                 </Button>
-              )}
-              <Button variant="ghost" size="icon-sm" aria-label={t('Edit')} onClick={() => setEditing(member)}>
-                <Pencil />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={t('Remove')}
-                disabled={me}
-                onClick={() => setRemoving(member)}
-              >
-                <Trash2 />
-              </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={t('Remove')}
+                  disabled={me}
+                  onClick={() => setRemoving(member)}
+                >
+                  <Trash2 />
+                </Button>
+              </div>
             </div>
           )
         })}
@@ -825,10 +900,10 @@ function MemberForm({ member, self, onDone }: { member?: TeamMember; self: boole
   if (invited)
     return (
       <div className="space-y-4">
-        <p className="text-sm">{t('Invitation sent to {email}.', { email: invited })}</p>
+        <p className="text-sm">{t('{email} is added to the team.', { email: invited })}</p>
         <p className="text-sm text-muted-foreground">
           {t(
-            'The person opens the link from the email, sets their own password and signs in with this email. You never need to know their password.',
+            'This is a demo, so no link is created. In the real system you get a one-time link here and send it to the person. They set their own password, you never need to know it.',
           )}
         </p>
         <DialogFooter>

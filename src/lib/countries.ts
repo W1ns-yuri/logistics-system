@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 
+import { catalogCities } from '@/data/catalog'
 import { currentLanguage } from '@/i18n'
 
 // Коды стран ISO 3166. Названия берём из браузера (Intl.DisplayNames), поэтому список сразу на двух языках.
@@ -185,20 +186,29 @@ const CITY_RU: Record<string, string> = {
   Tunis: 'Тунис',
 }
 
+// Русское название: сначала наш ручной список (Алматы, Киев), потом общий список городов мира
+// Города владельца платформы идут первыми: так он может и добавить город, и поправить русское название
+const ruName = (city: string) =>
+  catalogCities().find((c) => c.city === city)?.ru || CITY_RU[city] || worldRu.get(city)
+
 export function cityLabel(city: string) {
-  return currentLanguage() === 'ru' ? (CITY_RU[city] ?? city) : city
+  return currentLanguage() === 'ru' ? (ruName(city) ?? city) : city
 }
 
 // Слова для поиска города: и по-русски, и по-английски
-export const cityKeywords = (city: string) => [city, CITY_RU[city]].filter(Boolean).join(' ')
+export const cityKeywords = (city: string) => [city, ruName(city)].filter(Boolean).join(' ')
 
 /*
- * Города всего мира (GeoNames: все города от 50 тысяч жителей и минимум 20 крупнейших в каждой стране).
+ * Города всего мира на двух языках (Wikidata через Geomelon, CC0: города от 50 тысяч жителей
+ * и минимум 20 крупнейших в стране; для стран без этих данных — главные города, переведённые вручную).
+ * В файле «английское~русское», храним английское, показываем на языке интерфейса.
  * Файл большой, поэтому грузим его отдельно и только когда нужен выбор города.
  * Пока не загрузился — работают подсказки региона выше, а свой город можно вписать всегда.
  */
 let world: Record<string, string[]> | null = null
+const worldRu = new Map<string, string>()
 let loading = false
+let failed = false
 const worldListeners = new Set<() => void>()
 const plain = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
@@ -208,11 +218,22 @@ function loadWorld() {
   import('./world-cities.json')
     .then((mod) => {
       const raw = mod.default as Record<string, string>
-      world = Object.fromEntries(Object.entries(raw).map(([code, list]) => [code, list.split('|')]))
+      world = Object.fromEntries(
+        Object.entries(raw).map(([code, list]) => [
+          code,
+          list.split('|').map((pair) => {
+            const [en, ru] = pair.split('~')
+            if (ru && !worldRu.has(en)) worldRu.set(en, ru)
+            return en
+          }),
+        ]),
+      )
       worldListeners.forEach((listener) => listener())
     })
     .catch(() => {
-      loading = false // нет сети — попробуем в следующий раз
+      loading = false // нет сети — попробуем в следующий раз, а пока показываем английские названия
+      failed = true
+      worldListeners.forEach((listener) => listener())
     })
 }
 
@@ -225,6 +246,19 @@ export function useWorldCities() {
       return () => worldListeners.delete(listener)
     },
     () => world,
+  )
+}
+
+// Русские названия нужны и вне выбора города (маршруты в списках), поэтому на русском грузим список сразу
+// true, когда названия готовы (или не нужны, или не загрузились — тогда остаются английские)
+export function useCityNamesReady(enabled: boolean) {
+  return useSyncExternalStore(
+    (listener) => {
+      worldListeners.add(listener)
+      if (enabled) loadWorld()
+      return () => worldListeners.delete(listener)
+    },
+    () => !enabled || world !== null || failed,
   )
 }
 
@@ -244,11 +278,15 @@ function citiesOf(code: string) {
 export function citySuggestions(country: string, extra: string[] = []) {
   const code = byName.get(country)
   const base = code ? citiesOf(code) : []
-  return [...new Set([...base, ...extra])].filter(Boolean)
+  const added = catalogCities()
+    .filter((c) => c.country === country)
+    .map((c) => c.city)
+  return [...new Set([...added, ...base, ...extra])].filter(Boolean)
 }
 
 // Все города из подсказок с их страной (английское название, как храним): для выбора города в маршруте
 export function allCities() {
   const codes = [...new Set([...Object.keys(CITIES), ...Object.keys(world ?? {})])]
-  return codes.flatMap((code) => citiesOf(code).map((city) => ({ city, country: en.of(code) ?? code })))
+  const added = catalogCities().map(({ city, country }) => ({ city, country }))
+  return [...added, ...codes.flatMap((code) => citiesOf(code).map((city) => ({ city, country: en.of(code) ?? code })))]
 }

@@ -2,6 +2,7 @@ import { FileText, Mail, MapPin, Pencil, Phone, Trash2, Truck, User, Wallet } fr
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 
+import { catalogLabel } from '@/data/catalog'
 import { ConfirmDelete } from '@/components/confirm-delete'
 import { RecordHeader, RecordList, StatTile } from '@/components/record-page'
 import { SectionCard } from '@/components/section-card'
@@ -14,13 +15,12 @@ import { usePermissions } from '@/data/auth'
 import { deleteVendor, useQuotations, useShipments, useVendors } from '@/data/store'
 import { t } from '@/i18n'
 import { chargeTotals } from '@/lib/calculation'
-import { countryLabel } from '@/lib/countries'
+import { countryLabel, cityLabel } from '@/lib/countries'
 import { toUSD } from '@/lib/currency'
 import { formatDate, formatMoney } from '@/lib/format'
 import { NotFoundPage } from '@/pages/not-found'
 import { Contact } from '@/pages/customers/customer-detail-page'
 import { transportModeLabels } from '@/types/logistics'
-import { vendorTypeLabels } from '@/types/directory'
 import { VendorFormDialog } from './vendor-form-dialog'
 
 // Подрядчик на отдельной странице: контакты, сколько мы ему должны и заплатили, все перевозки и оплаты
@@ -30,7 +30,7 @@ export function VendorDetailPage() {
   const vendor = useVendors().find((v) => v.id === id)
   const quotations = useQuotations()
   const shipments = useShipments()
-  const { canEditOrders, canSeePayments } = usePermissions()
+  const { canEditOrders, canSeePayments, canDeleteDirectory: canDelete } = usePermissions()
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
 
@@ -72,7 +72,7 @@ export function VendorDetailPage() {
       <RecordHeader
         back="/vendors"
         title={vendor.name}
-        badge={<Badge variant="secondary">{t(vendorTypeLabels[vendor.type])}</Badge>}
+        badge={<Badge variant="secondary">{catalogLabel('vendor_type', vendor.type)}</Badge>}
         subtitle={
           <span className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-xs">{vendor.code}</span>
@@ -94,15 +94,18 @@ export function VendorDetailPage() {
                 <Pencil />
                 {t('Edit')}
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-destructive hover:text-destructive"
-                onClick={() => setDeleteOpen(true)}
-              >
-                <Trash2 />
-                {t('Delete')}
-              </Button>
+              {/* Удаляет только админ: на клиенте и подрядчике держатся заказы всех сотрудников */}
+              {canDelete && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 />
+                  {t('Delete')}
+                </Button>
+              )}
             </>
           )
         }
@@ -171,7 +174,7 @@ export function VendorDetailPage() {
                 key: s.id,
                 to: `/shipments/${s.id}`,
                 title: s.number,
-                meta: `${s.customer} · ${s.collectionAddress} → ${s.deliveryAddress} · ${formatDate(s.orderDate)}`,
+                meta: `${s.customer} · ${cityLabel(s.collectionAddress)} → ${cityLabel(s.deliveryAddress)} · ${formatDate(s.orderDate)}`,
                 right: <ShipmentStatusBadge status={s.status} />,
               }))}
             />
@@ -197,7 +200,7 @@ export function VendorDetailPage() {
                 key: q.id,
                 to: `/quotations/${q.id}`,
                 title: q.reference,
-                meta: `${q.customer} · ${q.collectionAddress} → ${q.deliveryAddress}`,
+                meta: `${q.customer} · ${cityLabel(q.collectionAddress)} → ${cityLabel(q.deliveryAddress)}`,
                 right: <QuotationStatusBadge status={q.status} />,
               }))}
             />

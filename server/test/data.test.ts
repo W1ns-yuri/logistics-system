@@ -112,7 +112,7 @@ test('бухгалтер вносит оплату в инвойс, но не м
 test('удаление видно другим через sync?since', async () => {
   const first = (await inject({ method: 'GET', url: '/api/sync', cookies: admin })).json()
   await put(employee.cookie, 'customers', 'c-9', { name: 'Temp' })
-  assert.equal((await inject({ method: 'DELETE', url: '/api/records/customers/c-9', cookies: employee.cookie })).statusCode, 204)
+  assert.equal((await inject({ method: 'DELETE', url: '/api/records/customers/c-9', cookies: admin })).statusCode, 204)
   const changes = (await inject({ method: 'GET', url: `/api/sync?since=${encodeURIComponent(first.serverTime)}`, cookies: admin })).json()
   const c = changes.records.find((r: { id: string }) => r.id === 'c-9')
   assert.equal(c.data, null)
@@ -160,6 +160,38 @@ test('другая компания не видит чужие записи и �
   // Его же можно поставить логотипом
   const set = await inject({ method: 'PUT', url: '/api/settings', cookies: admin, payload: { companyLogo: url } })
   assert.equal(set.statusCode, 200)
+})
+
+test('чужая компания не может забрать сотрудника или выдать ему ссылку на пароль', async () => {
+  const rival = await inject({ method: 'POST', url: '/api/auth/signup', remoteAddress: '10.1.1.1', payload: { ...signupPayload, companyName: 'Rival', email: 'boss@rival.com' } })
+  const cookie = sessionCookie(rival)
+  // Сотрудник с паролем
+  const taken = await inject({ method: 'POST', url: '/api/team', cookies: cookie, payload: { name: 'Victim', email: 'operator@company.com', role: 'employee' } })
+  assert.equal(taken.json().error, 'member_elsewhere')
+  // Приглашённый, но ещё без пароля: его ссылку тоже нельзя перехватить
+  const pending = await inject({ method: 'POST', url: '/api/team', cookies: admin, payload: { name: 'Pending', email: 'pending@company.com', role: 'admin' } })
+  assert.equal(pending.statusCode, 201)
+  // Приглашённый админ ещё не вошёл — единственный настоящий админ не может понизить себя
+  const me = (await inject({ method: 'GET', url: '/api/auth/me', cookies: admin })).json()
+  const demote = await inject({ method: 'PATCH', url: `/api/team/${me.user.id}`, cookies: admin, payload: { role: 'employee' } })
+  assert.equal(demote.json().error, 'last_admin')
+  const hijack = await inject({ method: 'POST', url: '/api/team', cookies: cookie, payload: { name: 'Pending', email: 'pending@company.com', role: 'employee' } })
+  assert.equal(hijack.json().error, 'member_elsewhere')
+  // Ссылка первой компании продолжает работать
+  const info = await inject({ method: 'GET', url: pending.json().inviteUrl.replace('/invite/', '/api/invite/') })
+  assert.equal(info.statusCode, 200)
+  await inject({ method: 'DELETE', url: `/api/team/${pending.json().member.id}`, cookies: admin })
+  await ctx.db.delete(companies).where(eq(companies.name, 'Rival'))
+  await ctx.db.delete(users).where(eq(users.email, 'boss@rival.com'))
+})
+
+test('клиентов и подрядчиков удаляет только админ; чужой файл логотипом не поставить', async () => {
+  await put(admin, 'customers', 'cust-del', { name: 'Keep Me' })
+  assert.equal((await inject({ method: 'DELETE', url: '/api/records/customers/cust-del', cookies: employee.cookie })).statusCode, 403)
+  assert.equal((await put(employee.cookie, 'customers', 'cust-del', { name: 'Keep Me Ltd' })).statusCode, 200)
+  assert.equal((await inject({ method: 'DELETE', url: '/api/records/customers/cust-del', cookies: admin })).statusCode, 204)
+  const logo = await inject({ method: 'PUT', url: '/api/settings', cookies: admin, payload: { companyLogo: '/api/files/00000000-0000-4000-8000-000000000000' } })
+  assert.equal(logo.json().error, 'file_not_found')
 })
 
 test('файл проверяется по содержимому и типу', async () => {
@@ -335,6 +367,16 @@ test('Basic: месячный лимит новых котировок, нача
   assert.equal((await put(boss, 'shipments', 's-new', { number: 'SHP-WF-000099' })).statusCode, 200)
   const after = (await inject({ method: 'GET', url: '/api/sync', cookies: boss })).json()
   assert.equal(after.company.usage.quotations, 100)
+  // Старую удалённую котировку «оживить» мимо лимита нельзя: оживлённая считается новой
+  await ctx.db.update(records).set({ createdAt: new Date('2020-01-01'), deletedAt: new Date() }).where(eq(records.id, 'fill-1'))
+  const usageNow = (await inject({ method: 'GET', url: '/api/sync', cookies: boss })).json().company.usage.quotations
+  assert.equal(usageNow, 99)
+  assert.equal((await put(boss, 'quotations', 'fill-1', { reference: 'WF900001', customer: 'Revived' })).statusCode, 200)
+  assert.equal((await put(boss, 'quotations', 'fill-1', { reference: 'WF900001', customer: 'Revived' })).statusCode, 200)
+  await inject({ method: 'DELETE', url: '/api/records/quotations/fill-1', cookies: boss })
+  await ctx.db.update(records).set({ createdAt: new Date('2020-01-01') }).where(eq(records.id, 'fill-1'))
+  assert.equal((await put(boss, 'quotations', 'fill-1', { reference: 'WF900001', customer: 'Again' })).statusCode, 200)
+  assert.equal((await inject({ method: 'GET', url: '/api/sync', cookies: boss })).json().company.usage.quotations, 100)
   // На Lite лимита нет
   await ctx.db.update(companies).set({ plan: 'lite_plus' }).where(eq(companies.id, me.company.id))
   assert.equal((await put(boss, 'quotations', 'q-over', { reference: 'WF777777', customer: 'X' })).statusCode, 200)
@@ -400,4 +442,24 @@ test('ИНН и сайт можно скрыть из документов', asy
   assert.equal(res.statusCode, 200, res.body)
   assert.equal(res.json().settings.companyShowTaxId, false)
   assert.equal((await inject({ method: 'PUT', url: '/api/settings', cookies: boss, payload: { companyShowTaxId: 'no' } })).statusCode, 400)
+})
+
+test('справочники: владелец добавляет и правит, остальные только читают', async () => {
+  const login = await inject({ method: 'POST', url: '/api/platform/login', payload: { email: 'owner@platform.com', password: 'owner-password-1' } })
+  const owner = { omni_owner: login.cookies.find((c) => c.name === 'omni_owner')!.value }
+  // Админ компании менять справочники не может
+  const denied = await inject({ method: 'PUT', url: '/api/platform/catalog/city/Anau', cookies: admin, payload: { labelEn: 'Anau', labelRu: 'Анау', extra: 'Turkmenistan' } })
+  assert.equal(denied.statusCode, 401)
+  const city = await inject({ method: 'PUT', url: '/api/platform/catalog/city/Anau', cookies: owner, payload: { labelEn: 'Anau', labelRu: 'Анау', extra: 'Turkmenistan' } })
+  assert.equal(city.statusCode, 200, city.body)
+  // Переименовать встроенный тип и скрыть его; повторный PUT обновляет, а не дублирует
+  await inject({ method: 'PUT', url: '/api/platform/catalog/equipment/Lowbed', cookies: owner, payload: { labelEn: 'Low loader', labelRu: 'Трал' } })
+  await inject({ method: 'PUT', url: '/api/platform/catalog/equipment/Lowbed', cookies: owner, payload: { labelEn: 'Low loader', labelRu: 'Трал', hidden: true } })
+  assert.equal((await inject({ method: 'PUT', url: '/api/platform/catalog/unknown/x', cookies: owner, payload: { labelEn: 'X' } })).statusCode, 400)
+  // Список открыт всем, даже без входа (нужен на регистрации)
+  const list = (await inject({ method: 'GET', url: '/api/catalog' })).json().items
+  assert.equal(list.length, 2)
+  assert.deepEqual(list.find((i: { key: string }) => i.key === 'Lowbed'), { kind: 'equipment', key: 'Lowbed', labelEn: 'Low loader', labelRu: 'Трал', extra: '', hidden: true })
+  await inject({ method: 'DELETE', url: '/api/platform/catalog/equipment/Lowbed', cookies: owner })
+  assert.equal((await inject({ method: 'GET', url: '/api/catalog' })).json().items.length, 1)
 })

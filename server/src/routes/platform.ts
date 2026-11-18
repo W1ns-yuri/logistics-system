@@ -9,7 +9,7 @@ import { z } from 'zod'
 
 import { createLimiter, MINUTE } from '../auth/rate-limit.ts'
 import { hashToken, newToken } from '../auth/session.ts'
-import { companies, feedback, memberships, ownerSessions, users, type LicenseEvent } from '../db/schema.ts'
+import { catalogItems, companies, feedback, memberships, ownerSessions, users, type LicenseEvent } from '../db/schema.ts'
 import { findSuspects } from '../lib/suspects.ts'
 import { companyForClient, findCompany } from '../lib/company.ts'
 import { HttpError } from '../lib/http-error.ts'
@@ -43,6 +43,27 @@ const actionBody = z.discriminatedUnion('type', [
   z.object({ type: z.literal('block'), blocked: z.boolean() }),
   z.object({ type: z.literal('note'), note: z.string().max(2000) }),
 ])
+
+// Справочники, которые владелец меняет сам. Ключ — то, что хранится в записях компаний
+export const CATALOG_KINDS = ['city', 'equipment', 'document', 'vendor_type', 'lost_reason', 'payment_method', 'incoterm'] as const
+const catalogParams = z.object({
+  kind: z.enum(CATALOG_KINDS),
+  key: z.string().trim().min(1).max(80),
+})
+const catalogBody = z.object({
+  labelEn: z.string().trim().min(1).max(80),
+  labelRu: z.string().trim().max(80).default(''),
+  extra: z.string().trim().max(200).default(''),
+  hidden: z.boolean().default(false),
+})
+const catalogRow = (r: typeof catalogItems.$inferSelect) => ({
+  kind: r.kind,
+  key: r.key,
+  labelEn: r.labelEn,
+  labelRu: r.labelRu,
+  extra: r.extra,
+  hidden: r.hidden,
+})
 
 export async function platformRoutes(app: FastifyInstance) {
   const { db } = app
@@ -86,6 +107,32 @@ export async function platformRoutes(app: FastifyInstance) {
     if (token) await db.delete(ownerSessions).where(eq(ownerSessions.tokenHash, hashToken(token)))
     reply.clearCookie(OWNER_COOKIE, { path: '/' })
     return reply.code(204).send()
+  })
+
+  // Справочники для всех: нужны и на регистрации (города), поэтому без входа. Секретов тут нет
+  app.get('/api/catalog', async (_request, reply) => {
+    reply.header('cache-control', 'no-cache')
+    const rows = await db.select().from(catalogItems).orderBy(asc(catalogItems.createdAt))
+    return { items: rows.map(catalogRow) }
+  })
+
+  // Добавить значение или переименовать/скрыть встроенное (одна запись на kind + key)
+  app.put('/api/platform/catalog/:kind/:key', { preHandler: requireOwner }, async (request) => {
+    const { kind, key } = catalogParams.parse(request.params)
+    const body = catalogBody.parse(request.body)
+    const [row] = await db
+      .insert(catalogItems)
+      .values({ kind, key, ...body })
+      .onConflictDoUpdate({ target: [catalogItems.kind, catalogItems.key], set: body })
+      .returning()
+    return { item: catalogRow(row!) }
+  })
+
+  // Удалить своё значение или вернуть встроенному исходное название. Старые записи компаний сохраняют ключ
+  app.delete('/api/platform/catalog/:kind/:key', { preHandler: requireOwner }, async (request) => {
+    const { kind, key } = catalogParams.parse(request.params)
+    await db.delete(catalogItems).where(and(eq(catalogItems.kind, kind), eq(catalogItems.key, key)))
+    return { ok: true }
   })
 
   app.get('/api/platform/me', { preHandler: requireOwner }, async (request) => ({
