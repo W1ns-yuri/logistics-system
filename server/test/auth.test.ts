@@ -159,3 +159,36 @@ test('с одного IP не больше 5 регистраций в час', 
   }
   assert.deepEqual(codes, [201, 201, 201, 201, 201, 429])
 })
+
+test('один аккаунт — одно устройство: вход на втором выкидывает первый с причиной', async () => {
+  const email = 'single@company.com'
+  await ctx.app.inject({ method: 'POST', url: '/api/auth/signup', payload: { ...signupPayload, email } })
+  const login = () =>
+    ctx.app.inject({ method: 'POST', url: '/api/auth/login', payload: { email, password: signupPayload.password } })
+  const first = sessionCookie(await login())
+  assert.equal((await ctx.app.inject({ method: 'GET', url: '/api/auth/me', cookies: first })).statusCode, 200)
+  const second = sessionCookie(await login())
+  const kicked = await ctx.app.inject({ method: 'GET', url: '/api/auth/me', cookies: first })
+  assert.equal(kicked.statusCode, 401)
+  assert.equal(kicked.json().error, 'session_replaced')
+  const data = await ctx.app.inject({ method: 'GET', url: '/api/sync', cookies: first })
+  assert.equal(data.statusCode, 401, 'и данные компании первой сессии больше не отдаются')
+  assert.equal((await ctx.app.inject({ method: 'GET', url: '/api/auth/me', cookies: second })).statusCode, 200)
+})
+
+test('платный тариф на регистрации сразу создаёт заявку на оплату с годом и местами', async () => {
+  const res = await ctx.app.inject({
+    method: 'POST',
+    url: '/api/auth/signup',
+    payload: {
+      ...signupPayload,
+      email: 'yearly@company.com',
+      planRequest: { plan: 'lite_plus', months: 12, extraSeats: 3 },
+    },
+  })
+  assert.equal(res.statusCode, 201)
+  const request = res.json().company.planRequest
+  assert.equal(request.plan, 'lite_plus')
+  assert.equal(request.months, 12)
+  assert.equal(request.extraSeats, 3)
+})

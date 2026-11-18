@@ -27,6 +27,8 @@ const actionBody = z.discriminatedUnion('type', [
     months: z.number().int().min(1).max(36),
     amount: z.number().min(0).max(1_000_000).optional(),
     plan: z.enum(PLANS).exclude(['trial']).optional(),
+    // Сколько мест сверх тарифа оплачено (из заявки компании); не передали — места не меняем
+    extraSeats: z.number().int().min(0).max(1000).optional(),
   }),
   // Оплату внесли по ошибке. Если она последняя, срок лицензии откатывается назад
   z.object({ type: z.literal('remove_payment'), paymentId: z.string().min(1).max(100) }),
@@ -210,10 +212,11 @@ export async function platformRoutes(app: FastifyInstance) {
         // Уже истекла — от сегодня, иначе — со следующего дня после окончания
         const from = daysBetween(todayIso(), company.paidUntil) < 0 ? todayIso() : addDays(company.paidUntil, 1)
         const paidUntil = periodEnd(from, action.months)
-        const payment = { id: crypto.randomUUID(), date: todayIso(), from, amount: action.amount ?? paymentAmount(plan, action.months), months: action.months, plan }
+        const payment = { id: crypto.randomUUID(), date: todayIso(), from, amount: action.amount ?? paymentAmount(plan, action.months, action.extraSeats ?? 0), months: action.months, plan }
         patch = {
           plan,
           paidUntil,
+          ...(action.extraSeats !== undefined && { extraSeats: action.extraSeats }),
           licensePayments: [...company.licensePayments, payment],
           planRequest: null,
           events: event('Extended by {n} mo. until {date}', { n: action.months, date: paidUntil }),

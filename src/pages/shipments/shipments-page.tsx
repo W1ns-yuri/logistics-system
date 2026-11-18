@@ -97,7 +97,7 @@ export function ShipmentsPage() {
             />
             {/* Таблица или доска и фильтр «Опаздывают» — в той же строке, что и кнопки */}
             <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-              <div className="inline-flex rounded-lg border bg-muted/50 p-0.5" role="radiogroup" aria-label={t('View')}>
+              <div className="inline-flex h-8 rounded-lg border bg-muted/50 p-0.5" role="radiogroup" aria-label={t('View')}>
                 {VIEWS.map((v) => (
                   <button
                     key={v.value}
@@ -106,7 +106,7 @@ export function ShipmentsPage() {
                     aria-checked={view === v.value}
                     onClick={() => changeView(v.value)}
                     className={cn(
-                      'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors',
+                      'inline-flex items-center gap-1.5 rounded-md px-2.5 text-sm transition-colors',
                       view === v.value
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground',
@@ -124,7 +124,7 @@ export function ShipmentsPage() {
                   onClick={() => setOnlyLate((v) => !v)}
                   data-testid="late-filter"
                   className={cn(
-                    'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-sm transition-colors',
+                    'inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-sm transition-colors',
                     onlyLate
                       ? 'border-destructive bg-destructive/10 text-destructive'
                       : 'text-muted-foreground hover:border-destructive/50 hover:text-destructive',

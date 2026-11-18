@@ -1,5 +1,3 @@
-import { Link } from 'react-router'
-
 import { currentLanguage, t } from '@/i18n'
 
 /*
@@ -196,10 +194,8 @@ export function TermsPage() {
   return (
     <div className="min-h-svh bg-muted/40 px-4 py-8 sm:py-12">
       <main className="mx-auto max-w-3xl rounded-xl border bg-card p-6 shadow-xs sm:p-10">
-        <Link to="/signup" className="text-sm text-primary hover:underline">
-          ← {t('Back')}
-        </Link>
-        <h1 id="terms" className="mt-4 text-2xl font-semibold tracking-tight">
+        {/* Без кнопки «Назад»: страница открывается в новой вкладке, анкета регистрации остаётся в старой */}
+        <h1 id="terms" className="text-2xl font-semibold tracking-tight">
           {t('Terms of service')}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">{t('Updated {date}', { date: UPDATED })}</p>

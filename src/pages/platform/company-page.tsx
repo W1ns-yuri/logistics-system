@@ -31,6 +31,7 @@ import {
   issueAdminLink,
   setExtraSeats,
   periodEnd,
+  paymentAmount,
   planLabels,
   PLANS,
   removeLicensePayment,
@@ -145,6 +146,8 @@ export function CompanyPage() {
                 plan: t(planLabels[company.planRequest.plan]),
                 n: company.planRequest.months,
               })}
+              {!!company.planRequest.extraSeats && ` + ${t('{n} extra users', { n: company.planRequest.extraSeats })}`}
+              {` · $${paymentAmount(company.planRequest.plan, company.planRequest.months, company.planRequest.extraSeats ?? 0)}`}
             </span>{' '}
             <span className="text-muted-foreground">
               {t('requested {date}. Contact them, then record the payment.', {

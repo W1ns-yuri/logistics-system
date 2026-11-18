@@ -1,10 +1,11 @@
-import { CheckCircle2, Circle, FileText, Receipt, Truck } from 'lucide-react'
-import { useMemo, type ReactNode } from 'react'
+import { CheckCircle2, Circle, FileText, Receipt, Truck, X } from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router'
 
 import { PageHeader } from '@/components/page-header'
 import { InvoiceStatusBadge, QuotationStatusBadge, ShipmentStatusBadge } from '@/components/status-badge'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { usePermissions } from '@/data/auth'
 import { useSettings } from '@/data/settings'
@@ -192,14 +193,36 @@ export function HomePage() {
 }
 
 // Первые шаги для новой компании: пока нет ни одной котировки
+// Скрыли подсказку — больше не показываем в этом браузере
+const HIDE_KEY = 'omni-getting-started-hidden'
+const readHidden = () => {
+  try {
+    return localStorage.getItem(HIDE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 function GettingStarted() {
   const customers = useCustomers()
   const vendors = useVendors()
   const team = useTeam()
   const settings = useSettings()
-  // Второй этап регистрации: реквизиты для документов заполняются уже внутри, в Settings
+  const [hidden, setHidden] = useState(readHidden)
+  if (hidden) return null
+  const hide = () => {
+    try {
+      localStorage.setItem(HIDE_KEY, '1')
+    } catch {
+      // не сохранилось — скроем до перезагрузки
+    }
+    setHidden(true)
+  }
+  // Реквизиты заполнены, если есть ИНН или адрес длиннее «Город, Страна» из регистрации.
+  // Реквизиты не обязательны: шаг можно не делать, а всю подсказку — скрыть крестиком
+  const detailsDone = !!settings.companyTaxId.trim() || settings.companyAddress.split(',').filter((p) => p.trim()).length > 2
   const steps = [
-    { title: 'Fill in company details', to: '/settings', done: !!settings.companyTaxId.trim() },
+    { title: 'Fill in company details', to: '/settings', done: detailsDone },
     { title: 'Add your first customer', to: '/customers?new=1', done: customers.length > 0 },
     { title: 'Add a carrier or agent', to: '/vendors?new=1', done: vendors.length > 0 },
     { title: 'Create a quotation', to: '/quotations/new', done: false },
@@ -208,10 +231,16 @@ function GettingStarted() {
   return (
     <Card className="gap-4">
       <CardHeader>
-        <CardTitle>{t('Getting started')}</CardTitle>
-        <CardDescription>
-          {t('Five steps to your first shipment. A quotation becomes a shipment in one click.')}
-        </CardDescription>
+        <div>
+          <CardTitle>{t('Getting started')}</CardTitle>
+          <CardDescription className="mt-1">
+            {t('Five steps to your first shipment. A quotation becomes a shipment in one click.')}
+          </CardDescription>
+        </div>
+        <Button variant="ghost" size="sm" onClick={hide} data-testid="getting-started-hide">
+          <X />
+          {t('Hide')}
+        </Button>
       </CardHeader>
       <CardContent>
         <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">

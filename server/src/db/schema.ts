@@ -22,7 +22,7 @@ export const planEnum = pgEnum('plan', ['trial', 'lite', 'lite_plus', 'standard'
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 
-export type PlanRequest = { plan: string; months: number; at: string }
+export type PlanRequest = { plan: string; months: number; extraSeats?: number; at: string }
 
 export const companies = pgTable('companies', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -101,6 +101,8 @@ export const sessions = pgTable(
       .notNull()
       .references(() => companies.id, { onDelete: 'cascade' }),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    // Тот же человек вошёл на другом устройстве: эта сессия больше не действует (один аккаунт — одно место)
+    replacedAt: timestamp('replaced_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [index('sessions_user_idx').on(t.userId), index('sessions_expires_idx').on(t.expiresAt)],

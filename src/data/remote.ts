@@ -163,7 +163,7 @@ async function flush() {
           retryTimer = setTimeout(() => void flush(), 5000)
           break
         }
-        if (error instanceof ApiError && error.status === 401) return handleSignedOut()
+        if (error instanceof ApiError && error.status === 401) return handleSignedOut(error.code)
         // Сервер отказал: показываем причину и возвращаем то, что лежит на сервере
         setStatus({ error: apiErrorText(error) })
         await pull({ full: true })
@@ -234,7 +234,7 @@ async function pull({ full = false } = {}) {
     applySync(res)
     setStatus({ offline: false })
   } catch (error) {
-    if (error instanceof ApiError && error.status === 401) return handleSignedOut()
+    if (error instanceof ApiError && error.status === 401) return handleSignedOut(error.code)
     if (error instanceof ApiError && error.code === 'blocked') {
       // Компанию заблокировали — RequireAuth покажет экран блокировки
       const me = await api<Viewer>('/api/auth/me').catch(() => undefined)
@@ -296,7 +296,8 @@ export function bootstrap() {
   booting ??= (async () => {
     try {
       await enter(await api<Viewer>('/api/auth/me'))
-    } catch {
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 'session_replaced') rememberSignOutReason(error.code)
       setStatus({ ready: true })
     }
   })()
@@ -349,7 +350,27 @@ function clearLocal() {
   setStatus({ pending: 0, error: undefined, offline: false })
 }
 
-// Сессия истекла или человека убрали из команды
-function handleSignedOut() {
+// Сессия истекла, человека убрали из команды или он вошёл на другом устройстве
+function handleSignedOut(code?: string) {
+  if (code === 'session_replaced') rememberSignOutReason(code)
   clearLocal()
+}
+
+// Почему выкинуло: страница входа покажет это один раз
+const REASON_KEY = 'omni-signout-reason'
+function rememberSignOutReason(code: string) {
+  try {
+    sessionStorage.setItem(REASON_KEY, code)
+  } catch {
+    // без sessionStorage просто не покажем причину
+  }
+}
+export function takeSignOutReason() {
+  try {
+    const reason = sessionStorage.getItem(REASON_KEY)
+    sessionStorage.removeItem(REASON_KEY)
+    return reason
+  } catch {
+    return null
+  }
 }

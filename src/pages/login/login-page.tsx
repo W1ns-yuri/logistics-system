@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { FullPageLoader } from '@/components/require-auth'
 import { signIn, useSession } from '@/data/auth'
-import { useSyncStatus } from '@/data/remote'
+import { takeSignOutReason, useSyncStatus } from '@/data/remote'
 import { t } from '@/i18n'
 import { API_MODE, apiErrorText } from '@/lib/api'
 import { PRODUCT_NAME } from '@/lib/brand'
@@ -24,6 +24,8 @@ export function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  // Выкинуло, потому что под этим аккаунтом вошли на другом устройстве
+  const [replaced] = useState(() => API_MODE && takeSignOutReason() === 'session_replaced')
   const { ready } = useSyncStatus()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -152,6 +154,11 @@ export function LoginPage() {
               {t('Keep me signed in')}
             </label>
 
+            {replaced && !error && (
+              <p className="rounded-md bg-warning/10 px-3 py-2 text-sm text-warning-text" role="status" data-testid="session-replaced">
+                {t('Someone signed in to this account on another device, so this session was closed. One account works in one place at a time.')}
+              </p>
+            )}
             {error && (
               <p className="text-sm text-destructive" role="alert">
                 {error}

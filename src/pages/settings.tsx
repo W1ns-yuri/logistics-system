@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Database, ImageUp, Monitor, Moon, Pencil, RotateCcw, Sun, Trash2, UserPlus, Wand2 } from 'lucide-react'
 import { useSearchParams } from 'react-router'
 
@@ -322,10 +322,10 @@ export function LogoSection() {
   const { canManageTeam, features } = usePermissions()
   const [error, setError] = useState<string>()
   const [busy, setBusy] = useState(false)
+  const [dragging, setDragging] = useState(false)
+  const input = useRef<HTMLInputElement>(null)
 
-  const pick = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    event.target.value = '' // чтобы тот же файл можно было выбрать ещё раз
+  const upload = async (file: File | undefined) => {
     if (!file) return
     setError(undefined)
     const problem = await fileError(file, LOGO_TYPES)
@@ -339,49 +339,85 @@ export function LogoSection() {
       setBusy(false)
     }
   }
+  const pick = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = '' // чтобы тот же файл можно было выбрать ещё раз
+    void upload(file)
+  }
 
+  /*
+   * Слева — сам логотип в рамке (клик или перетаскивание файла), справа — как он встанет в шапку инвойса.
+   * Ничего лишнего: одна строка пояснения, две кнопки.
+   */
   return (
     <SectionCard title="Logo">
-      <p className="mb-4 text-sm text-muted-foreground">
-        {t('Shown at the top of quotation and invoice PDFs. Without a logo the company name is printed instead.')}
-      </p>
       {!features.logo && (
         <p className="mb-4 rounded-md bg-warning/10 px-3 py-2 text-sm text-warning-text">
           {t('Your plan prints the company name instead of the logo. The logo is included in Lite.')}
         </p>
       )}
-      {/* Слева загрузка, справа кусок настоящего инвойса: сразу видно, как логотип встанет в шапку */}
-      <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] md:items-start">
-        <div className="space-y-3">
-          {canManageTeam ? (
-            <div className="flex flex-wrap gap-2">
-              <Button asChild size="sm" variant="outline" disabled={busy}>
-                <label className="cursor-pointer">
-                  <ImageUp />
-                  {t(settings.companyLogo ? 'Replace logo' : 'Upload logo')}
-                  <input
-                    type="file"
-                    accept={acceptFor(LOGO_TYPES)}
-                    className="sr-only"
-                    onChange={pick}
-                    data-testid="logo-input"
-                  />
-                </label>
-              </Button>
-              {settings.companyLogo && (
-                <Button size="sm" variant="ghost" onClick={() => updateSettings({ companyLogo: '' })}>
-                  <Trash2 />
-                  {t('Remove')}
-                </Button>
-              )}
-            </div>
-          ) : (
-            !settings.companyLogo && <p className="text-sm text-muted-foreground">{t('No logo yet')}</p>
-          )}
+      <div className="grid gap-6 md:grid-cols-[220px_minmax(0,1fr)] md:items-start">
+        <div className="space-y-2">
+          <button
+            type="button"
+            disabled={!canManageTeam || busy}
+            onClick={() => input.current?.click()}
+            onDragOver={(e) => {
+              if (!canManageTeam) return
+              e.preventDefault()
+              setDragging(true)
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault()
+              setDragging(false)
+              if (canManageTeam) void upload(e.dataTransfer.files?.[0])
+            }}
+            className={cn(
+              'flex h-28 w-full items-center justify-center rounded-xl border border-dashed bg-muted/30 p-4 transition-colors enabled:hover:border-primary/60 enabled:hover:bg-primary/5 disabled:cursor-default',
+              dragging && 'border-primary bg-primary/5',
+              settings.companyLogo && 'border-solid bg-white',
+            )}
+            data-testid="logo-drop"
+          >
+            {settings.companyLogo ? (
+              <img src={settings.companyLogo} alt={settings.companyName} className="max-h-full max-w-full object-contain" />
+            ) : (
+              <span className="flex flex-col items-center gap-1.5 text-sm text-muted-foreground">
+                <ImageUp className="size-5" />
+                {canManageTeam ? t('Upload logo') : t('No logo yet')}
+              </span>
+            )}
+          </button>
           {canManageTeam && (
-            <p className="text-xs text-muted-foreground">
-              {t('PNG, JPG or WebP. A logo on a transparent or white background looks best.')}
-            </p>
+            <>
+              <input
+                ref={input}
+                type="file"
+                accept={acceptFor(LOGO_TYPES)}
+                className="sr-only"
+                onChange={pick}
+                data-testid="logo-input"
+              />
+              {settings.companyLogo && (
+                <div className="flex items-center gap-1">
+                  <>
+                    <Button size="sm" variant="ghost" disabled={busy} onClick={() => input.current?.click()}>
+                      {t('Replace')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => updateSettings({ companyLogo: '' })}
+                    >
+                      {t('Remove')}
+                    </Button>
+                  </>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">{t('PNG, JPG or WebP, transparent or white background.')}</p>
+            </>
           )}
         </div>
         <LogoOnDocument settings={settings} withLogo={features.logo} />
@@ -399,7 +435,7 @@ export function LogoSection() {
 function LogoOnDocument({ settings, withLogo }: { settings: Settings; withLogo: boolean }) {
   return (
     <figure className="space-y-1.5">
-      <figcaption className="text-xs text-muted-foreground">{t('How it looks on an invoice')}</figcaption>
+      <figcaption className="text-xs text-muted-foreground">{t('On quotations and invoices')}</figcaption>
       <div
         className="relative overflow-hidden rounded-lg border bg-white p-5 text-[11px] text-neutral-900 shadow-xs"
         data-testid="logo-preview"

@@ -349,9 +349,14 @@ export async function dataRoutes(app: FastifyInstance) {
     const viewer = viewerOf(request)
     assertAdmin(viewer)
     const body = z
-      .object({ plan: z.enum(SOLD_PLANS), months: z.union([z.literal(1), z.literal(12)]) })
+      .object({
+        plan: z.enum(SOLD_PLANS),
+        months: z.union([z.literal(1), z.literal(12)]),
+        // Места сверх тарифа для команды больше, чем в тарифе
+        extraSeats: z.number().int().min(0).max(100).optional(),
+      })
       .parse(request.body)
-    const planRequest = { ...body, at: new Date().toISOString() }
+    const planRequest = { ...body, extraSeats: body.extraSeats || undefined, at: new Date().toISOString() }
     const events = [
       { id: crypto.randomUUID(), at: planRequest.at, text: 'Payment requested: {plan}, {n} mo.', params: { plan: planLabels[body.plan], n: body.months } },
       ...viewer.company.events,
